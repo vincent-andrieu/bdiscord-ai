@@ -13,22 +13,16 @@ const config: {
 
 export default class BDiscordAI {
     private _logPrefix = `[${config.name}]`;
-    private _stop = true;
+    private _displaySummaryButton = false;
 
     start() {
         console.warn(this._logPrefix, "Started");
-        this._stop = false;
+
         this._addSummaryButton();
     }
 
     stop() {
-        this._stop = true;
-
-        const element = document.getElementById("summary-button");
-        if (element) {
-            BdApi.ReactDOM.unmountComponentAtNode(element);
-            element.remove();
-        }
+        this._removeSummaryButton();
 
         console.warn(this._logPrefix, "Stopped");
     }
@@ -41,13 +35,19 @@ export default class BDiscordAI {
         });
     }
 
+    private _log(message: string): void {
+        const logMessage = `${this._logPrefix} ${message}`;
+
+        BdApi.UI.showToast(logMessage, { type: "error" });
+        return console.error(logMessage);
+    }
+
     private _addSummaryButton() {
-        if (this._stop) return;
+        if (!this._displaySummaryButton) return;
         const toolbar = document.querySelector('[class^="toolbar__"]');
 
         if (!toolbar) {
-            BdApi.UI.showToast(this._logPrefix + " Toolbar not found", { type: "error" });
-            return console.error(this._logPrefix + " Toolbar not found");
+            return this._log("Toolbar not found");
         }
         const button = BdApi.React.createElement(BdApi.Components.Button, {
             children: [BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }), "Résumer"],
@@ -64,7 +64,38 @@ export default class BDiscordAI {
         BdApi.DOM.onRemoved(node, this._addSummaryButton.bind(this));
     }
 
+    private _removeSummaryButton() {
+        this._displaySummaryButton = false;
+
+        const element = document.getElementById("summary-button");
+        if (element) {
+            BdApi.ReactDOM.unmountComponentAtNode(element);
+            element.remove();
+        }
+    }
+
     private _summarize() {
-        BdApi.UI.showToast("Résumé !", { type: "info" });
+        const SelectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
+        const ReadStateStore = BdApi.Webpack.getStore("ReadStateStore");
+        const MessageStore = BdApi.Webpack.getStore("MessageStore");
+
+        const channelId = SelectedChannelStore.getChannelId();
+        if (!channelId) {
+            return this._log("No channel selected");
+        }
+
+        const channelReadState = ReadStateStore.getReadStatesByChannel()[channelId];
+        const unreadCount: number | undefined = channelReadState?.unreadCount;
+
+        if (unreadCount === undefined) {
+            return this._log("Failed to get unread messages count");
+        }
+
+        console.warn("unreadCount", unreadCount);
+        if (unreadCount > 0) {
+            const unreadMessages = MessageStore.getMessages(channelId).filter((message: any) => message.id >= channelReadState.oldestUnreadMessageId);
+
+            console.warn("unreadMessages", unreadMessages);
+        }
     }
 }
