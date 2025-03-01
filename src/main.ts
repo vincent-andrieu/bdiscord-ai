@@ -91,8 +91,7 @@ export default class BDiscordAI {
             return this._log("Failed to get unread messages count");
         }
 
-        console.warn("unreadCount", unreadCount);
-        if (unreadCount > 0) {
+        if (channelReadState.oldestUnreadMessageId) {
             const unreadMessages = MessageStore.getMessages(channelId).filter((message: any) => message.id >= channelReadState.oldestUnreadMessageId);
 
             console.warn("unreadMessages", unreadMessages);

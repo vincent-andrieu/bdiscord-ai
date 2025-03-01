@@ -1,10 +1,5 @@
 type BdApiInstance = typeof BdApiModule;
 
-declare module "*.svg" {
-    const content: string;
-    export default content;
-}
-
 declare global {
     const BdApi: BdApiInstance;
 }
