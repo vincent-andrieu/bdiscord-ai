@@ -1,5 +1,15 @@
 type BdApiInstance = typeof BdApiModule;
 
+export type Author = {
+    id: string;
+    username: string;
+}
+
+export type Message = {
+    author: Author;
+    content: string;
+}
+
 declare global {
     const BdApi: BdApiInstance;
 }

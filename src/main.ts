@@ -1,5 +1,6 @@
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 import { aiStarsIcon } from "./icons/aiStars";
+import { Message } from "./types";
 import { SettingConfigElement } from "./types/settings";
 
 const name = "BDiscordAI";
@@ -78,6 +79,8 @@ export default class BDiscordAI {
         const SelectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
         const ReadStateStore = BdApi.Webpack.getStore("ReadStateStore");
         const MessageStore = BdApi.Webpack.getStore("MessageStore");
+        const UserStore = BdApi.Webpack.getStore("UserStore");
+        const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
 
         const channelId = SelectedChannelStore.getChannelId();
         if (!channelId) {
@@ -92,9 +95,29 @@ export default class BDiscordAI {
         }
 
         if (channelReadState.oldestUnreadMessageId) {
+            const guildId = channelReadState.guildId;
             const unreadMessages = MessageStore.getMessages(channelId).filter((message: any) => message.id >= channelReadState.oldestUnreadMessageId);
+            const guildMembersNicks: Record<string, string> = {};
+            const messages: Message[] = unreadMessages.map((message: any) => {
+                if (!guildMembersNicks[message.author.id]) {
+                    const member = GuildMemberStore.getMember(guildId, message.author.id);
 
-            console.warn("unreadMessages", unreadMessages);
+                    guildMembersNicks[message.author.id] = member?.nick;
+                    if (!guildMembersNicks[message.author.id]) {
+                        guildMembersNicks[message.author.id] = UserStore.getUser(message.author.id)?.globalName;
+                    }
+                }
+
+                return {
+                    author: {
+                        id: message.author.id,
+                        username: guildMembersNicks[message.author.id] || message.author.username
+                    },
+                    content: message.content
+                };
+            });
+
+            console.warn("messages", messages);
         }
     }
 }
