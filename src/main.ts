@@ -1,6 +1,7 @@
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SummaryButton } from "./summaryButton";
 import { LogLevel } from "./types";
+import { DiscordEvent } from "./types/discord";
 import { SettingConfigElement } from "./types/settings";
 import { UnreadMessage } from "./unreadMessages";
 
@@ -34,6 +35,7 @@ export default class BDiscordAI {
     stop() {
         this._summaryButton?.remove();
 
+        this._unsubscribe();
         console.warn(LOG_PREFIX, "Stopped");
     }
 
@@ -52,17 +54,27 @@ export default class BDiscordAI {
         console[type](logMessage);
     }
 
+    private _unsubscribe(): void {
+        this._fluxDispatcher.unsubscribe("MESSAGE_CREATE", this._onEvent);
+        this._fluxDispatcher.unsubscribe("CHANNEL_SELECT", this._onEvent);
+    }
+
     private _listenUnreadMessages() {
-        function onNewMessage(event: string) {
-            console.log("New message received:", event);
-        }
+        this._fluxDispatcher.subscribe("MESSAGE_CREATE", this._onEvent);
+        this._fluxDispatcher.subscribe("CHANNEL_SELECT", this._onEvent);
+    }
 
-        function onChannelSelect(event: string) {
-            console.log("Channel selected:", event);
+    private _onEvent(event: DiscordEvent) {
+        switch (event.type) {
+            case "MESSAGE_CREATE":
+                console.warn("New message received:", event);
+                break;
+            case "CHANNEL_SELECT":
+                console.warn("Channel selected:", event);
+                break;
+            default:
+                console.warn("Unknown event:", event);
         }
-
-        this._fluxDispatcher.subscribe("MESSAGE_CREATE", onNewMessage);
-        this._fluxDispatcher.subscribe("CHANNEL_SELECT", onChannelSelect);
     }
 
     private async _summarize() {

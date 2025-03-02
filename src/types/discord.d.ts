@@ -1,3 +1,7 @@
+export type DiscordEvent = {
+    type: string;
+};
+
 export type DiscordChannelMessages = {
     cached: boolean;
     channelId: string;
