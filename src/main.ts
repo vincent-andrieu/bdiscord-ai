@@ -58,12 +58,12 @@ export default class BDiscordAI {
         console[type](logMessage);
     }
 
-    private _unsubscribeEvents(): void {
-        this._listeningEvents.forEach((event) => this._fluxDispatcher.unsubscribe(event, this._onEventSubscriptionCb));
-    }
-
     private _subscribeEvents() {
         this._listeningEvents.forEach((event) => this._fluxDispatcher.subscribe(event, this._onEventSubscriptionCb));
+    }
+
+    private _unsubscribeEvents(): void {
+        this._listeningEvents.forEach((event) => this._fluxDispatcher.unsubscribe(event, this._onEventSubscriptionCb));
     }
 
     private _onEvent(event: DiscordEvent) {
