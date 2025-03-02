@@ -1,30 +1,48 @@
 import { LogLevel, Message } from "./types";
 import { DiscordChannelMessages } from "./types/discord";
-import { MessageStore, UserStore } from "./types/stores";
+import { MessageStore, SelectedChannelStore, UserStore } from "./types/stores";
 import { getOldestId } from "./utils";
 
+const HAS_UNREAD_MIN_CHAR = 300;
+
 export class UnreadMessage {
-    private _selectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
+    private _selectedChannelStore: SelectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
     private _readStateStore = BdApi.Webpack.getStore("ReadStateStore");
     private _messageStore: MessageStore = BdApi.Webpack.getStore("MessageStore");
     private _selectedGuildStore = BdApi.Webpack.getStore("SelectedGuildStore");
     private _guildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
     private _userStore: UserStore = BdApi.Webpack.getStore("UserStore");
 
-    get channelId(): string {
-        return this._selectedChannelStore.getChannelId();
+    get channelId(): string | undefined {
+        return this._selectedChannelStore.getCurrentlySelectedChannelId();
     }
 
     constructor(private _log: (message: string, type: LogLevel) => void) {}
 
-    public hasUnreadMessages(): boolean {
-        const channelReadState = this._readStateStore.getReadStatesByChannel()[this.channelId];
+    public hasUnreadMessages(channelId?: string): boolean {
+        if (!channelId) channelId = this.channelId;
+        if (!channelId) return false;
+        const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
-        return !!channelReadState.oldestUnreadMessageId;
+        if (channelReadState.oldestUnreadMessageId) {
+            const messages = this._messageStore.getMessages(channelId);
+            let nChar = 0;
+
+            return messages.some((message) => {
+                if (getOldestId(message.id, channelReadState.oldestUnreadMessageId) === channelReadState.oldestUnreadMessageId) {
+                    nChar += message.content.length;
+
+                    return nChar >= HAS_UNREAD_MIN_CHAR;
+                }
+                return false;
+            });
+        }
+        return false;
     }
 
     public async getUnreadMessages(): Promise<Array<Message>> {
         const channelId = this.channelId;
+        if (!channelId) return [];
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
         if (channelReadState.oldestUnreadMessageId) {

@@ -1,5 +1,7 @@
+export type DiscordEventType = "CHANNEL_SELECT" | "MESSAGE_CREATE" | "MESSAGE_DELETE" | "LOAD_MESSAGES_SUCCESS" | "MESSAGE_ACK";
 export type DiscordEvent = {
-    type: string;
+    type: DiscordEventType;
+    channelId: string;
 };
 
 export type DiscordChannelMessages = {

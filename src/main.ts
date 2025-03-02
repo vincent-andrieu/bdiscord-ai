@@ -1,8 +1,9 @@
 // import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SummaryButton } from "./summaryButton";
 import { LogLevel } from "./types";
-import { DiscordEvent } from "./types/discord";
+import { DiscordEvent, DiscordEventType } from "./types/discord";
 import { SettingConfigElement } from "./types/settings";
+import { SelectedChannelStore } from "./types/stores";
 import { UnreadMessage } from "./unreadMessages";
 
 const name = "BDiscordAI";
@@ -16,26 +17,29 @@ const config: {
 const LOG_PREFIX = `[${config.name}]`;
 
 export default class BDiscordAI {
+    private _selectedChannelStore: SelectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
     private _fluxDispatcher: any;
+    private _onEventSubscriptionCb: typeof BDiscordAI.prototype._onEvent = this._onEvent.bind(this);
 
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
+    private _listeningEvents: Array<DiscordEventType> = ["CHANNEL_SELECT", "MESSAGE_CREATE", "MESSAGE_DELETE", "LOAD_MESSAGES_SUCCESS", "MESSAGE_ACK"];
 
     start() {
         console.warn(LOG_PREFIX, "Started");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
 
-        this._summaryButton = new SummaryButton(this._summarize.bind(this), this._log.bind(this));
+        this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
         this._unreadMessages = new UnreadMessage(this._log.bind(this));
 
-        this._listenUnreadMessages();
-        this._summaryButton.add();
+        this._subscribeEvents();
+        this._enableSummaryButtonIfNeeded();
     }
 
     stop() {
-        this._summaryButton?.remove();
+        this._summaryButton?.toggle(false);
 
-        this._unsubscribe();
+        this._unsubscribeEvents();
         console.warn(LOG_PREFIX, "Stopped");
     }
 
@@ -54,27 +58,42 @@ export default class BDiscordAI {
         console[type](logMessage);
     }
 
-    private _unsubscribe(): void {
-        this._fluxDispatcher.unsubscribe("MESSAGE_CREATE", this._onEvent);
-        this._fluxDispatcher.unsubscribe("CHANNEL_SELECT", this._onEvent);
+    private _unsubscribeEvents(): void {
+        this._listeningEvents.forEach((event) => this._fluxDispatcher.unsubscribe(event, this._onEventSubscriptionCb));
     }
 
-    private _listenUnreadMessages() {
-        this._fluxDispatcher.subscribe("MESSAGE_CREATE", this._onEvent);
-        this._fluxDispatcher.subscribe("CHANNEL_SELECT", this._onEvent);
+    private _subscribeEvents() {
+        this._listeningEvents.forEach((event) => this._fluxDispatcher.subscribe(event, this._onEventSubscriptionCb));
     }
 
     private _onEvent(event: DiscordEvent) {
+        const selectedChannelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
+
+        if (!selectedChannelId) return;
         switch (event.type) {
-            case "MESSAGE_CREATE":
-                console.warn("New message received:", event);
-                break;
             case "CHANNEL_SELECT":
-                console.warn("Channel selected:", event);
+            case "MESSAGE_CREATE":
+            case "MESSAGE_DELETE":
+            case "LOAD_MESSAGES_SUCCESS":
+            case "MESSAGE_ACK":
+                if (event.channelId === selectedChannelId) {
+                    this._enableSummaryButtonIfNeeded(selectedChannelId);
+                }
                 break;
             default:
-                console.warn("Unknown event:", event);
+                console.warn(LOG_PREFIX, "Unknown event", event);
+                break;
         }
+    }
+
+    private _enableSummaryButtonIfNeeded(channelId?: string) {
+        setTimeout(() => {
+            if (this._unreadMessages) {
+                const enable = this._unreadMessages.hasUnreadMessages(channelId);
+
+                this._summaryButton?.toggle(enable);
+            }
+        }, 0);
     }
 
     private async _summarize() {
