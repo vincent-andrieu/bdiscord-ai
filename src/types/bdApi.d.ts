@@ -148,7 +148,7 @@ type Webpack = {
     getByKeys<T = any>(...props: WithOptions<string, WebpackOptions>): T;
     getByStrings<T>(...strings: WithOptions<string, WebpackOptions>): T;
     getModules<T extends any[]>(filter: Filter, options: WebpackOptions = {}): T;
-    getStore(name: string): any;
+    getStore<T = any>(name: string): T;
 
     modules: Proxy<Require["m"]>;
 };

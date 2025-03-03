@@ -1,11 +1,12 @@
 export type LogLevel = "error" | "warn";
 
 export type Author = {
-    id: string;
     username: string;
+    roles: Array<string>;
 };
 
 export type Message = {
     author: Author;
     content: string;
+    date: string;
 };

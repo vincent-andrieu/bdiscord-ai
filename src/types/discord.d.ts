@@ -216,3 +216,54 @@ export type DiscordUser = {
     get nameplate(): any; // Replace 'any' with the appropriate type if known
     get tag(): any; // Replace 'any' with the appropriate type if known
 };
+
+export type DiscordGuildMember = {
+    avatar: string | null;
+    avatarDecoration: any | null; // Replace 'any' with the appropriate type if known
+    colorRoleId: string;
+    colorString: string;
+    communicationDisabledUntil: Date | null;
+    flags: number;
+    fullProfileLoadedTimestamp: Date | undefined;
+    guildId: string;
+    highestRoleId: string;
+    hoistRoleId: string;
+    iconRoleId: string | undefined;
+    isPending: boolean;
+    joinedAt: Date;
+    nick: string | null;
+    premiumSince: Date | null;
+    roles: string[];
+    unusualDMActivityUntil: Date | undefined;
+    userId: string;
+};
+
+export type DiscordRole = {
+    color: number;
+    colorString: string;
+    flags: number;
+    hoist: boolean;
+    icon: string | null;
+    id: string;
+    managed: boolean;
+    mentionable: boolean;
+    name: string;
+    originalPosition: number;
+    permissions: bigint;
+    position: number;
+    tags: unknown;
+    unicodeEmoji: string | null;
+};
+
+export type DiscordEmoji = {
+    allNamesString: string;
+    animated: boolean;
+    available: boolean;
+    guildId: string;
+    id: string;
+    managed: boolean;
+    name: string;
+    require_colons: boolean;
+    roles: string[];
+    type: number;
+};
