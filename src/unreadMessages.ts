@@ -16,10 +16,8 @@ import { getOldestId } from "./utils";
 const HAS_UNREAD_MIN_CHAR = 300;
 
 export class UnreadMessage {
-    private _selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
     private _readStateStore = BdApi.Webpack.getStore("ReadStateStore");
     private _messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
-    private _guildStore = BdApi.Webpack.getStore<GuildStore>("GuildStore");
 
     get channelId(): string | undefined {
         return this._selectedChannelStore.getCurrentlySelectedChannelId();
@@ -27,8 +25,10 @@ export class UnreadMessage {
 
     constructor(
         private _userStore: UserStore,
+        private _guildStore: GuildStore,
         private _selectedGuildStore: SelectedGuildStore,
         private _guildMemberStore: GuildMemberStore,
+        private _selectedChannelStore: SelectedChannelStore,
         private _log: (message: string, type: LogLevel) => void
     ) {}
 
