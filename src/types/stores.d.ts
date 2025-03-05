@@ -2,6 +2,7 @@ import { DiscordChannelMessages, DiscordEmoji, DiscordGuildMember, DiscordUser }
 
 export type UserStore = {
     getUser: (userId: string) => DiscordUser;
+    getCurrentUser: () => DiscordUser;
 };
 
 export type SelectedChannelStore = {
@@ -24,6 +25,10 @@ export type GuildMemberStore = {
 
 export type GuildStore = {
     getRole(guildId: string, roleId: string): DiscordRole;
+};
+
+export type SelectedGuildStore = {
+    getGuildId(): string;
 };
 
 export type EmojiStore = {

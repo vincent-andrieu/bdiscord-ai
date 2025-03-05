@@ -1,53 +1,67 @@
-// import { GoogleGenerativeAI } from "@google/generative-ai";
+import { config, SETTING_GOOGLE_API_KEY } from "./config";
+import { GeminiAi } from "./geminiAi";
+import { i18n } from "./i18n";
 import { SummaryButton } from "./summaryButton";
-import { LogLevel } from "./types";
-import { DiscordEvent, DiscordEventType } from "./types/discord";
-import { SettingConfigElement } from "./types/settings";
-import { SelectedChannelStore } from "./types/stores";
+import { DiscordEvent, DiscordEventType, GuildMemberStore, LogLevel, SelectedChannelStore, SelectedGuildStore, SettingItem, UserStore } from "./types";
 import { UnreadMessage } from "./unreadMessages";
 
-const name = "BDiscordAI";
-const config: {
-    name: string;
-    settings: SettingConfigElement[];
-} = {
-    name,
-    settings: [{ type: "text", id: "googleApiKey", name: "Google API Key", value: BdApi.Data.load(name, "googleApiKey"), placeholder: "API KEY" }]
-};
 const LOG_PREFIX = `[${config.name}]`;
 
 export default class BDiscordAI {
-    private _selectedChannelStore: SelectedChannelStore = BdApi.Webpack.getStore("SelectedChannelStore");
+    private _userStore?: UserStore;
+    private _guildMemberStore?: GuildMemberStore;
+    private _selectedGuildStore?: SelectedGuildStore;
+    private _selectedChannelStore?: SelectedChannelStore;
     private _fluxDispatcher: any;
     private _onEventSubscriptionCb: typeof BDiscordAI.prototype._onEvent = this._onEvent.bind(this);
 
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
     private _listeningEvents: Array<DiscordEventType> = ["CHANNEL_SELECT", "MESSAGE_CREATE", "MESSAGE_DELETE", "LOAD_MESSAGES_SUCCESS", "MESSAGE_ACK"];
+    private _closeApiKeyNotice?: () => void;
 
     start() {
         console.warn(LOG_PREFIX, "Started");
+        this._userStore = BdApi.Webpack.getStore<UserStore>("UserStore");
+        this._guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
+        this._selectedGuildStore = BdApi.Webpack.getStore<SelectedGuildStore>("SelectedGuildStore");
+        this._selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
 
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
-        this._unreadMessages = new UnreadMessage(this._log.bind(this));
+        this._unreadMessages = new UnreadMessage(this._userStore, this._selectedGuildStore, this._guildMemberStore, this._log.bind(this));
 
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
+
+        if (!BdApi.Data.load<string | undefined>(config.name, SETTING_GOOGLE_API_KEY)?.trim().length) {
+            this._showAddApiKeyNotice();
+        }
     }
 
     stop() {
         this._summaryButton?.toggle(false);
+        this._closeApiKeyNotice?.();
 
         this._unsubscribeEvents();
         console.warn(LOG_PREFIX, "Stopped");
     }
 
     getSettingsPanel() {
-        // console.log(GoogleGenerativeAI);
         return BdApi.UI.buildSettingsPanel({
             settings: config.settings,
-            onChange: (_category, id, value) => BdApi.Data.save(config.name, id, value)
+            onChange: (_category, id, value) => {
+                const setting = config.settings.find((setting) => setting.type !== "category" && setting.id === id) as SettingItem | undefined;
+
+                if (setting) {
+                    setting.value = value;
+                }
+                BdApi.Data.save(config.name, id, value);
+                if (this._closeApiKeyNotice && id === SETTING_GOOGLE_API_KEY) {
+                    this._closeApiKeyNotice();
+                    this._closeApiKeyNotice = undefined;
+                }
+            }
         });
     }
 
@@ -56,6 +70,26 @@ export default class BDiscordAI {
 
         BdApi.UI.showToast(logMessage, { type: type === "warn" ? "warning" : "error" });
         console[type](logMessage);
+    }
+
+    private _showAddApiKeyNotice(): void {
+        this._closeApiKeyNotice = BdApi.UI.showNotice(`${LOG_PREFIX} Aucune clée API Google n'est configurée`, {
+            type: "warning",
+            buttons: [
+                {
+                    label: "Ajouter",
+                    onClick: () =>
+                        BdApi.UI.showConfirmationModal(
+                            `${config.name} Settings`,
+                            BdApi.React.createElement("div", {
+                                className: "bd-addon-settings-wrap",
+                                children: this.getSettingsPanel()
+                            }),
+                            { className: "bd-addon-modal", size: "bd-modal-medium", cancelText: null, confirmText: i18n("done") }
+                        )
+                }
+            ]
+        });
     }
 
     private _subscribeEvents() {
@@ -67,7 +101,7 @@ export default class BDiscordAI {
     }
 
     private _onEvent(event: DiscordEvent) {
-        const selectedChannelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
+        const selectedChannelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
 
         if (!selectedChannelId) return;
         switch (event.type) {

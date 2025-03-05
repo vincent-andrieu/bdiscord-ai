@@ -46,14 +46,15 @@ const Colors = Object.freeze({
     TRANSPARENT: "bd-button-color-transparent",
     CUSTOM: ""
 });
-const Sizes = Object.freeze({
+type ButtonSizes = Readonly<{
     NONE: "",
     TINY: "bd-button-tiny",
     SMALL: "bd-button-small",
     MEDIUM: "bd-button-medium",
     LARGE: "bd-button-large",
     ICON: "bd-button-icon"
-});
+}>;
+
 export type ButtonProps = PropsWithChildren<{
     className?: string;
     onClick?: MouseEventHandler<HTMLButtonElement>;
@@ -63,7 +64,7 @@ export type ButtonProps = PropsWithChildren<{
     type?: "button" | "submit" | "reset";
     look?: typeof Looks[keyof typeof Looks];
     color?: typeof Colors[keyof typeof Colors];
-    size?: typeof Sizes[keyof typeof Sizes];
+    size?: typeof ButtonSizes[keyof typeof ButtonSizes];
     grow?: boolean;
 }>;
 type Components = {
@@ -86,7 +87,7 @@ type Components = {
 };
 
 type Data = {
-    load(pluginName: string, key: string): any;
+    load<T>(pluginName: string, key: string): T | undefined;
     save(pluginName: string, key: string, data: unknown): void;
     delete(pluginName: string, key: string): void;
 };
@@ -107,8 +108,32 @@ type Patcher = {
     getPatchesByCaller(caller: string): Function[];
 };
 
+const ModalRoot = {
+    Sizes: Object.freeze({
+        SMALL: "bd-modal-small",
+        MEDIUM: "bd-modal-medium",
+        LARGE: "bd-modal-large",
+        DYNAMIC: ""
+    })
+};
+export type ConfirmationModalOptions = PropsWithChildren<{
+    onClose?(): void;
+    onConfirm?(): void;
+    onCancel?(): void;
+    onCloseCallback?(): void;
+    transitionState?: number;
+    size?: typeof ModalRoot.Sizes[keyof typeof ModalRoot.Sizes];
+    className?: string;
+    header?: string;
+    confirmText?: string;
+    cancelText?: string | null;
+    danger?: boolean;
+    key?: string | number;
+}>;
 type UI = {
     buildSettingsPanel(props: { settings: SettingConfigElement[]; onChange: (category: string, id: string, value: any) => void }): HTMLElement;
+    showConfirmationModal(title: string, content: (string | HTMLElement | Array<string | HTMLElement>), options: ConfirmationModalOptions = {}): string | number | void;
+    showNotice(content: string, options?: { type?: 'info' | 'success' | 'warning' | 'error' = 'info'; buttons?: Array.<{ label: string, onClick: () => void }>; timeout?: number = 10000 }): () => void;
     showToast(content: string, options?: { type?: "info" | "success" | "warning" | "error" = ""; icon?: boolean; timeout?: number = 3000; forceShow?: boolean = false }): void;
 };
 

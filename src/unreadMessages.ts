@@ -1,6 +1,16 @@
-import { LogLevel, Message } from "./types";
-import { DiscordChannelMessages, DiscordGuildMember, DiscordMessage } from "./types/discord";
-import { GuildMemberStore, GuildStore, MessageStore, SelectedChannelStore, UserStore } from "./types/stores";
+import {
+    DiscordChannelMessages,
+    DiscordGuildMember,
+    DiscordMessage,
+    GuildMemberStore,
+    GuildStore,
+    LogLevel,
+    Message,
+    MessageStore,
+    SelectedChannelStore,
+    SelectedGuildStore,
+    UserStore
+} from "./types";
 import { getOldestId } from "./utils";
 
 const HAS_UNREAD_MIN_CHAR = 300;
@@ -9,16 +19,18 @@ export class UnreadMessage {
     private _selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
     private _readStateStore = BdApi.Webpack.getStore("ReadStateStore");
     private _messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
-    private _selectedGuildStore = BdApi.Webpack.getStore("SelectedGuildStore");
     private _guildStore = BdApi.Webpack.getStore<GuildStore>("GuildStore");
-    private _guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
-    private _userStore = BdApi.Webpack.getStore<UserStore>("UserStore");
 
     get channelId(): string | undefined {
         return this._selectedChannelStore.getCurrentlySelectedChannelId();
     }
 
-    constructor(private _log: (message: string, type: LogLevel) => void) {}
+    constructor(
+        private _userStore: UserStore,
+        private _selectedGuildStore: SelectedGuildStore,
+        private _guildMemberStore: GuildMemberStore,
+        private _log: (message: string, type: LogLevel) => void
+    ) {}
 
     public hasUnreadMessages(channelId?: string): boolean {
         if (!channelId) channelId = this.channelId;
