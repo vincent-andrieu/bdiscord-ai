@@ -1,3 +1,4 @@
+import { getSetting, SETTING_GOOGLE_API_KEY } from "./config";
 import { aiStarsIcon } from "./icons/aiStars";
 
 export class SummaryButton {
@@ -9,7 +10,11 @@ export class SummaryButton {
         private _onClick: () => void
     ) {}
 
-    public toggle(value?: boolean) {
+    public toggle(value?: boolean): void {
+        if ((value || (value === undefined && !this._enabled)) && !getSetting(SETTING_GOOGLE_API_KEY)?.length) {
+            return;
+        }
+
         if (value !== undefined) {
             this._enabled = value;
         } else {
