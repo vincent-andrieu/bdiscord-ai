@@ -1,4 +1,5 @@
 import { config, SETTING_GOOGLE_API_KEY } from "./config";
+import { DiscordMessageFlags } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { SummaryButton } from "./summaryButton";
@@ -14,6 +15,7 @@ import {
     UserStore
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
+import { createMessage } from "./utils";
 
 const LOG_PREFIX = `[${config.name}]`;
 
@@ -157,5 +159,9 @@ export default class BDiscordAI {
 
         const iaModel = new GeminiAi();
         const summary = await iaModel.summarizeMessages(unreadMessages);
+        const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
+        const message = createMessage(channelId, previousMessageId, user, summary, DiscordMessageFlags.EPHEMERAL);
+
+        this._messageActions?.receiveMessage(channelId, message);
     }
 }

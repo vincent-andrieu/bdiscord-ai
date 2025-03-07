@@ -1,3 +1,5 @@
+import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "src/constants";
+
 export type DiscordEventType = "CHANNEL_SELECT" | "MESSAGE_CREATE" | "MESSAGE_DELETE" | "LOAD_MESSAGES_SUCCESS" | "MESSAGE_ACK";
 export type DiscordEvent = {
     type: DiscordEventType;
@@ -171,79 +173,79 @@ export type DiscordChannelMessages = {
 };
 
 export type DiscordMessage = {
-    activity: null;
-    activityInstance: null;
-    application: null;
-    applicationId: null;
-    attachments: any[]; // Replace 'any' with the appropriate type if known
+    activity?: null;
+    activityInstance?: null;
+    application?: null;
+    applicationId?: null;
+    attachments?: any[]; // Replace 'any' with the appropriate type if known
     author: DiscordUser;
     blocked: boolean;
     bot: boolean;
-    call: null;
-    changelogId: null;
+    call?: null;
+    changelogId?: null;
     channel_id: string;
-    codedLinks: any[]; // Replace 'any' with the appropriate type if known
-    colorString: string | undefined;
-    components: any[]; // Replace 'any' with the appropriate type if known
+    codedLinks?: any[]; // Replace 'any' with the appropriate type if known
+    colorString?: string | undefined;
+    components?: any[]; // Replace 'any' with the appropriate type if known
     content: string;
-    customRenderedContent: any; // Replace 'any' with the appropriate type if known
-    editedTimestamp: string | null;
-    embeds: any[]; // Replace 'any' with the appropriate type if known
-    flags: number;
-    giftCodes: any[]; // Replace 'any' with the appropriate type if known
-    giftInfo: any; // Replace 'any' with the appropriate type if known
-    giftingPrompt: null;
+    customRenderedContent?: any; // Replace 'any' with the appropriate type if known
+    editedTimestamp?: string | null;
+    embeds?: any[]; // Replace 'any' with the appropriate type if known
+    flags: DiscordMessageFlags;
+    giftCodes?: any[]; // Replace 'any' with the appropriate type if known
+    giftInfo?: any; // Replace 'any' with the appropriate type if known
+    giftingPrompt?: null;
     id: string;
     ignored: boolean;
-    interaction: null;
-    interactionData: any; // Replace 'any' with the appropriate type if known
-    interactionError: any; // Replace 'any' with the appropriate type if known
-    interactionMetadata: any; // Replace 'any' with the appropriate type if known
+    interaction?: null;
+    interactionData?: any; // Replace 'any' with the appropriate type if known
+    interactionError?: any; // Replace 'any' with the appropriate type if known
+    interactionMetadata?: any; // Replace 'any' with the appropriate type if known
     isSearchHit: boolean;
     isUnsupported: boolean;
-    loggingName: null;
+    loggingName?: null;
     mentionChannels: any[]; // Replace 'any' with the appropriate type if known
     mentionEveryone: boolean;
     mentionRoles: any[]; // Replace 'any' with the appropriate type if known
     mentioned: boolean;
     mentions: any[]; // Replace 'any' with the appropriate type if known
-    messageReference: any; // Replace 'any' with the appropriate type if known
-    messageSnapshots: any[]; // Replace 'any' with the appropriate type if known
-    nick: string | undefined;
+    messageReference?: any; // Replace 'any' with the appropriate type if known
+    messageSnapshots?: any[]; // Replace 'any' with the appropriate type if known
+    nick?: string | undefined;
     nonce: string | null;
     pinned: boolean;
-    poll: any; // Replace 'any' with the appropriate type if known
-    potions: any; // Replace 'any' with the appropriate type if known
-    purchaseNotification: any; // Replace 'any' with the appropriate type if known
+    poll?: any; // Replace 'any' with the appropriate type if known
+    potions?: any; // Replace 'any' with the appropriate type if known
+    purchaseNotification?: any; // Replace 'any' with the appropriate type if known
     reactions: any[]; // Replace 'any' with the appropriate type if known
-    referralTrialOfferId: null;
-    roleSubscriptionData: any; // Replace 'any' with the appropriate type if known
-    soundboardSounds: any; // Replace 'any' with the appropriate type if known
-    state: string;
-    stickerItems: any[]; // Replace 'any' with the appropriate type if known
-    stickers: any[]; // Replace 'any' with the appropriate type if known
-    timestamp: Date;
+    referralTrialOfferId?: null;
+    roleSubscriptionData?: any; // Replace 'any' with the appropriate type if known
+    soundboardSounds?: any; // Replace 'any' with the appropriate type if known
+    state: DiscordMessageState;
+    stickerItems?: any[]; // Replace 'any' with the appropriate type if known
+    stickers?: any[]; // Replace 'any' with the appropriate type if known
+    timestamp: Date | string;
     tts: boolean;
-    type: number;
-    webhookId: string | null;
-    addReaction: (emoji: string, animated?: boolean, users?: string[], options?: any, context?: any) => void;
-    addReactionBatch: (reactions: any, options: any) => void;
-    canDeleteOwnMessage: (options: any) => boolean;
-    getChannelId: () => string;
-    getContentMessage: () => string;
-    getReaction: (emoji: string) => any;
-    hasPotions: () => boolean;
-    isCommandType: () => boolean;
-    isComponentsV2: () => boolean;
-    isEdited: () => boolean;
-    isFirstMessageInForumPost: (options: any) => boolean;
-    isInteractionPlaceholder: () => boolean;
-    isPoll: () => boolean;
-    isSystemDM: () => boolean;
-    removeReaction: (emoji: string, animated?: boolean, users?: string[], options?: any) => void;
-    removeReactionsForEmoji: (emoji: string) => any;
-    toJS: () => any;
-    userHasReactedWithEmoji: (emoji: string, userId: string) => boolean;
+    type: DiscordMessageType;
+    webhookId?: string | null;
+    addReaction?: (emoji: string, animated?: boolean, users?: string[], options?: any, context?: any) => void;
+    addReactionBatch?: (reactions: any, options: any) => void;
+    canDeleteOwnMessage?: (options: any) => boolean;
+    getChannelId?: () => string;
+    getContentMessage?: () => string;
+    getReaction?: (emoji: string) => any;
+    hasPotions?: () => boolean;
+    isCommandType?: () => boolean;
+    isComponentsV2?: () => boolean;
+    isEdited?: () => boolean;
+    isFirstMessageInForumPost?: (options: any) => boolean;
+    isInteractionPlaceholder?: () => boolean;
+    isPoll?: () => boolean;
+    isSystemDM?: () => boolean;
+    removeReaction?: (emoji: string, animated?: boolean, users?: string[], options?: any) => void;
+    removeReactionsForEmoji?: (emoji: string) => any;
+    toJS?: () => any;
+    userHasReactedWithEmoji?: (emoji: string, userId: string) => boolean;
 };
 
 export type DiscordUser = {

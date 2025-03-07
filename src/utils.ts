@@ -1,3 +1,6 @@
+import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "./constants";
+import { DiscordMessage, DiscordUser } from "./types";
+
 export function getOldestId(a: string | undefined, b: string): string;
 export function getOldestId(a: string, b?: string): string;
 export function getOldestId(a: string, b: string): string;
@@ -21,4 +24,37 @@ export function getOldestId(a?: string, b?: string): string | undefined {
 
 export function convertTimestampToUnix(timestamp: Date | string | number): number {
     return Math.floor(new Date(timestamp).getTime() / 1000);
+}
+
+export function createMessage(
+    channelId: string,
+    previousMessageId: string,
+    author: DiscordUser,
+    content: string,
+    flags: DiscordMessageFlags = DiscordMessageFlags.DEFAULT
+): DiscordMessage {
+    return {
+        id: (BigInt(previousMessageId) + BigInt(1)).toString(),
+        author: author,
+        blocked: false,
+        bot: false,
+        channel_id: channelId,
+        content: content,
+        flags: flags,
+        ignored: false,
+        isSearchHit: false,
+        isUnsupported: false,
+        mentionChannels: [],
+        mentionEveryone: false,
+        mentionRoles: [],
+        mentioned: false,
+        mentions: [],
+        nonce: null,
+        pinned: false,
+        reactions: [],
+        state: DiscordMessageState.SENT,
+        timestamp: new Date().toISOString(),
+        tts: false,
+        type: DiscordMessageType.DEFAULT
+    };
 }
