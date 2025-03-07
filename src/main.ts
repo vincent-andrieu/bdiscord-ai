@@ -17,7 +17,7 @@ import {
 import { UnreadMessage } from "./unreadMessages";
 import { createMessage } from "./utils";
 
-const LOG_PREFIX = `[${config.name}]`;
+export const LOG_PREFIX = `[${config.name}]`;
 
 export default class BDiscordAI {
     private _userStore?: UserStore;
@@ -155,7 +155,7 @@ export default class BDiscordAI {
         // console.warn("unreadMessages", unreadMessages);
         const user = this._userStore?.getCurrentUser();
         const channelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
-        if (!unreadMessages || !user || !channelId) throw "Fail to summarize messages";
+        if (!unreadMessages || !user || !channelId) throw "Fail to get metadata";
 
         const iaModel = new GeminiAi();
         const summary = await iaModel.summarizeMessages(unreadMessages);

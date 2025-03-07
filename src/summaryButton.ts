@@ -1,5 +1,6 @@
 import { getSetting, SETTING_GOOGLE_API_KEY } from "./config";
 import { aiStarsIcon } from "./icons/aiStars";
+import { LOG_PREFIX } from "./main";
 
 export class SummaryButton {
     private _id = "summary-button";
@@ -49,6 +50,14 @@ export class SummaryButton {
                 try {
                     await this._onClick();
                     this.toggle(false);
+                } catch (error: any) {
+                    if (typeof error === "string") {
+                        this._log(error);
+                    } else if (error instanceof Error) {
+                        this._log(error.message);
+                    } else {
+                        console.error(LOG_PREFIX, error);
+                    }
                 } finally {
                     this._isLoading = false;
                     this._refresh();
