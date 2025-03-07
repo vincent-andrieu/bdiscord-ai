@@ -40,6 +40,7 @@ export class SummaryButton {
             children: [BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }), "Résumer"],
             size: "bd-button-small",
             disabled: this._isLoading,
+            style: { cursor: this._isLoading ? "wait" : undefined },
             onClick: async () => {
                 if (this._isLoading) return;
                 this._isLoading = true;
