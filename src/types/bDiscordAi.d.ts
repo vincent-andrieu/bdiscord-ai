@@ -6,7 +6,8 @@ export type Author = {
 };
 
 export type Message = {
+    id: string;
     author: Author;
     content: string;
-    date: string;
+    date: number;
 };

@@ -362,3 +362,8 @@ export type DiscordEmoji = {
     roles: string[];
     type: number;
 };
+
+export type MessageActions = {
+    fetchMessages: (params: { channelId: string; limit: number; before?: string; after?: string }) => Promise<Array<DiscordMessage>>;
+    receiveMessage: (channelId: string, message: DiscordMessage) => void;
+};

@@ -3,12 +3,11 @@ import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { SummaryButton } from "./summaryButton";
 import {
-    ChannelStore,
     DiscordEvent,
     DiscordEventType,
     GuildMemberStore,
-    GuildStore,
     LogLevel,
+    MessageActions,
     SelectedChannelStore,
     SelectedGuildStore,
     SettingItem,
@@ -20,11 +19,10 @@ const LOG_PREFIX = `[${config.name}]`;
 
 export default class BDiscordAI {
     private _userStore?: UserStore;
-    private _guildStore?: GuildStore;
     private _guildMemberStore?: GuildMemberStore;
     private _selectedGuildStore?: SelectedGuildStore;
-    private _channelStore?: ChannelStore;
     private _selectedChannelStore?: SelectedChannelStore;
+    private _messageActions?: MessageActions;
     private _fluxDispatcher: any;
     private _onEventSubscriptionCb: typeof BDiscordAI.prototype._onEvent = this._onEvent.bind(this);
 
@@ -36,20 +34,18 @@ export default class BDiscordAI {
     start() {
         console.warn(LOG_PREFIX, "Started");
         this._userStore = BdApi.Webpack.getStore<UserStore>("UserStore");
-        this._guildStore = BdApi.Webpack.getStore<GuildStore>("GuildStore");
         this._guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
         this._selectedGuildStore = BdApi.Webpack.getStore<SelectedGuildStore>("SelectedGuildStore");
-        this._channelStore = BdApi.Webpack.getStore<ChannelStore>("ChannelStore");
         this._selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
+        this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
 
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
         this._unreadMessages = new UnreadMessage(
-            this._userStore,
-            this._guildStore,
             this._selectedGuildStore,
             this._guildMemberStore,
             this._selectedChannelStore,
+            this._messageActions,
             this._log.bind(this)
         );
 

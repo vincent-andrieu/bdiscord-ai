@@ -18,3 +18,7 @@ export function getOldestId(a?: string, b?: string): string | undefined {
     }
     return a.length < b.length ? a : b;
 }
+
+export function convertTimestampToUnix(timestamp: Date | string | number): number {
+    return Math.floor(new Date(timestamp).getTime() / 1000);
+}
