@@ -150,7 +150,12 @@ export default class BDiscordAI {
 
     private async _summarize() {
         const unreadMessages = await this._unreadMessages?.getUnreadMessages();
+        // console.warn("unreadMessages", unreadMessages);
+        const user = this._userStore?.getCurrentUser();
+        const channelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
+        if (!unreadMessages || !user || !channelId) throw "Fail to summarize messages";
 
-        console.warn("unreadMessages", unreadMessages);
+        const iaModel = new GeminiAi();
+        const summary = await iaModel.summarizeMessages(unreadMessages);
     }
 }
