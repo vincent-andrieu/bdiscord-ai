@@ -1,6 +1,5 @@
 import {
     DiscordChannelMessages,
-    DiscordGuildMember,
     DiscordMessage,
     GuildMemberStore,
     LogLevel,
@@ -90,26 +89,15 @@ export class UnreadMessage {
 
     private _mapMessages(messages: Array<DiscordMessage>): Array<Message> {
         const guildId = this._selectedGuildStore.getGuildId();
-        const membersRoles: Record<string, DiscordGuildMember> = {};
-
-        const cacheMemberRoles = (memberId: string): void => {
-            if (!membersRoles[memberId]) {
-                const messageMember = this._guildMemberStore.getMember(guildId, memberId);
-
-                if (messageMember) {
-                    membersRoles[memberId] = messageMember;
-                }
-            }
-        };
 
         return messages.map((message) => {
-            cacheMemberRoles(message.author.id);
+            const member = this._guildMemberStore.getMember(guildId, message.author.id);
 
             return {
                 id: message.id,
                 author: {
                     username: `<@${message.author.id}>`,
-                    roles: membersRoles[message.author.id]?.roles.map((roleId) => `<@&${roleId}>`) || []
+                    roles: member?.roles.map((roleId) => `<@&${roleId}>`) || []
                 },
                 content: message.content,
                 date: convertTimestampToUnix(message.timestamp)
