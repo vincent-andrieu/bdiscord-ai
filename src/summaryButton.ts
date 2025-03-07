@@ -4,10 +4,11 @@ import { aiStarsIcon } from "./icons/aiStars";
 export class SummaryButton {
     private _id = "summary-button";
     private _enabled = false;
+    private _isLoading = false;
 
     constructor(
         private _log: (message: string) => void,
-        private _onClick: () => void
+        private _onClick: () => Promise<void>
     ) {}
 
     public toggle(value?: boolean): void {
@@ -38,7 +39,20 @@ export class SummaryButton {
         const button = BdApi.React.createElement(BdApi.Components.Button, {
             children: [BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }), "Résumer"],
             size: "bd-button-small",
-            onClick: this._onClick
+            disabled: this._isLoading,
+            onClick: async () => {
+                if (this._isLoading) return;
+                this._isLoading = true;
+                this._refresh();
+
+                try {
+                    await this._onClick();
+                    this.toggle(false);
+                } finally {
+                    this._isLoading = false;
+                    this._refresh();
+                }
+            }
         });
         const node = document.createElement("div");
         node.id = this._id;
@@ -51,12 +65,16 @@ export class SummaryButton {
     }
 
     private _remove() {
-        if (this._enabled) return;
-
         const element = document.getElementById(this._id);
+
         if (element) {
             BdApi.ReactDOM.unmountComponentAtNode(element);
             element.remove();
         }
+    }
+
+    private _refresh() {
+        this._remove();
+        this._add();
     }
 }
