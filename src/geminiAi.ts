@@ -50,7 +50,6 @@ export class GeminiAi {
             `- Lien vers un message : https://discord.com/channels/1234/1234/1234`,
             `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp actuel :`,
             `- Heure courte : <t:${timestamp}:t> => ${formattedTime}`,
-            `- Heure longue : <t:${timestamp}:T> => ${formattedLongTime}`,
             `- Date courte : <t:${timestamp}:d> => ${formattedShortDate}`,
             `- Date longue : <t:${timestamp}:D> => ${formattedLongDate}`,
             `- Date/Heure courte : <t:${timestamp}:f> => ${formattedShortDateTime}`,
