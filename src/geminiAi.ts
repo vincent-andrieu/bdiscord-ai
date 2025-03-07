@@ -33,7 +33,6 @@ export class GeminiAi {
         const now = new Date();
         const timestamp = convertTimestampToUnix(new Date());
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        const formattedLongTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         const formattedShortDate = now.toLocaleDateString();
         const formattedLongDate = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
         const formattedShortDateTime = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
