@@ -1,3 +1,7 @@
+import { config } from "./config";
+
+export const LOG_PREFIX = `[${config.name}]`;
+
 export enum DiscordMessageType {
     DEFAULT = 0,
     RECIPIENT_ADD = 1,

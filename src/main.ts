@@ -1,5 +1,5 @@
 import { config, SETTING_GOOGLE_API_KEY } from "./config";
-import { DiscordMessageFlags } from "./constants";
+import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { SummaryButton } from "./summaryButton";
@@ -16,8 +16,6 @@ import {
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
 import { createMessage } from "./utils";
-
-export const LOG_PREFIX = `[${config.name}]`;
 
 export default class BDiscordAI {
     private _userStore?: UserStore;

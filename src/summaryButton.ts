@@ -1,6 +1,6 @@
 import { getSetting, SETTING_GOOGLE_API_KEY } from "./config";
+import { LOG_PREFIX } from "./constants";
 import { aiStarsIcon } from "./icons/aiStars";
-import { LOG_PREFIX } from "./main";
 
 export class SummaryButton {
     private _id = "summary-button";
