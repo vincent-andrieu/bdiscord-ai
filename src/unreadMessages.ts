@@ -134,7 +134,7 @@ export class UnreadMessage {
             // Add embeds
             message.embeds?.forEach((embed) => {
                 if (embed.type === "image" && embed.image) {
-                    const url = embed.image.proxyURL;
+                    const url = embed.image.proxyURL || embed.image.url;
                     const extension = url.split(".").pop();
                     const mimeType = extension ? `image/${extension}` : undefined;
 
@@ -144,7 +144,7 @@ export class UnreadMessage {
                         url: url
                     });
                 } else if (embed.type === "video" && embed.video) {
-                    const url = embed.video.proxyURL;
+                    const url = embed.video.proxyURL || embed.video.url;
                     const extension = url.split(".").pop();
                     const mimeType = extension ? `video/${extension}` : undefined;
 
