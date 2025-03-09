@@ -13,7 +13,7 @@ export class SummaryButton {
     ) {}
 
     public toggle(value?: boolean): void {
-        if ((value || (value === undefined && !this._enabled)) && !getSetting(SETTING_GOOGLE_API_KEY)?.length) {
+        if ((value || (value === undefined && !this._enabled)) && !getSetting<string>(SETTING_GOOGLE_API_KEY)?.length) {
             return;
         }
 

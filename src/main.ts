@@ -2,6 +2,7 @@ import { config, SETTING_GOOGLE_API_KEY } from "./config";
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
+import { fetchMediasMetadata } from "./medias";
 import { SummaryButton } from "./summaryButton";
 import {
     DiscordEvent,
@@ -149,13 +150,14 @@ export default class BDiscordAI {
     }
 
     private async _summarize() {
-        const unreadMessages = await this._unreadMessages?.getUnreadMessages();
-        // console.warn("unreadMessages", unreadMessages);
-        const user = this._userStore?.getCurrentUser();
         const channelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
-        if (!unreadMessages || !user || !channelId) throw "Fail to get metadata";
+        const unreadMessages = await this._unreadMessages?.getUnreadMessages(channelId);
+        const user = this._userStore?.getCurrentUser();
 
-        const iaModel = new GeminiAi();
+        if (!unreadMessages || !user || !channelId) throw "Fail to get metadata";
+        await fetchMediasMetadata(unreadMessages);
+
+        const iaModel = new GeminiAi(this._log);
         const summary = await iaModel.summarizeMessages(unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         const message = createMessage(channelId, previousMessageId, user, summary, DiscordMessageFlags.EPHEMERAL);

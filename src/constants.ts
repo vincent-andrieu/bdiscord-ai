@@ -2,6 +2,15 @@ import { config } from "./config";
 
 export const LOG_PREFIX = `[${config.name}]`;
 
+export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
+export type ImageMimeType = (typeof imageMimeTypes)[number];
+
+export const videoMimeTypes = ["video/mp4", "video/mpeg", "video/mov", "video/avi", "video/x-flv", "video/mpg", "video/webm", "video/wmv", "video/3gpp"] as const;
+export type VideoMimeType = (typeof videoMimeTypes)[number];
+
+export const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"] as const;
+export type AudioMimeType = (typeof audioMimeTypes)[number];
+
 export enum DiscordMessageType {
     DEFAULT = 0,
     RECIPIENT_ADD = 1,

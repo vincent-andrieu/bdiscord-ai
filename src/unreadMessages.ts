@@ -1,13 +1,17 @@
+import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
 import {
+    Audio,
     DiscordChannelMessages,
     DiscordMessage,
     GuildMemberStore,
+    Image,
     LogLevel,
     Message,
     MessageActions,
     MessageStore,
     SelectedChannelStore,
-    SelectedGuildStore
+    SelectedGuildStore,
+    Video
 } from "./types";
 import { convertTimestampToUnix, getOldestId } from "./utils";
 
@@ -29,8 +33,7 @@ export class UnreadMessage {
         private _log: (message: string, type: LogLevel) => void
     ) {}
 
-    public hasUnreadMessages(channelId?: string): boolean {
-        if (!channelId) channelId = this.channelId;
+    public hasUnreadMessages(channelId: string | undefined = this.channelId): boolean {
         if (!channelId) return false;
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
@@ -50,8 +53,7 @@ export class UnreadMessage {
         return false;
     }
 
-    public async getUnreadMessages(): Promise<Array<Message>> {
-        const channelId = this.channelId;
+    public async getUnreadMessages(channelId: string | undefined = this.channelId): Promise<Array<Message>> {
         if (!channelId) return [];
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
@@ -92,6 +94,58 @@ export class UnreadMessage {
 
         return messages.map((message) => {
             const member = this._guildMemberStore.getMember(guildId, message.author.id);
+            const images: Array<Image> = [];
+            const videos: Array<Video> = [];
+            const audios: Array<Audio> = [];
+
+            // Add attachments
+            message.attachments?.forEach((attachment) => {
+                if (isImageMimeType(attachment.content_type)) {
+                    images.push({
+                        name: attachment.url,
+                        url: attachment.url,
+                        mimeType: attachment.content_type,
+                        size: attachment.size
+                    });
+                } else if (isVideoMimeType(attachment.content_type)) {
+                    videos.push({
+                        name: attachment.url,
+                        url: attachment.url,
+                        mimeType: attachment.content_type,
+                        size: attachment.size
+                    });
+                } else if (isAudioMimeType(attachment.content_type)) {
+                    audios.push({
+                        name: attachment.url,
+                        url: attachment.url,
+                        mimeType: attachment.content_type,
+                        size: attachment.size
+                    });
+                }
+            });
+
+            // Add embeds
+            message.embeds?.forEach((embed) => {
+                const extension = embed.url.split(".").pop();
+
+                if (embed.type === "image") {
+                    const mimeType = extension ? `image/${extension}` : undefined;
+
+                    images.push({
+                        name: embed.url,
+                        mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+                        url: embed.url
+                    });
+                } else if (embed.type === "video") {
+                    const mimeType = extension ? `video/${extension}` : undefined;
+
+                    videos.push({
+                        name: embed.url,
+                        mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
+                        url: embed.url
+                    });
+                }
+            });
 
             return {
                 id: message.id,
@@ -100,6 +154,9 @@ export class UnreadMessage {
                     roles: member?.roles.map((roleId) => `<@&${roleId}>`) || []
                 },
                 content: message.content,
+                images,
+                videos,
+                audios,
                 date: convertTimestampToUnix(message.timestamp)
             };
         });

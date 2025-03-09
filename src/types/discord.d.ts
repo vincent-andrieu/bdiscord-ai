@@ -177,7 +177,7 @@ export type DiscordMessage = {
     activityInstance?: null;
     application?: null;
     applicationId?: null;
-    attachments?: any[]; // Replace 'any' with the appropriate type if known
+    attachments?: Array<DiscordMessageAttachment>;
     author: DiscordUser;
     blocked: boolean;
     bot: boolean;
@@ -190,7 +190,7 @@ export type DiscordMessage = {
     content: string;
     customRenderedContent?: any; // Replace 'any' with the appropriate type if known
     editedTimestamp?: string | null;
-    embeds?: any[]; // Replace 'any' with the appropriate type if known
+    embeds?: Array<DiscordMessageEmbed>;
     flags: DiscordMessageFlags;
     giftCodes?: any[]; // Replace 'any' with the appropriate type if known
     giftInfo?: any; // Replace 'any' with the appropriate type if known
@@ -246,6 +246,67 @@ export type DiscordMessage = {
     removeReactionsForEmoji?: (emoji: string) => any;
     toJS?: () => any;
     userHasReactedWithEmoji?: (emoji: string, userId: string) => boolean;
+};
+
+export type DiscordMessageAttachment = {
+    id: string;
+    filename: string;
+    size: number;
+    url: string;
+    proxy_url: string;
+    width: number;
+    height: number;
+    content_type: string;
+    content_scan_version: number;
+    duration_secs?: number;
+    placeholder: string;
+    placeholder_version: number;
+    title?: string;
+    spoiler: boolean;
+    waveform?: string;
+};
+
+export type DiscordMessageEmbed = {
+    author: {
+        iconProxyURL?: string;
+        iconURL?: string;
+        name: string;
+        url: string;
+    };
+    color: string;
+    contentScanVersion: number;
+    fields: Array<any>;
+    flags?: number;
+    id: string;
+    provider: {
+        name: string;
+        url: string;
+    };
+    rawDescription: string;
+    rawTitle: string;
+    referenceId?: string;
+    thumbnail: {
+        flags: number;
+        height: number;
+        placeholder: string;
+        placeholderVersion: number;
+        proxyURL: string;
+        srcIsAnimated: boolean;
+        url: string;
+        width: number;
+    };
+    type: string;
+    url: string;
+    video: {
+        flags: number;
+        height: number;
+        placeholder?: string;
+        placeholderVersion?: number;
+        proxyURL: string;
+        srcIsAnimated: boolean;
+        url: string;
+        width: number;
+    };
 };
 
 export type DiscordUser = {
