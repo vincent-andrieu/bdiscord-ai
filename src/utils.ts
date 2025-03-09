@@ -27,11 +27,13 @@ export function convertTimestampToUnix(timestamp: Date | string | number): numbe
 }
 
 export function createMessage(
+    guildId: string,
     channelId: string,
     previousMessageId: string,
     author: DiscordUser,
     content: string,
-    flags: DiscordMessageFlags = DiscordMessageFlags.DEFAULT
+    flags: DiscordMessageFlags = DiscordMessageFlags.DEFAULT,
+    reply?: string
 ): DiscordMessage {
     return {
         id: (BigInt(previousMessageId) + BigInt(1)).toString(),
@@ -49,12 +51,20 @@ export function createMessage(
         mentionRoles: [],
         mentioned: false,
         mentions: [],
+        messageReference: reply
+            ? {
+                  guild_id: guildId,
+                  channel_id: channelId,
+                  message_id: reply,
+                  type: 0
+              }
+            : undefined,
         nonce: null,
         pinned: false,
         reactions: [],
         state: DiscordMessageState.SENT,
         timestamp: new Date().toISOString(),
         tts: false,
-        type: DiscordMessageType.DEFAULT
+        type: reply ? DiscordMessageType.REPLY : DiscordMessageType.DEFAULT
     };
 }

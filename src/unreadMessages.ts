@@ -19,7 +19,6 @@ const HAS_UNREAD_MIN_CHAR = 300;
 
 export class UnreadMessage {
     private _readStateStore = BdApi.Webpack.getStore("ReadStateStore");
-    private _messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
 
     get channelId(): string | undefined {
         return this._selectedChannelStore.getCurrentlySelectedChannelId();
@@ -29,6 +28,7 @@ export class UnreadMessage {
         private _selectedGuildStore: SelectedGuildStore,
         private _guildMemberStore: GuildMemberStore,
         private _selectedChannelStore: SelectedChannelStore,
+        private _messageStore: MessageStore,
         private _messageActions: MessageActions,
         private _log: (message: string, type: LogLevel) => void
     ) {}
@@ -53,8 +53,8 @@ export class UnreadMessage {
         return false;
     }
 
-    public async getUnreadMessages(channelId: string | undefined = this.channelId): Promise<Array<Message>> {
-        if (!channelId) return [];
+    public async getUnreadMessages(channelId: string | undefined = this.channelId): Promise<{ referenceMessage: string; messages: Array<Message> }> {
+        if (!channelId) throw "No channel selected";
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
         if (channelReadState.oldestUnreadMessageId) {
@@ -62,9 +62,12 @@ export class UnreadMessage {
             const messages = await this._fetchAllMessages(channelId, oldestMessageId);
             const unreadMessages = messages.filter((message) => getOldestId(message.id, oldestMessageId) === oldestMessageId);
 
-            return this._mapMessages(unreadMessages);
+            return {
+                referenceMessage: oldestMessageId,
+                messages: this._mapMessages(unreadMessages)
+            };
         }
-        return [];
+        throw "No unread messages";
     }
 
     private async _fetchAllMessages(channelId: string, oldestMessage: string): Promise<DiscordChannelMessages> {

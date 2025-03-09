@@ -10,6 +10,7 @@ import {
     GuildMemberStore,
     LogLevel,
     MessageActions,
+    MessageStore,
     SelectedChannelStore,
     SelectedGuildStore,
     SettingItem,
@@ -23,6 +24,7 @@ export default class BDiscordAI {
     private _guildMemberStore?: GuildMemberStore;
     private _selectedGuildStore?: SelectedGuildStore;
     private _selectedChannelStore?: SelectedChannelStore;
+    private _messageStore?: MessageStore;
     private _messageActions?: MessageActions;
     private _fluxDispatcher: any;
     private _onEventSubscriptionCb: typeof BDiscordAI.prototype._onEvent = this._onEvent.bind(this);
@@ -44,6 +46,7 @@ export default class BDiscordAI {
         this._guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
         this._selectedGuildStore = BdApi.Webpack.getStore<SelectedGuildStore>("SelectedGuildStore");
         this._selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
+        this._messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
 
@@ -52,6 +55,7 @@ export default class BDiscordAI {
             this._selectedGuildStore,
             this._guildMemberStore,
             this._selectedChannelStore,
+            this._messageStore,
             this._messageActions,
             this._log.bind(this)
         );
@@ -158,18 +162,33 @@ export default class BDiscordAI {
     }
 
     private async _summarize() {
-        const channelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
-        const unreadMessages = await this._unreadMessages?.getUnreadMessages(channelId);
-        const user = this._userStore?.getCurrentUser();
+        if (!this._selectedGuildStore || !this._selectedChannelStore || !this._unreadMessages || !this._userStore || !this._messageActions)
+            throw "Fail to get stores";
+        const guildId = this._selectedGuildStore.getGuildId();
+        const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
+        const unreadMessages = await this._unreadMessages.getUnreadMessages(channelId);
+        const user = this._userStore.getCurrentUser();
 
-        if (!unreadMessages || !user || !channelId) throw "Fail to get metadata";
-        await fetchMediasMetadata(unreadMessages);
+        if (!channelId) throw "Fail to get metadata";
+        await fetchMediasMetadata(unreadMessages.messages);
 
         const iaModel = new GeminiAi(this._log);
-        const summary = await iaModel.summarizeMessages(unreadMessages);
-        const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
-        const message = createMessage(channelId, previousMessageId, user, summary, DiscordMessageFlags.EPHEMERAL);
+        const summary = await iaModel.summarizeMessages(unreadMessages.messages);
+        const previousMessageId = unreadMessages.messages[unreadMessages.messages.length - 1].id;
+        const message = createMessage(
+            guildId,
+            channelId,
+            previousMessageId,
+            user,
+            summary,
+            DiscordMessageFlags.EPHEMERAL,
+            unreadMessages.referenceMessage
+        );
 
         this._messageActions?.receiveMessage(channelId, message);
+        this._messageActions?.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+        if (this._messageStore) {
+            this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
+        }
     }
 }
