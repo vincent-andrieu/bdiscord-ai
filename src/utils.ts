@@ -26,6 +26,18 @@ export function convertTimestampToUnix(timestamp: Date | string | number): numbe
     return Math.floor(new Date(timestamp).getTime() / 1000);
 }
 
+export function convertArrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 1024;
+
+    for (let i = 0; i < bytes.length; i += chunk) {
+        const slice = bytes.subarray(i, i + chunk);
+        binary += String.fromCharCode.apply(null, Array.from(slice));
+    }
+    return btoa(binary);
+}
+
 export function createMessage(
     guildId: string,
     channelId: string,

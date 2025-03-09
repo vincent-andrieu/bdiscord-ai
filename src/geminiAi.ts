@@ -3,7 +3,7 @@ import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileRespons
 import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
 import { LogLevel, Media, Message } from "./types";
-import { convertTimestampToUnix } from "./utils";
+import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
@@ -47,7 +47,6 @@ export class GeminiAi {
             ...(promptItem.dataPart || [])
         ]);
 
-        console.warn("request", request);
         const modelName = getSetting<string>(SETTING_AI_MODEL);
         if (!modelName) throw "AI model is missing";
         const model = this._genAI.getGenerativeModel({
@@ -128,34 +127,38 @@ export class GeminiAi {
         for (const message of messages) {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
             const mediasPrompt: Array<InlineDataPart> = [];
+            const convertingMediasToBuffer: Array<Promise<unknown>> = [];
 
             for (const media of medias) {
                 try {
-                    if (!media.mimeType) throw "Media mimeType is missing";
                     const response = await fetch(media.url);
                     if (!response.ok) {
                         throw `${media.url}: ${response.status} ${response.statusText}`;
                     }
 
-                    const buffer = await response.arrayBuffer();
-                    mediasPrompt.push({
-                        inlineData: {
-                            mimeType: media.mimeType,
-                            data: btoa(String.fromCharCode(...new Uint8Array(buffer)))
-                        }
-                    });
+                    convertingMediasToBuffer.push(
+                        response.arrayBuffer().then((buffer) => {
+                            if (!media.mimeType) throw "Media mimeType is missing";
+                            mediasPrompt.push({
+                                inlineData: {
+                                    mimeType: media.mimeType,
+                                    data: convertArrayBufferToBase64(buffer)
+                                }
+                            });
+                        })
+                    );
                 } catch (error) {
                     this._log(`Failed to fetch media ${error}`, "warn");
                 }
             }
 
+            await Promise.allSettled(convertingMediasToBuffer);
             promptItems.push({ message, dataPart: mediasPrompt });
         }
         return promptItems;
     }
 
     private async _getMediasFileManager(messages: Array<Message>): Promise<Array<PromptItem>> {
-        const promptItems: Array<PromptItem> = [];
         const messagesFiles: Array<{ message: Message; files: Array<FileMetadataResponse> }> = [];
 
         for (const message of messages) {
