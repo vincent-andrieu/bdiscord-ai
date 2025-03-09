@@ -86,6 +86,7 @@ export class GeminiAi {
             `- Emoji natif : :joy:`,
             `- Nom des channels : <#1234>`,
             `- Lien vers un message : https://discord.com/channels/1234/1234/1234`,
+            `- Le markdown des liens ne fonctionne pas : [texte](https://discord.com)`,
             `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :`,
             `- A utiliser pour les dates dans les 24h : <t:${timestamp}:t> => ${formattedTime}`,
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${timestamp}:f> => ${formattedShortDateTime}`,
