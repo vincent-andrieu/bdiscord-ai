@@ -278,12 +278,22 @@ export type DiscordMessageEmbed = {
     fields: Array<any>;
     flags?: number;
     id: string;
-    provider: {
+    image?: {
+        flags: number;
+        height: number;
+        placeholder: string;
+        placeholderVersion: number;
+        proxyURL: string;
+        srcIsAnimated: boolean;
+        url: string;
+        width: number;
+    };
+    provider?: {
         name: string;
         url: string;
     };
-    rawDescription: string;
-    rawTitle: string;
+    rawDescription?: string;
+    rawTitle?: string;
     referenceId?: string;
     thumbnail: {
         flags: number;
@@ -297,7 +307,7 @@ export type DiscordMessageEmbed = {
     };
     type: string;
     url: string;
-    video: {
+    video?: {
         flags: number;
         height: number;
         placeholder?: string;

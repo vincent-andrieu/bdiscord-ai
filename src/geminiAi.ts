@@ -75,7 +75,7 @@ export class GeminiAi {
             now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
 
         return [
-            `Tu es une IA qui permet à l'utilisateur de résumer des messages sur la messagerie Discord. Ta réponse est au format markdown.`,
+            `Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord. Ta réponse est au format markdown.`,
             mediasPrompt.length ? `Les images, vidéos et/ou audios ont été envoyés dans des messages.` : undefined,
             `Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :`,
             `- Nom d'utilisateur : <@1234>`,

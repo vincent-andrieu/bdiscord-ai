@@ -126,23 +126,25 @@ export class UnreadMessage {
 
             // Add embeds
             message.embeds?.forEach((embed) => {
-                const extension = embed.url.split(".").pop();
-
-                if (embed.type === "image") {
+                if (embed.type === "image" && embed.image) {
+                    const url = embed.image.proxyURL;
+                    const extension = url.split(".").pop();
                     const mimeType = extension ? `image/${extension}` : undefined;
 
                     images.push({
-                        name: embed.url,
+                        name: url,
                         mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                        url: embed.url
+                        url: url
                     });
-                } else if (embed.type === "video") {
+                } else if (embed.type === "video" && embed.video) {
+                    const url = embed.video.proxyURL;
+                    const extension = url.split(".").pop();
                     const mimeType = extension ? `video/${extension}` : undefined;
 
                     videos.push({
-                        name: embed.url,
+                        name: url,
                         mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                        url: embed.url
+                        url: url
                     });
                 }
             });
