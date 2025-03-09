@@ -1,11 +1,10 @@
 import { FileDataPart, GoogleGenerativeAI, InlineDataPart } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
-import { getSetting, SETTING_GOOGLE_API_KEY } from "./config";
+import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
 import { LogLevel, Media, Message } from "./types";
 import { convertTimestampToUnix } from "./utils";
 
-const MODEL = "gemini-2.0-flash";
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 const MAX_MEDIA_SIZE = 50_000_000;
@@ -38,8 +37,10 @@ export class GeminiAi {
     async summarizeMessages(messages: Array<Message>): Promise<string> {
         const mediasPrompt = await this._getMediasPrompt(messages);
 
+        const modelName = getSetting<string>(SETTING_AI_MODEL);
+        if (!modelName) throw "AI model is missing";
         const model = this._genAI.getGenerativeModel({
-            model: MODEL,
+            model: modelName,
             systemInstruction: this._getSystemInstruction(mediasPrompt)
         });
 
