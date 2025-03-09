@@ -1,4 +1,4 @@
-import { config, getSetting, SETTING_GOOGLE_API_KEY } from "./config";
+import { config, getSetting, SETTING_GOOGLE_API_KEY, SETTING_JUMP_TO_MESSAGE } from "./config";
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
@@ -190,7 +190,9 @@ export default class BDiscordAI {
         );
 
         this._messageActions.receiveMessage(channelId, message);
-        this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+        if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
+            this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+        }
         if (this._messageStore) {
             this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
         }

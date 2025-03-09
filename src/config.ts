@@ -5,6 +5,7 @@ const DEFAULT_AI_MODEL = "gemini-2.0-flash";
 
 export const SETTING_GOOGLE_API_KEY = "googleApiKey";
 export const SETTING_AI_MODEL = "aiModel";
+export const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
 
 export const config: {
     name: string;
@@ -16,7 +17,7 @@ export const config: {
             type: "text",
             id: SETTING_GOOGLE_API_KEY,
             name: "Google API Key",
-            value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY),
+            value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
             placeholder: "API KEY"
         },
         {
@@ -33,6 +34,14 @@ export const config: {
                 { label: "Gemini 1.5 Flash-8B", value: "gemini-1.5-flash-8b" },
                 { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" }
             ]
+        },
+        {
+            type: "switch",
+            id: SETTING_JUMP_TO_MESSAGE,
+            name: "Scroll auto",
+            value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
+            defaultValue: true,
+            note: "Scroll automatiquement sur le message quand il est généré"
         }
     ]
 };
