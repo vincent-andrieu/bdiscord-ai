@@ -144,30 +144,34 @@ export default class BDiscordAI {
         const selectedChannelId = this._selectedChannelStore?.getCurrentlySelectedChannelId();
 
         if (!selectedChannelId) return;
-        switch (event.type) {
-            case "MESSAGE_CREATE":
-                if (event.channelId === selectedChannelId) {
-                    this._enableSummaryButtonIfNeeded(selectedChannelId);
-                }
-                this._checkSensitiveContent((event as DiscordEventCreateMessage).message);
-                break;
+        try {
+            switch (event.type) {
+                case "MESSAGE_CREATE":
+                    if (event.channelId === selectedChannelId) {
+                        this._enableSummaryButtonIfNeeded(selectedChannelId);
+                    }
+                    this._checkSensitiveContent((event as DiscordEventCreateMessage).message);
+                    break;
 
-            case "MESSAGE_UPDATE":
-                this._checkSensitiveContent((event as DiscordEventUpdateMessage).message);
-                break;
+                case "MESSAGE_UPDATE":
+                    this._checkSensitiveContent((event as DiscordEventUpdateMessage).message);
+                    break;
 
-            case "CHANNEL_SELECT":
-            case "MESSAGE_CREATE":
-            case "MESSAGE_DELETE":
-            case "LOAD_MESSAGES_SUCCESS":
-            case "MESSAGE_ACK":
-                if (event.channelId === selectedChannelId) {
-                    this._enableSummaryButtonIfNeeded(selectedChannelId);
-                }
-                break;
-            default:
-                console.warn(LOG_PREFIX, "Unknown event", event);
-                break;
+                case "CHANNEL_SELECT":
+                case "MESSAGE_CREATE":
+                case "MESSAGE_DELETE":
+                case "LOAD_MESSAGES_SUCCESS":
+                case "MESSAGE_ACK":
+                    if (event.channelId === selectedChannelId) {
+                        this._enableSummaryButtonIfNeeded(selectedChannelId);
+                    }
+                    break;
+                default:
+                    console.warn(LOG_PREFIX, "Unknown event", event);
+                    break;
+            }
+        } catch (error) {
+            this._log(typeof error === "string" ? error : (error as Error).message);
         }
     }
 
