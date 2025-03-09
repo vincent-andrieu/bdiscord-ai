@@ -1,4 +1,4 @@
-import { FileDataPart, GoogleGenerativeAI, InlineDataPart, Part } from "@google/generative-ai";
+import { FileDataPart, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
 import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
@@ -14,6 +14,13 @@ type PromptItem = { message: Message; dataPart?: Array<InlineDataPart> | Array<F
 export class GeminiAi {
     private _genAI: GoogleGenerativeAI;
     private _fileManager: GoogleAIFileManager;
+
+    private get _modelName(): string {
+        const modelName = getSetting<string>(SETTING_AI_MODEL);
+
+        if (!modelName) throw "AI model is missing";
+        return modelName;
+    }
 
     constructor(private _log: (message: string, type?: LogLevel) => void) {
         const apiKey = getSetting<string>(SETTING_GOOGLE_API_KEY);
@@ -47,16 +54,46 @@ export class GeminiAi {
             ...(promptItem.dataPart || [])
         ]);
 
-        const modelName = getSetting<string>(SETTING_AI_MODEL);
-        if (!modelName) throw "AI model is missing";
         const model = this._genAI.getGenerativeModel({
-            model: modelName,
+            model: this._modelName,
             systemInstruction: this._getSystemInstruction(promptData)
         });
 
         const result = await model.generateContent(request);
 
         return result.response.text();
+    }
+
+    async isSensitiveContent(messages: Array<Message>): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean } | undefined> {
+        const request: Array<string | Part> = await this._getSensitiveContentPrompt(messages);
+
+        if (!request.length || request.every((item) => typeof item === "string")) {
+            return undefined;
+        }
+        const schema: Schema = {
+            type: SchemaType.OBJECT,
+            properties: {
+                isEmetophobia: {
+                    type: SchemaType.BOOLEAN
+                },
+                isArachnophobia: {
+                    type: SchemaType.BOOLEAN
+                }
+            },
+            required: ["isEmetophobia", "isArachnophobia"]
+        };
+        const model = this._genAI.getGenerativeModel({
+            model: this._modelName,
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: schema
+            },
+            systemInstruction: [`Check if the content is sensitive for people with:`, `- Emetophobia`, `- Arachnophobia`].join("\n")
+        });
+
+        const response = await model.generateContent(request);
+
+        return JSON.parse(response.response.text());
     }
 
     private _getSystemInstruction(promptData: Array<PromptItem>): string {
@@ -88,6 +125,17 @@ export class GeminiAi {
         ]
             .filter(Boolean)
             .join("\n");
+    }
+
+    private async _getSensitiveContentPrompt(messages: Array<Message>): Promise<Array<string | Part>> {
+        const filteredMessages = this._filterUploadableMedias(messages);
+
+        if (this._getMediasTotalSize(filteredMessages) > MAX_INLINE_DATA_SIZE) {
+            return [];
+        }
+        return (await this._getMediasInlineData(filteredMessages))
+            .flatMap((promptItem) => [promptItem.message.content, ...(promptItem.dataPart || ([] as Array<Part>))])
+            .filter((promptItem) => typeof promptItem !== "string" || promptItem.trim().length > 0);
     }
 
     private async _getMediasPrompt(messages: Array<Message>): Promise<Array<PromptItem>> {

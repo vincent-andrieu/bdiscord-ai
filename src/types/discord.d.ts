@@ -1,9 +1,18 @@
 import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "src/constants";
 
-export type DiscordEventType = "CHANNEL_SELECT" | "MESSAGE_CREATE" | "MESSAGE_DELETE" | "LOAD_MESSAGES_SUCCESS" | "MESSAGE_ACK";
+export type DiscordEventType = "CHANNEL_SELECT" | "MESSAGE_CREATE" | "MESSAGE_UPDATE" | "MESSAGE_DELETE" | "LOAD_MESSAGES_SUCCESS" | "MESSAGE_ACK";
 export type DiscordEvent = {
     type: DiscordEventType;
+    guildId: string;
     channelId: string;
+};
+export type DiscordEventCreateMessage = DiscordEvent & {
+    type: "MESSAGE_CREATE";
+    message: DiscordMessage;
+};
+export type DiscordEventUpdateMessage = DiscordEvent & {
+    type: "MESSAGE_UPDATE";
+    message: DiscordMessage;
 };
 
 export type DiscordGuild = {

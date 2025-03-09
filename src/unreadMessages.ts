@@ -1,20 +1,15 @@
-import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
 import {
-    Audio,
     DiscordChannelMessages,
-    DiscordMessage,
     GuildMemberStore,
-    Image,
     LogLevel,
     Message,
     MessageActions,
     MessageStore,
     ReadStateStore,
     SelectedChannelStore,
-    SelectedGuildStore,
-    Video
+    SelectedGuildStore
 } from "./types";
-import { convertTimestampToUnix, getOldestId } from "./utils";
+import { getOldestId, mapMessages } from "./utils";
 
 const HAS_UNREAD_MIN_CHAR = 300;
 
@@ -68,7 +63,13 @@ export class UnreadMessage {
 
             return {
                 referenceMessage: oldestMessageId,
-                messages: this._mapMessages(unreadMessages)
+                messages: mapMessages(
+                    {
+                        selectedGuildStore: this._selectedGuildStore,
+                        guildMemberStore: this._guildMemberStore
+                    },
+                    unreadMessages
+                )
             };
         }
         throw "No unread messages";
@@ -94,80 +95,5 @@ export class UnreadMessage {
 
     private async _fetchMoreMessages(channelId: string, beforeMessage: string): Promise<void> {
         await this._messageActions.fetchMessages({ channelId, limit: 100, before: beforeMessage });
-    }
-
-    private _mapMessages(messages: Array<DiscordMessage>): Array<Message> {
-        const guildId = this._selectedGuildStore.getGuildId();
-
-        return messages.map((message) => {
-            const member = this._guildMemberStore.getMember(guildId, message.author.id);
-            const images: Array<Image> = [];
-            const videos: Array<Video> = [];
-            const audios: Array<Audio> = [];
-
-            // Add attachments
-            message.attachments?.forEach((attachment) => {
-                if (isImageMimeType(attachment.content_type)) {
-                    images.push({
-                        name: attachment.url,
-                        url: attachment.url,
-                        mimeType: attachment.content_type,
-                        size: attachment.size
-                    });
-                } else if (isVideoMimeType(attachment.content_type)) {
-                    videos.push({
-                        name: attachment.url,
-                        url: attachment.url,
-                        mimeType: attachment.content_type,
-                        size: attachment.size
-                    });
-                } else if (isAudioMimeType(attachment.content_type)) {
-                    audios.push({
-                        name: attachment.url,
-                        url: attachment.url,
-                        mimeType: attachment.content_type,
-                        size: attachment.size
-                    });
-                }
-            });
-
-            // Add embeds
-            message.embeds?.forEach((embed) => {
-                if (embed.type === "image" && embed.image) {
-                    const url = embed.image.proxyURL || embed.image.url;
-                    const extension = url.split(".").pop();
-                    const mimeType = extension ? `image/${extension}` : undefined;
-
-                    images.push({
-                        name: url,
-                        mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                        url: url
-                    });
-                } else if (embed.type === "video" && embed.video) {
-                    const url = embed.video.proxyURL || embed.video.url;
-                    const extension = url.split(".").pop();
-                    const mimeType = extension ? `video/${extension}` : undefined;
-
-                    videos.push({
-                        name: url,
-                        mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                        url: url
-                    });
-                }
-            });
-
-            return {
-                id: message.id,
-                author: {
-                    username: `<@${message.author.id}>`,
-                    roles: member?.roles.map((roleId) => `<@&${roleId}>`) || []
-                },
-                content: message.content,
-                images,
-                videos,
-                audios,
-                date: convertTimestampToUnix(message.timestamp)
-            };
-        });
     }
 }

@@ -1,12 +1,16 @@
 import { config, getSetting, SETTING_GOOGLE_API_KEY, SETTING_JUMP_TO_MESSAGE } from "./config";
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
+import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { fetchMediasMetadata } from "./medias";
 import { SummaryButton } from "./summaryButton";
 import {
     DiscordEvent,
+    DiscordEventCreateMessage,
     DiscordEventType,
+    DiscordEventUpdateMessage,
+    DiscordMessage,
     GuildMemberStore,
     LogLevel,
     MessageActions,
@@ -18,7 +22,7 @@ import {
     UserStore
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
-import { createMessage } from "./utils";
+import { createMessage, mapMessages } from "./utils";
 
 export default class BDiscordAI {
     private _userStore?: UserStore;
@@ -36,6 +40,7 @@ export default class BDiscordAI {
     private _listeningEvents: Array<DiscordEventType> = [
         "CHANNEL_SELECT",
         "MESSAGE_CREATE",
+        "MESSAGE_UPDATE",
         "MESSAGE_DELETE",
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
@@ -140,6 +145,17 @@ export default class BDiscordAI {
 
         if (!selectedChannelId) return;
         switch (event.type) {
+            case "MESSAGE_CREATE":
+                if (event.channelId === selectedChannelId) {
+                    this._enableSummaryButtonIfNeeded(selectedChannelId);
+                }
+                this._checkSensitiveContent((event as DiscordEventCreateMessage).message);
+                break;
+
+            case "MESSAGE_UPDATE":
+                this._checkSensitiveContent((event as DiscordEventUpdateMessage).message);
+                break;
+
             case "CHANNEL_SELECT":
             case "MESSAGE_CREATE":
             case "MESSAGE_DELETE":
@@ -176,8 +192,7 @@ export default class BDiscordAI {
         if (!channelId) throw "Fail to get metadata";
         await fetchMediasMetadata(unreadMessages.messages);
 
-        const iaModel = new GeminiAi(this._log);
-        const summary = await iaModel.summarizeMessages(unreadMessages.messages);
+        const summary = await new GeminiAi(this._log).summarizeMessages(unreadMessages.messages);
         const previousMessageId = unreadMessages.messages[unreadMessages.messages.length - 1].id;
         const message = createMessage(
             guildId,
@@ -194,7 +209,32 @@ export default class BDiscordAI {
             this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
         }
         if (this._messageStore) {
-            this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
+            this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
+        }
+    }
+
+    private async _checkSensitiveContent(discordMessage: DiscordMessage) {
+        if (!this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
+        if (
+            (!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
+            !discordMessage.embeds?.length
+        )
+            return;
+        const messages = mapMessages({ selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore }, [discordMessage]);
+        await fetchMediasMetadata(messages);
+        const isSensitive = await new GeminiAi(this._log).isSensitiveContent(messages);
+
+        if (isSensitive?.isEmetophobia || isSensitive?.isArachnophobia) {
+            const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
+
+            if (sensitiveMessage) {
+                sensitiveMessage.attachments?.forEach((attachment) => (attachment.spoiler = true));
+                sensitiveMessage.embeds = [];
+                if (this._selectedChannelStore?.getCurrentlySelectedChannelId() === sensitiveMessage.channel_id) {
+                    forceReloadMessages();
+                }
+                this._log("Message censuré", "warn");
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "./constants";
-import { DiscordMessage, DiscordUser } from "./types";
+import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
+import { Audio, DiscordMessage, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
 
 export function getOldestId(a: string | undefined, b: string): string;
 export function getOldestId(a: string, b?: string): string;
@@ -79,4 +80,85 @@ export function createMessage(
         tts: false,
         type: reply ? DiscordMessageType.REPLY : DiscordMessageType.DEFAULT
     };
+}
+
+export function mapMessages(
+    stores: {
+        selectedGuildStore: SelectedGuildStore;
+        guildMemberStore: GuildMemberStore;
+    },
+    messages: Array<DiscordMessage>
+): Array<Message> {
+    const guildId = stores.selectedGuildStore.getGuildId();
+
+    return messages.map((message) => {
+        const member = stores.guildMemberStore.getMember(guildId, message.author.id);
+        const images: Array<Image> = [];
+        const videos: Array<Video> = [];
+        const audios: Array<Audio> = [];
+
+        // Add attachments
+        message.attachments?.forEach((attachment) => {
+            if (isImageMimeType(attachment.content_type)) {
+                images.push({
+                    name: attachment.url,
+                    url: attachment.url,
+                    mimeType: attachment.content_type,
+                    size: attachment.size
+                });
+            } else if (isVideoMimeType(attachment.content_type)) {
+                videos.push({
+                    name: attachment.url,
+                    url: attachment.url,
+                    mimeType: attachment.content_type,
+                    size: attachment.size
+                });
+            } else if (isAudioMimeType(attachment.content_type)) {
+                audios.push({
+                    name: attachment.url,
+                    url: attachment.url,
+                    mimeType: attachment.content_type,
+                    size: attachment.size
+                });
+            }
+        });
+
+        // Add embeds
+        message.embeds?.forEach((embed) => {
+            if (embed.type === "image" && embed.image) {
+                const url = embed.image.proxyURL || embed.image.url;
+                const extension = url.split(".").pop();
+                const mimeType = extension ? `image/${extension}` : undefined;
+
+                images.push({
+                    name: url,
+                    mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+                    url: url
+                });
+            } else if (["video", "gifv"].includes(embed.type) && embed.video) {
+                const url = embed.video.proxyURL || embed.video.url;
+                const extension = url.split(".").pop();
+                const mimeType = extension ? `video/${extension}` : undefined;
+
+                videos.push({
+                    name: url,
+                    mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
+                    url: url
+                });
+            }
+        });
+
+        return {
+            id: message.id,
+            author: {
+                username: `<@${message.author.id}>`,
+                roles: member?.roles.map((roleId) => `<@&${roleId}>`) || []
+            },
+            content: message.content,
+            images,
+            videos,
+            audios,
+            date: convertTimestampToUnix(message.timestamp)
+        };
+    });
 }

@@ -1,4 +1,13 @@
-import { DiscordChannel, DiscordChannelMessages, DiscordEmoji, DiscordGuild, DiscordGuildMember, DiscordRole, DiscordUser } from "./discord";
+import {
+    DiscordChannel,
+    DiscordChannelMessages,
+    DiscordEmoji,
+    DiscordGuild,
+    DiscordGuildMember,
+    DiscordMessage,
+    DiscordRole,
+    DiscordUser
+} from "./discord";
 
 export type UserStore = {
     getUser: (userId: string) => DiscordUser;
@@ -132,6 +141,7 @@ export type ReadStateStore = {
 
 export type MessageStore = {
     getMessages(channelId: string): DiscordChannelMessages;
+    getMessage(channelId: string, messageId: string): DiscordMessage;
 };
 
 export type GuildMemberStore = {
