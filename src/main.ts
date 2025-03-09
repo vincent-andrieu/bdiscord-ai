@@ -185,8 +185,8 @@ export default class BDiscordAI {
             unreadMessages.referenceMessage
         );
 
-        this._messageActions?.receiveMessage(channelId, message);
-        this._messageActions?.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+        this._messageActions.receiveMessage(channelId, message);
+        this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
         if (this._messageStore) {
             this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
         }
