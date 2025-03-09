@@ -11,6 +11,7 @@ import {
     LogLevel,
     MessageActions,
     MessageStore,
+    ReadStateStore,
     SelectedChannelStore,
     SelectedGuildStore,
     SettingItem,
@@ -24,6 +25,7 @@ export default class BDiscordAI {
     private _guildMemberStore?: GuildMemberStore;
     private _selectedGuildStore?: SelectedGuildStore;
     private _selectedChannelStore?: SelectedChannelStore;
+    private _readStateStore?: ReadStateStore;
     private _messageStore?: MessageStore;
     private _messageActions?: MessageActions;
     private _fluxDispatcher: any;
@@ -46,6 +48,7 @@ export default class BDiscordAI {
         this._guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
         this._selectedGuildStore = BdApi.Webpack.getStore<SelectedGuildStore>("SelectedGuildStore");
         this._selectedChannelStore = BdApi.Webpack.getStore<SelectedChannelStore>("SelectedChannelStore");
+        this._readStateStore = BdApi.Webpack.getStore("ReadStateStore");
         this._messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
@@ -55,6 +58,7 @@ export default class BDiscordAI {
             this._selectedGuildStore,
             this._guildMemberStore,
             this._selectedChannelStore,
+            this._readStateStore,
             this._messageStore,
             this._messageActions,
             this._log.bind(this)
@@ -189,6 +193,9 @@ export default class BDiscordAI {
         this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
         if (this._messageStore) {
             this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
+        }
+        if (this._readStateStore) {
+            this._readStateStore.getReadStatesByChannel()[channelId]._oldestUnreadMessageId = unreadMessages.referenceMessage;
         }
     }
 }

@@ -42,6 +42,94 @@ export type SelectedChannelStore = {
     getLastChannelFollowingDestination(): string;
 };
 
+export type ChannelReadState = {
+    ackMessageIdAtChannelSelect: string;
+    ackPinTimestamp: number;
+    ackedWhileCached: boolean | undefined;
+    channelId: string;
+    estimated: boolean;
+    flags: number;
+    isManualAck: boolean;
+    lastPinTimestamp: number;
+    lastViewed: number;
+    loadedMessages: boolean;
+    oldestUnreadMessageIdStale: boolean;
+    outgoingAck: any;
+    outgoingAckTimer: any;
+    snapshot: {
+        unread: boolean;
+        mentionCount: number;
+        guildUnread: boolean;
+        guildMentionCount: number;
+        takenAt: number;
+    };
+    type: number;
+    _ackMessageId: string;
+    _ackMessageTimestamp: number;
+    _guildId: string;
+    _isActiveThread: boolean;
+    _isJoinedThread: boolean;
+    _isResourceChannel: boolean;
+    _isThread: boolean;
+    _lastMessageId: string;
+    _lastMessageTimestamp: number;
+    _mentionCount: number;
+    _oldestUnreadMessageId: string | null;
+    _persisted: boolean;
+    _unreadCount: number;
+    ack(options: {
+        messageId?: string;
+        local?: boolean;
+        immediate?: boolean;
+        force?: boolean;
+        isExplicitUserAction?: boolean;
+        location?: { section: string };
+        trackAnalytics?: boolean;
+    }): boolean;
+    ackPins(timestamp?: number | null): boolean;
+    canBeUnread(): boolean;
+    canHaveMentions(): boolean;
+    canTrackUnreads(): boolean;
+    clearOutgoingAck(): void;
+    delete(): void;
+    deserializeForOverlay(data: any): any;
+    getAckTimestamp(): number;
+    getGuildChannelUnreadState(guildId: string, channelId: string, mentioned: boolean, unread: boolean, muted: boolean): any;
+    getMentionCount(): number;
+    guessAckMessageId(): string | null;
+    handleGuildEventRemoval(guildId: string, eventId: string): void;
+    hasMentions(): boolean;
+    hasRecentlyVisitedAndRead(): boolean;
+    hasUnread(): boolean;
+    hasUnreadOrMentions(): boolean;
+    incrementGuildUnreadsSentinel(): void;
+    isForumPostUnread(): boolean;
+    isPrivate(): boolean;
+    rebuildChannelState(messageId?: string, resetMentions?: boolean, options?: any): void;
+    recalculateFlags(): number;
+    recordLastViewedTime(): void;
+    serialize(includeMessages?: boolean): any;
+    shouldDeleteReadState(channelId: string): boolean;
+    syncThreadSettings(): void;
+    takeSnapshot(): any;
+    _ack(messageId: string, options: any): void;
+    _nonChannelAck(): void;
+    _shouldAck(force: boolean, local: boolean, explicitAction: boolean): boolean;
+    ackMessageId: string;
+    guildId: string;
+    isMentionLowImportance: boolean;
+    lastMessageId: string;
+    lastMessageTimestamp: number;
+    mentionCount: number;
+    oldestUnreadMessageId: string | null;
+    oldestUnreadTimestamp: number;
+    unreadCount: number;
+};
+
+export type ReadStateStore = {
+    getReadStatesByChannel(): Record<string, ChannelReadState>;
+};
+
 export type MessageStore = {
     getMessages(channelId: string): DiscordChannelMessages;
 };

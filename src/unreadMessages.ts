@@ -9,6 +9,7 @@ import {
     Message,
     MessageActions,
     MessageStore,
+    ReadStateStore,
     SelectedChannelStore,
     SelectedGuildStore,
     Video
@@ -18,8 +19,6 @@ import { convertTimestampToUnix, getOldestId } from "./utils";
 const HAS_UNREAD_MIN_CHAR = 300;
 
 export class UnreadMessage {
-    private _readStateStore = BdApi.Webpack.getStore("ReadStateStore");
-
     get channelId(): string | undefined {
         return this._selectedChannelStore.getCurrentlySelectedChannelId();
     }
@@ -28,6 +27,7 @@ export class UnreadMessage {
         private _selectedGuildStore: SelectedGuildStore,
         private _guildMemberStore: GuildMemberStore,
         private _selectedChannelStore: SelectedChannelStore,
+        private _readStateStore: ReadStateStore,
         private _messageStore: MessageStore,
         private _messageActions: MessageActions,
         private _log: (message: string, type: LogLevel) => void
