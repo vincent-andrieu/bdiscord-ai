@@ -218,10 +218,11 @@ export default class BDiscordAI {
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
-        if (!this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
+        if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
         if (
-            (!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
-            !discordMessage.embeds?.length
+            this._userStore.getCurrentUser().id === discordMessage.author.id ||
+            ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
+                !discordMessage.embeds?.length)
         )
             return;
         const messages = mapMessages({ selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore }, [discordMessage]);
