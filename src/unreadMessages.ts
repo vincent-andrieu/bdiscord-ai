@@ -58,9 +58,11 @@ export class UnreadMessage {
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
         if (channelReadState.oldestUnreadMessageId) {
-            const oldestMessageId = this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
-                ? channelReadState.oldestUnreadMessageId
-                : channelReadState.ackMessageId;
+            const oldestMessageId =
+                getOldestId(channelReadState.oldestUnreadMessageId, channelReadState.ackMessageId) === channelReadState.oldestUnreadMessageId ||
+                this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
+                    ? channelReadState.oldestUnreadMessageId
+                    : channelReadState.ackMessageId;
             const messages = await this._fetchAllMessages(channelId, oldestMessageId);
             const unreadMessages = messages.filter((message) => getOldestId(message.id, oldestMessageId) === oldestMessageId);
 
