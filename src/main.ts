@@ -196,8 +196,5 @@ export default class BDiscordAI {
         if (this._messageStore) {
             this._messageStore.getMessages(channelId).get(message.id).messageReference = message.messageReference;
         }
-        if (this._readStateStore) {
-            this._readStateStore.getReadStatesByChannel()[channelId]._oldestUnreadMessageId = unreadMessages.referenceMessage;
-        }
     }
 }
