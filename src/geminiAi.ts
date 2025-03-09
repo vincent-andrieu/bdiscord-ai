@@ -8,6 +8,7 @@ import { convertTimestampToUnix } from "./utils";
 const MODEL = "gemini-2.0-flash";
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
+const MAX_MEDIA_SIZE = 50_000_000;
 
 export class GeminiAi {
     private _genAI: GoogleGenerativeAI;
@@ -96,17 +97,20 @@ export class GeminiAi {
     }
 
     private async _getMediasPrompt(messages: Array<Message>): Promise<Array<InlineDataPart | FileDataPart>> {
-        const mediaMessages = this._filterUploadableMedias(messages);
+        const medias = this._filterUploadableMedias(messages);
 
-        if (this._getMediasTotalSize(mediaMessages) < MAX_INLINE_DATA_SIZE) {
-            return this._getMediasInlineData(mediaMessages);
+        if (this._getMediasTotalSize(medias) < MAX_INLINE_DATA_SIZE) {
+            return this._getMediasInlineData(medias);
         }
-        return this._getMediasFileManager(mediaMessages);
+        return this._getMediasFileManager(medias);
     }
 
     private _filterUploadableMedias(messages: Array<Message>): Array<Media> {
         return messages.flatMap(
-            (message) => [message.images, message.videos, message.audios].flat().filter((media) => media?.mimeType) as Array<Media>
+            (message) =>
+                [message.images, message.videos, message.audios]
+                    .flat()
+                    .filter((media) => media?.mimeType && media.size && media.size <= MAX_MEDIA_SIZE) as Array<Media>
         );
     }
 
@@ -152,7 +156,7 @@ export class GeminiAi {
 
         const timeout = Date.now() + 60_000;
         while (files.some((file) => file.state === FileState.PROCESSING)) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             for (let i = 0; i < files.length; i++) {
                 if (files[i].state === FileState.PROCESSING) {
