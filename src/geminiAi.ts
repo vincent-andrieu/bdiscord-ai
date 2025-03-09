@@ -58,7 +58,6 @@ export class GeminiAi {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        const formattedShortDate = now.toLocaleDateString();
         const formattedLongDate = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
         const formattedShortDateTime = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
         const formattedLongDateTime =
@@ -74,12 +73,11 @@ export class GeminiAi {
             `- Emoji natif : :joy:`,
             `- Nom des channels : <#1234>`,
             `- Lien vers un message : https://discord.com/channels/1234/1234/1234`,
-            `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp actuel :`,
-            `- Heure courte : <t:${timestamp}:t> => ${formattedTime}`,
-            `- Date courte : <t:${timestamp}:d> => ${formattedShortDate}`,
-            `- Date longue : <t:${timestamp}:D> => ${formattedLongDate}`,
-            `- Date/Heure courte : <t:${timestamp}:f> => ${formattedShortDateTime}`,
-            `- Date/Heure longue : <t:${timestamp}:F> => ${formattedLongDateTime}`,
+            `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :`,
+            `- A utiliser pour les dates dans les 24h : <t:${timestamp}:t> => ${formattedTime}`,
+            `- A utiliser pour les dates antérieurs à 1 jours : <t:${timestamp}:f> => ${formattedShortDateTime}`,
+            `- A utiliser pour les dates antérieurs à 2 jours : <t:${timestamp}:D> => ${formattedLongDate}`,
+            `- A utiliser pour les dates dans le futur : <t:${timestamp}:F> => ${formattedLongDateTime}`,
             `- Date/Heure relative : <t:${timestamp}:R> => à l'instant`
         ]
             .filter(Boolean)
