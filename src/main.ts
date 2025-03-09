@@ -1,4 +1,4 @@
-import { config, SETTING_GOOGLE_API_KEY } from "./config";
+import { config, getSetting, SETTING_GOOGLE_API_KEY } from "./config";
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
@@ -29,7 +29,13 @@ export default class BDiscordAI {
 
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
-    private _listeningEvents: Array<DiscordEventType> = ["CHANNEL_SELECT", "MESSAGE_CREATE", "MESSAGE_DELETE", "LOAD_MESSAGES_SUCCESS", "MESSAGE_ACK"];
+    private _listeningEvents: Array<DiscordEventType> = [
+        "CHANNEL_SELECT",
+        "MESSAGE_CREATE",
+        "MESSAGE_DELETE",
+        "LOAD_MESSAGES_SUCCESS",
+        "MESSAGE_ACK"
+    ];
     private _closeApiKeyNotice?: () => void;
 
     start() {
@@ -53,8 +59,10 @@ export default class BDiscordAI {
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
 
-        if (!BdApi.Data.load<string | undefined>(config.name, SETTING_GOOGLE_API_KEY)?.trim().length) {
+        if (!getSetting<string>(SETTING_GOOGLE_API_KEY)?.trim().length) {
             this._showAddApiKeyNotice();
+        } else {
+            new GeminiAi(this._log).purgeMedias();
         }
     }
 

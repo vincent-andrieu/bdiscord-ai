@@ -23,6 +23,17 @@ export class GeminiAi {
         this._fileManager = new GoogleAIFileManager(apiKey);
     }
 
+    async purgeMedias(): Promise<void> {
+        const listResponse = await this._fileManager.listFiles();
+
+        if (listResponse.files) {
+            await Promise.allSettled(listResponse.files.map((file) => this._fileManager.deleteFile(file.name)));
+        }
+        if (listResponse.nextPageToken) {
+            await this.purgeMedias();
+        }
+    }
+
     async summarizeMessages(messages: Array<Message>): Promise<string> {
         const mediasPrompt = await this._getMediasPrompt(messages);
 
