@@ -101,22 +101,22 @@ export function mapMessages(
         message.attachments?.forEach((attachment) => {
             if (isImageMimeType(attachment.content_type)) {
                 images.push({
-                    name: attachment.url,
-                    url: attachment.url,
+                    name: attachment.proxy_url,
+                    url: attachment.proxy_url,
                     mimeType: attachment.content_type,
                     size: attachment.size
                 });
             } else if (isVideoMimeType(attachment.content_type)) {
                 videos.push({
-                    name: attachment.url,
-                    url: attachment.url,
+                    name: attachment.proxy_url,
+                    url: attachment.proxy_url,
                     mimeType: attachment.content_type,
                     size: attachment.size
                 });
             } else if (isAudioMimeType(attachment.content_type)) {
                 audios.push({
-                    name: attachment.url,
-                    url: attachment.url,
+                    name: attachment.proxy_url,
+                    url: attachment.proxy_url,
                     mimeType: attachment.content_type,
                     size: attachment.size
                 });
