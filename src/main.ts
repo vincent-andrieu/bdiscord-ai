@@ -214,23 +214,15 @@ export default class BDiscordAI {
             throw "Fail to get stores";
         const guildId = this._selectedGuildStore.getGuildId();
         const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
-        const unreadMessages = await this._unreadMessages.getUnreadMessages(channelId);
+        const { referenceMessage, previousMessages, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
         const user = this._userStore.getCurrentUser();
 
         if (!channelId) throw "Fail to get metadata";
-        await fetchMediasMetadata(unreadMessages.messages);
+        await fetchMediasMetadata(unreadMessages);
 
-        const summary = await new GeminiAi(this._log).summarizeMessages(unreadMessages.messages);
-        const previousMessageId = unreadMessages.messages[unreadMessages.messages.length - 1].id;
-        const message = createMessage(
-            guildId,
-            channelId,
-            previousMessageId,
-            user,
-            summary,
-            DiscordMessageFlags.EPHEMERAL,
-            unreadMessages.referenceMessage
-        );
+        const summary = await new GeminiAi(this._log).summarizeMessages(previousMessages, unreadMessages);
+        const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
+        const message = createMessage(guildId, channelId, previousMessageId, user, summary, DiscordMessageFlags.EPHEMERAL, referenceMessage);
 
         this._messageActions.receiveMessage(channelId, message);
         if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {

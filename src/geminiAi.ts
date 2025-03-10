@@ -43,20 +43,16 @@ export class GeminiAi {
         }
     }
 
-    async summarizeMessages(messages: Array<Message>): Promise<string> {
-        const promptData = await this._getMediasPrompt(messages);
+    async summarizeMessages(previousMessages: Array<Message>, unreadMessages: Array<Message>): Promise<string> {
+        const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<string | Part> = promptData.flatMap((promptItem) => [
-            JSON.stringify({
-                [i18n("author")]: promptItem.message.author.username,
-                [i18n("date")]: promptItem.message.date,
-                [i18n("content")]: promptItem.message.content
-            } as Record<string, string>),
+            getTextPromptItem(promptItem.message),
             ...(promptItem.dataPart || [])
         ]);
 
         const model = this._genAI.getGenerativeModel({
             model: this._modelName,
-            systemInstruction: this._getSystemInstruction(promptData)
+            systemInstruction: this._getSystemInstruction(previousMessages, promptData)
         });
 
         const result = await model.generateContent(request);
@@ -96,7 +92,7 @@ export class GeminiAi {
         return JSON.parse(response.response.text());
     }
 
-    private _getSystemInstruction(promptData: Array<PromptItem>): string {
+    private _getSystemInstruction(previousMessages: Array<Message>, promptData: Array<PromptItem>): string {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -121,7 +117,9 @@ export class GeminiAi {
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${timestamp}:f> => ${formattedShortDateTime}`,
             `- A utiliser pour les dates antérieurs à 2 jours : <t:${timestamp}:D> => ${formattedLongDate}`,
             `- A utiliser pour les dates dans le futur : <t:${timestamp}:F> => ${formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${timestamp}:R> => à l'instant`
+            `- Date/Heure relative : <t:${timestamp}:R> => à l'instant`,
+            `Contexte des messages précédents :`,
+            ...previousMessages.map((message) => `- ${getTextPromptItem(message)}`)
         ]
             .filter(Boolean)
             .join("\n");
@@ -309,4 +307,12 @@ export class GeminiAi {
         const fileInfo: UploadFileResponse = await uploadResponse.json();
         return fileInfo.file;
     }
+}
+
+function getTextPromptItem(message: Message): string {
+    return JSON.stringify({
+        [i18n("author")]: message.author.username,
+        [i18n("date")]: message.date,
+        [i18n("content")]: message.content
+    } as Record<string, string>);
 }

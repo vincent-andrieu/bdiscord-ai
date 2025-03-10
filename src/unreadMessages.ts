@@ -1,5 +1,6 @@
 import {
     DiscordChannelMessages,
+    DiscordMessage,
     GuildMemberStore,
     LogLevel,
     Message,
@@ -48,7 +49,9 @@ export class UnreadMessage {
         return false;
     }
 
-    public async getUnreadMessages(channelId: string | undefined = this.channelId): Promise<{ referenceMessage: string; messages: Array<Message> }> {
+    public async getUnreadMessages(
+        channelId: string | undefined = this.channelId
+    ): Promise<{ referenceMessage: string; previousMessages: Array<Message>; unreadMessages: Array<Message> }> {
         if (!channelId) throw "No channel selected";
         const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
 
@@ -59,17 +62,23 @@ export class UnreadMessage {
                     ? channelReadState.oldestUnreadMessageId
                     : channelReadState.ackMessageId;
             const messages = await this._fetchAllMessages(channelId, oldestMessageId);
-            const unreadMessages = messages.filter((message) => getOldestId(message.id, oldestMessageId) === oldestMessageId);
+            const { previousMessages, unreadMessages } = messages.reduce(
+                (acc: { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> }, message) => {
+                    if (getOldestId(message.id, oldestMessageId) === oldestMessageId) {
+                        acc.unreadMessages.push(message);
+                    } else {
+                        acc.previousMessages.push(message);
+                    }
+                    return acc;
+                },
+                { previousMessages: [], unreadMessages: [] }
+            ) as { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> };
+            const mapMessagesStores = { selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore };
 
             return {
                 referenceMessage: oldestMessageId,
-                messages: mapMessages(
-                    {
-                        selectedGuildStore: this._selectedGuildStore,
-                        guildMemberStore: this._guildMemberStore
-                    },
-                    unreadMessages
-                )
+                previousMessages: mapMessages(mapMessagesStores, previousMessages),
+                unreadMessages: mapMessages(mapMessagesStores, unreadMessages)
             };
         }
         throw "No unread messages";
