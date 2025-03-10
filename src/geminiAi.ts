@@ -1,4 +1,4 @@
-import { FileDataPart, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
+import { FileDataPart, GenerateContentStreamResult, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
 import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
@@ -43,7 +43,7 @@ export class GeminiAi {
         }
     }
 
-    async summarizeMessages(previousMessages: Array<Message>, unreadMessages: Array<Message>): Promise<string> {
+    async summarizeMessages(previousMessages: Array<Message>, unreadMessages: Array<Message>): Promise<GenerateContentStreamResult> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<string | Part> = promptData.flatMap((promptItem) => [
             getTextPromptItem(promptItem.message),
@@ -55,9 +55,7 @@ export class GeminiAi {
             systemInstruction: this._getSystemInstruction(previousMessages, promptData)
         });
 
-        const result = await model.generateContent(request);
-
-        return result.response.text();
+        return await model.generateContentStream(request);
     }
 
     async isSensitiveContent(messages: Array<Message>): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean } | undefined> {

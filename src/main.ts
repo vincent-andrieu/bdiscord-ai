@@ -222,14 +222,26 @@ export default class BDiscordAI {
 
         const summary = await new GeminiAi(this._log).summarizeMessages(previousMessages, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
-        const message = createMessage(guildId, channelId, previousMessageId, user, summary, DiscordMessageFlags.EPHEMERAL, referenceMessage);
+        let message: DiscordMessage | undefined = undefined;
 
-        this._messageActions.receiveMessage(channelId, message);
-        if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
-            this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+        for await (const chunk of summary.stream) {
+            const chunkText = chunk.text();
+
+            if (message) {
+                message.content += chunkText;
+            } else {
+                message = createMessage(guildId, channelId, previousMessageId, user, chunkText, DiscordMessageFlags.EPHEMERAL, referenceMessage);
+            }
         }
-        if (this._messageStore) {
-            this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
+
+        if (message) {
+            this._messageActions.receiveMessage(channelId, message);
+            if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
+                this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+            }
+            if (this._messageStore) {
+                this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
+            }
         }
     }
 
