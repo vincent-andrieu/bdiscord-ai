@@ -1,4 +1,12 @@
-import { config, getSetting, SETTING_GOOGLE_API_KEY, SETTING_JUMP_TO_MESSAGE } from "./config";
+import {
+    config,
+    getSetting,
+    SETTING_ARACHNOPHOBIA_MODE,
+    SETTING_EMETOPHOBIA_MODE,
+    SETTING_GOOGLE_API_KEY,
+    SETTING_JUMP_TO_MESSAGE,
+    SETTING_SENSITIVE_PANIC_MODE
+} from "./config";
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
@@ -11,6 +19,7 @@ import {
     DiscordEventType,
     DiscordEventUpdateMessage,
     DiscordMessage,
+    DiscordMessageEmbed,
     GuildMemberStore,
     LogLevel,
     MessageActions,
@@ -218,6 +227,12 @@ export default class BDiscordAI {
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
+        const settingEmetophobia = getSetting<boolean>(SETTING_EMETOPHOBIA_MODE);
+        const settingArachnophobia = getSetting<boolean>(SETTING_ARACHNOPHOBIA_MODE);
+        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
+        const backup: { attachments: Record<string, boolean>; embeds: Array<DiscordMessageEmbed> } = { attachments: {}, embeds: [] };
+
+        if (!settingEmetophobia && !settingArachnophobia) return;
         if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
         if (
             this._userStore.getCurrentUser().id === discordMessage.author.id ||
@@ -225,21 +240,43 @@ export default class BDiscordAI {
                 !discordMessage.embeds?.length)
         )
             return;
+
+        const toggleSensitiveContent = (toggle: boolean) => {
+            const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
+
+            if (sensitiveMessage) {
+                if (toggle) {
+                    sensitiveMessage.attachments?.forEach((attachment) => {
+                        backup.attachments[attachment.id] = attachment.spoiler;
+                        attachment.spoiler = true;
+                    });
+                    if (sensitiveMessage.embeds?.length) {
+                        backup.embeds = [...sensitiveMessage.embeds];
+                        sensitiveMessage.embeds = [];
+                    }
+                } else {
+                    sensitiveMessage.attachments?.forEach((attachment) => (attachment.spoiler = backup.attachments[attachment.id] ?? false));
+                    sensitiveMessage.embeds = backup.embeds;
+                }
+                if (this._selectedChannelStore?.getCurrentlySelectedChannelId() === sensitiveMessage.channel_id) {
+                    forceReloadMessages();
+                }
+            }
+        };
+
+        if (panicMode) {
+            toggleSensitiveContent(true);
+        }
         const messages = mapMessages({ selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore }, [discordMessage]);
         await fetchMediasMetadata(messages);
         const isSensitive = await new GeminiAi(this._log).isSensitiveContent(messages);
 
-        if (isSensitive?.isEmetophobia || isSensitive?.isArachnophobia) {
-            const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
-
-            if (sensitiveMessage) {
-                sensitiveMessage.attachments?.forEach((attachment) => (attachment.spoiler = true));
-                sensitiveMessage.embeds = [];
-                if (this._selectedChannelStore?.getCurrentlySelectedChannelId() === sensitiveMessage.channel_id) {
-                    forceReloadMessages();
-                }
-                this._log("Message censuré", "warn");
+        if ((settingEmetophobia && isSensitive?.isEmetophobia) || (settingArachnophobia && isSensitive?.isArachnophobia)) {
+            if (!panicMode) {
+                toggleSensitiveContent(true);
             }
+        } else if (panicMode) {
+            toggleSensitiveContent(false);
         }
     }
 }

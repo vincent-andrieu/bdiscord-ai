@@ -91,7 +91,7 @@ export interface SettingsCategory {
     name?: string;
     collapsible: boolean;
     shown: boolean;
-    settings: SettingItem[];
+    settings: SettingConfigElement[];
 }
 
 export type SettingConfigElement = SettingsCategory | TextSetting | DropdownSetting<string> | SwitchSetting;
