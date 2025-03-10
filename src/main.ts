@@ -27,6 +27,7 @@ import {
     ReadStateStore,
     SelectedChannelStore,
     SelectedGuildStore,
+    SettingConfigElement,
     SettingItem,
     UserStore
 } from "./types";
@@ -100,7 +101,21 @@ export default class BDiscordAI {
         return BdApi.UI.buildSettingsPanel({
             settings: config.settings,
             onChange: (_category, id, value) => {
-                const setting = config.settings.find((setting) => setting.type !== "category" && setting.id === id) as SettingItem | undefined;
+                const getSettingItem = (id: string, settingsList: Array<SettingConfigElement> = config.settings): SettingItem | undefined => {
+                    for (const setting of settingsList) {
+                        if (setting.type === "category") {
+                            const result = getSettingItem(id, setting.settings);
+
+                            if (result !== undefined) {
+                                return result;
+                            }
+                        } else if (setting.id === id) {
+                            return setting;
+                        }
+                    }
+                    return undefined;
+                };
+                const setting = getSettingItem(id);
 
                 if (setting) {
                     setting.value = value;
