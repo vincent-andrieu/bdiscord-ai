@@ -58,6 +58,7 @@ export default class BDiscordAI {
         "MESSAGE_ACK"
     ];
     private _chats: Array<{ messages: Array<string>; model: GeminiAi }> = [];
+    private _isSensitiveMessageCheck = new Set<string>();
     private _closeApiKeyNotice?: () => void;
 
     start() {
@@ -95,6 +96,8 @@ export default class BDiscordAI {
     stop() {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
+        this._chats = [];
+        this._isSensitiveMessageCheck.clear();
 
         this._unsubscribeEvents();
         BdApi.Patcher.unpatchAll(config.name);
@@ -286,7 +289,8 @@ export default class BDiscordAI {
         if (
             this._userStore.getCurrentUser().id === discordMessage.author.id ||
             ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
-                !discordMessage.embeds?.length)
+                !discordMessage.embeds?.length) ||
+            this._isSensitiveMessageCheck.has(discordMessage.id)
         )
             return;
 
@@ -313,6 +317,7 @@ export default class BDiscordAI {
             }
         };
 
+        this._isSensitiveMessageCheck.add(discordMessage.id);
         if (panicMode) {
             toggleSensitiveContent(true);
         }
