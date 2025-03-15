@@ -75,13 +75,6 @@ export class GeminiAi {
         return await this._chat.sendMessageStream(request);
     }
 
-    async suggestAnswer() {
-        if (!this._chat) {
-            throw "Chat session is missing";
-        }
-        return await this._chat.sendMessageStream("Propose 1 réponse à la conversation");
-    }
-
     async isSensitiveContent(messages: Array<Message>): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean } | undefined> {
         const request: Array<string | Part> = await this._getSensitiveContentPrompt(messages);
 

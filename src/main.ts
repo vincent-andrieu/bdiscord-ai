@@ -12,7 +12,6 @@ import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { fetchMediasMetadata } from "./medias";
-import { MessagesComponents } from "./messagesComponents";
 import { SummaryButton } from "./summaryButton";
 import {
     DiscordEvent,
@@ -48,7 +47,6 @@ export default class BDiscordAI {
 
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
-    private _messagesComponents?: MessagesComponents;
     private _listeningEvents: Array<DiscordEventType> = [
         "CHANNEL_SELECT",
         "MESSAGE_CREATE",
@@ -81,7 +79,6 @@ export default class BDiscordAI {
             this._messageActions,
             this._log.bind(this)
         );
-        this._messagesComponents = new MessagesComponents(this._log.bind(this));
 
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
@@ -271,24 +268,6 @@ export default class BDiscordAI {
             }
 
             this._chats.push({ messages: [message.id], model });
-            this._messagesComponents?.patchMessage(message, this._askAnswer.bind(this));
-        }
-    }
-
-    private async _askAnswer(message: DiscordMessage) {
-        const chat = this._chats.find((chat) => chat.messages.includes(message.id));
-
-        if (chat) {
-            const suggestion = await chat.model.suggestAnswer();
-            let answer: string = "";
-
-            for await (const chunk of suggestion.stream) {
-                const chunkText = chunk.text();
-
-                answer += chunkText;
-            }
-
-            console.warn("Answer", answer);
         }
     }
 
