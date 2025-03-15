@@ -223,7 +223,7 @@ export default class BDiscordAI {
         await fetchMediasMetadata(unreadMessages);
 
         const model = new GeminiAi(this._log);
-        const summary = await model.summarizeMessages(unreadMessages, previousMessages);
+        const summary = await model.summarizeMessages(previousMessages, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
 
