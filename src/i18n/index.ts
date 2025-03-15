@@ -4,11 +4,17 @@ const LOCALE = "fr";
 
 type I18n = typeof fr;
 
-export function i18n(name: keyof I18n): string {
-    switch (LOCALE) {
+export let i18n: I18n;
+
+export function setLocale(locale: string = LOCALE) {
+    switch (locale) {
         case "fr":
-            return fr[name] || name;
+            i18n = fr;
+            break;
         default:
-            return name;
+            i18n = fr;
+            break;
     }
 }
+
+setLocale();

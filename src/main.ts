@@ -142,11 +142,11 @@ export default class BDiscordAI {
     }
 
     private _showAddApiKeyNotice(): void {
-        this._closeApiKeyNotice = BdApi.UI.showNotice(`${LOG_PREFIX} Aucune clée API Google n'est configurée`, {
+        this._closeApiKeyNotice = BdApi.UI.showNotice(`${LOG_PREFIX} ${i18n.API_KEY_NOTICE}`, {
             type: "warning",
             buttons: [
                 {
-                    label: "Ajouter",
+                    label: i18n.ADD,
                     onClick: () =>
                         BdApi.UI.showConfirmationModal(
                             `${config.name} Settings`,
@@ -154,7 +154,7 @@ export default class BDiscordAI {
                                 className: "bd-addon-settings-wrap",
                                 children: this.getSettingsPanel()
                             }),
-                            { className: "bd-addon-modal", size: "bd-modal-medium", cancelText: null, confirmText: i18n("done") }
+                            { className: "bd-addon-modal", size: "bd-modal-medium", cancelText: null, confirmText: i18n.DONE }
                         )
                 }
             ]

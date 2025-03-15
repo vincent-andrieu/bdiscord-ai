@@ -1,4 +1,5 @@
 import { LOG_PREFIX } from "./constants";
+import { i18n } from "./i18n";
 import { aiStarsIcon } from "./icons/aiStars";
 import { getSetting, SETTING_GOOGLE_API_KEY } from "./settings";
 
@@ -12,7 +13,7 @@ export class SummaryButton {
         private _onClick: () => Promise<void>
     ) {}
 
-    public toggle(value?: boolean): void {
+    toggle(value?: boolean): void {
         if ((value || (value === undefined && !this._enabled)) && !getSetting<string>(SETTING_GOOGLE_API_KEY)?.length) {
             return;
         }
@@ -40,7 +41,7 @@ export class SummaryButton {
         const button = BdApi.React.createElement(BdApi.Components.Button, {
             children: [
                 BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }),
-                "Résumer"
+                i18n.SUMMARY_BUTTON
             ],
             size: "bd-button-small",
             disabled: this._isLoading,

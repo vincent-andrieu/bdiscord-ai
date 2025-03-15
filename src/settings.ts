@@ -1,3 +1,4 @@
+import { i18n } from "./i18n";
 import { SettingConfigElement } from "./types/settings";
 
 const name = "BDiscordAI";
@@ -23,22 +24,23 @@ export const config: {
         {
             type: "category",
             id: "aiModel",
-            name: "AI Model",
+            name: i18n.SETTING_CATEGORY_GEMINI_AI,
             collapsible: true,
             shown: false,
             settings: [
                 {
                     type: "text",
                     id: SETTING_GOOGLE_API_KEY,
-                    name: "Google API Key",
+                    name: i18n.SETTING_GOOGLE_API_KEY,
+                    note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
                     value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
                     placeholder: "API KEY"
                 },
                 {
                     type: "dropdown",
                     id: SETTING_AI_MODEL,
-                    name: "Model",
-                    note: "Sélectionne le model Gemini à utiliser",
+                    name: i18n.SETTING_AI_MODEL,
+                    note: i18n.SETTING_AI_MODEL_NOTE,
                     value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
                     defaultValue: DEFAULT_AI_MODEL,
                     options: [
@@ -52,8 +54,8 @@ export const config: {
                 {
                     type: "number",
                     id: SETTING_MEDIA_MAX_SIZE,
-                    name: "Taille maximale des médias",
-                    note: "Taille max des médias à télécharger (en Mo)",
+                    name: i18n.SETTING_MEDIA_MAX_SIZE,
+                    note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
                     value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
                     defaultValue: MAX_MEDIA_SIZE,
                     min: 0,
@@ -62,59 +64,59 @@ export const config: {
                 {
                     type: "switch",
                     id: SETTING_JUMP_TO_MESSAGE,
-                    name: "Scroll auto",
+                    name: i18n.SETTING_JUMP_TO_MESSAGE,
                     value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
                     defaultValue: true,
-                    note: "Scroll automatiquement sur le message quand il est généré"
+                    note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE
                 }
             ]
         },
         {
             type: "category",
             id: "sensitive",
-            name: "Contenu sensible",
+            name: i18n.SETTING_CATEGORY_SENSITIVE,
             collapsible: true,
             shown: false,
             settings: [
                 {
                     type: "switch",
                     id: SETTING_EMETOPHOBIA_MODE,
-                    name: "Émétophobie",
+                    name: i18n.SETTING_EMETOPHOBIA_MODE,
                     value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
                     defaultValue: false,
-                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                    note: i18n.SETTING_SENSITIVE_NOTE
                 },
                 {
                     type: "switch",
                     id: SETTING_ARACHNOPHOBIA_MODE,
-                    name: "Arachnophobie",
+                    name: i18n.SETTING_ARACHNOPHOBIA_MODE,
                     value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
                     defaultValue: false,
-                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                    note: i18n.SETTING_SENSITIVE_NOTE
                 },
                 {
                     type: "switch",
                     id: SETTING_EPILEPSY_MODE,
-                    name: "Épilepsie",
+                    name: i18n.SETTING_EPILEPSY_MODE,
                     value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
                     defaultValue: false,
-                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                    note: i18n.SETTING_SENSITIVE_NOTE
                 },
                 {
                     type: "switch",
                     id: SETTING_SEXUALITY_MODE,
-                    name: "Sexualité",
+                    name: i18n.SETTING_SEXUALITY_MODE,
                     value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
                     defaultValue: false,
-                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                    note: i18n.SETTING_SENSITIVE_NOTE
                 },
                 {
                     type: "switch",
                     id: SETTING_SENSITIVE_PANIC_MODE,
-                    name: "Panic mode",
+                    name: i18n.SETTING_SENSITIVE_PANIC_MODE,
                     value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
                     defaultValue: false,
-                    note: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)"
+                    note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
                 }
             ]
         }
