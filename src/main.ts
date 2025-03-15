@@ -1,4 +1,4 @@
-import { DiscordMessageComponentStyle, DiscordMessageFlags, LOG_PREFIX } from "./constants";
+import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
@@ -238,7 +238,6 @@ export default class BDiscordAI {
                 message.content += chunkText;
             } else {
                 const messageId = generateMessageId(previousMessageId);
-                const skuId = `${guildId}-${channelId}-${messageId}`;
 
                 message = createMessage({
                     guildId,
@@ -247,17 +246,7 @@ export default class BDiscordAI {
                     author: user,
                     content: chunkText,
                     flags: DiscordMessageFlags.EPHEMERAL,
-                    reply: referenceMessage,
-                    components: [
-                        {
-                            customId: "askAnswer",
-                            id: "0,0",
-                            label: "Proposer une réponse",
-                            style: DiscordMessageComponentStyle.SECONDARY,
-                            type: 2,
-                            skuId
-                        }
-                    ]
+                    reply: referenceMessage
                 });
             }
         }
