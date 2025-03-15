@@ -1,4 +1,13 @@
-import { FileDataPart, GenerateContentStreamResult, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
+import {
+    ChatSession,
+    FileDataPart,
+    GenerateContentStreamResult,
+    GoogleGenerativeAI,
+    InlineDataPart,
+    Part,
+    Schema,
+    SchemaType
+} from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
 import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
@@ -14,6 +23,8 @@ type PromptItem = { message: Message; dataPart?: Array<InlineDataPart> | Array<F
 export class GeminiAi {
     private _genAI: GoogleGenerativeAI;
     private _fileManager: GoogleAIFileManager;
+
+    private _chat?: ChatSession;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -43,19 +54,32 @@ export class GeminiAi {
         }
     }
 
-    async summarizeMessages(previousMessages: Array<Message>, unreadMessages: Array<Message>): Promise<GenerateContentStreamResult> {
+    async summarizeMessages(unreadMessages: Array<Message>, previousMessages: Array<Message> = []): Promise<GenerateContentStreamResult> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<string | Part> = promptData.flatMap((promptItem) => [
             getTextPromptItem(promptItem.message),
             ...(promptItem.dataPart || [])
         ]);
 
-        const model = this._genAI.getGenerativeModel({
-            model: this._modelName,
-            systemInstruction: this._getSystemInstruction(previousMessages, promptData)
-        });
+        if (!this._chat) {
+            const model = this._genAI.getGenerativeModel({
+                model: this._modelName,
+                systemInstruction: getSystemInstruction()
+            });
 
-        return await model.generateContentStream(request);
+            this._chat = model.startChat({
+                history: previousMessages.map((message) => ({ role: "user", parts: [{ text: getTextPromptItem(message) }] }))
+            });
+        }
+
+        return await this._chat.sendMessageStream(request);
+    }
+
+    async suggestAnswer() {
+        if (!this._chat) {
+            throw "Chat session is missing";
+        }
+        return await this._chat.sendMessageStream("Propose 1 réponse à la conversation");
     }
 
     async isSensitiveContent(messages: Array<Message>): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean } | undefined> {
@@ -88,39 +112,6 @@ export class GeminiAi {
         const response = await model.generateContent(request);
 
         return JSON.parse(response.response.text());
-    }
-
-    private _getSystemInstruction(previousMessages: Array<Message>, promptData: Array<PromptItem>): string {
-        const now = new Date();
-        const timestamp = convertTimestampToUnix(now);
-        const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        const formattedLongDate = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
-        const formattedShortDateTime = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
-        const formattedLongDateTime =
-            now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
-
-        return [
-            `Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord. Ta réponse est au format markdown.`,
-            promptData.some((prompt) => prompt.dataPart?.length) ? `Les images, vidéos et/ou audios ont été envoyés dans des messages.` : undefined,
-            `Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :`,
-            `- Nom d'utilisateur : <@1234>`,
-            `- Nom de rôle : <@&1234>`,
-            `- Emoji personnalisé : <a:nom:1234>`,
-            `- Emoji natif : :joy:`,
-            `- Nom des channels : <#1234>`,
-            `- Lien vers un message : https://discord.com/channels/1234/1234/1234`,
-            `- La mise en forme des liens markdown n'est pas prit en charge : [texte](url)`,
-            `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :`,
-            `- A utiliser pour les dates dans les 24h : <t:${timestamp}:t> => ${formattedTime}`,
-            `- A utiliser pour les dates antérieurs à 1 jours : <t:${timestamp}:f> => ${formattedShortDateTime}`,
-            `- A utiliser pour les dates antérieurs à 2 jours : <t:${timestamp}:D> => ${formattedLongDate}`,
-            `- A utiliser pour les dates dans le futur : <t:${timestamp}:F> => ${formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${timestamp}:R> => à l'instant`,
-            `Contexte des messages précédents :`,
-            ...previousMessages.map((message) => `- ${getTextPromptItem(message)}`)
-        ]
-            .filter(Boolean)
-            .join("\n");
     }
 
     private async _getSensitiveContentPrompt(messages: Array<Message>): Promise<Array<string | Part>> {
@@ -305,6 +296,35 @@ export class GeminiAi {
         const fileInfo: UploadFileResponse = await uploadResponse.json();
         return fileInfo.file;
     }
+}
+
+function getSystemInstruction(): string {
+    const now = new Date();
+    const timestamp = convertTimestampToUnix(now);
+    const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const formattedLongDate = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+    const formattedShortDateTime = now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
+    const formattedLongDateTime =
+        now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + " " + formattedTime;
+
+    return [
+        `Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord. Ta réponse est au format markdown.`,
+        `Les images, vidéos et/ou audios ont été envoyés dans des messages.`,
+        `Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :`,
+        `- Nom d'utilisateur : <@1234>`,
+        `- Nom de rôle : <@&1234>`,
+        `- Emoji personnalisé : <a:nom:1234>`,
+        `- Emoji natif : :joy:`,
+        `- Nom des channels : <#1234>`,
+        `- Lien vers un message : https://discord.com/channels/1234/1234/1234`,
+        `- La mise en forme des liens markdown n'est pas prit en charge : [texte](url)`,
+        `Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :`,
+        `- A utiliser pour les dates dans les 24h : <t:${timestamp}:t> => ${formattedTime}`,
+        `- A utiliser pour les dates antérieurs à 1 jours : <t:${timestamp}:f> => ${formattedShortDateTime}`,
+        `- A utiliser pour les dates antérieurs à 2 jours : <t:${timestamp}:D> => ${formattedLongDate}`,
+        `- A utiliser pour les dates dans le futur : <t:${timestamp}:F> => ${formattedLongDateTime}`,
+        `- Date/Heure relative : <t:${timestamp}:R> => à l'instant`
+    ].join("\n");
 }
 
 function getTextPromptItem(message: Message): string {

@@ -3,14 +3,14 @@ import { DiscordComponentVisualState } from "./constants";
 import { DiscordMessage, LogLevel } from "./types";
 
 export class MessagesComponents {
-    private _patches: Array<{ message: DiscordMessage; onClick: () => void }> = [];
+    private _patches: Array<{ message: DiscordMessage; onClick: (message: DiscordMessage) => void }> = [];
 
     constructor(private _log: (message: string, type?: LogLevel) => void) {
         this._patchComponentData();
         this._patchComponentClick();
     }
 
-    patchMessage(message: DiscordMessage, onClick: () => void) {
+    patchMessage(message: DiscordMessage, onClick: (message: DiscordMessage) => void) {
         if (!this._patches.some((patch) => patch.message.id === message.id)) {
             this._patches.push({ message, onClick });
         }
@@ -53,7 +53,7 @@ export class MessagesComponents {
 
                 if (patch) {
                     return {
-                        executeStateUpdate: patch.onClick,
+                        executeStateUpdate: () => patch.onClick(patch.message),
                         visualState: DiscordComponentVisualState.NORMAL,
                         isDisabled: false
                     };

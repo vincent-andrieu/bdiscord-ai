@@ -57,7 +57,7 @@ export default class BDiscordAI {
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
     ];
-    private _chats: Array<{ summaryMessages: Array<string>; model: GeminiAi }> = [];
+    private _chats: Array<{ messages: Array<string>; model: GeminiAi }> = [];
     private _closeApiKeyNotice?: () => void;
 
     start() {
@@ -226,7 +226,7 @@ export default class BDiscordAI {
         await fetchMediasMetadata(unreadMessages);
 
         const model = new GeminiAi(this._log);
-        const summary = await model.summarizeMessages(previousMessages, unreadMessages);
+        const summary = await model.summarizeMessages(unreadMessages, previousMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
 
@@ -270,13 +270,26 @@ export default class BDiscordAI {
                 this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
             }
 
-            this._chats.push({ summaryMessages: [message.id], model });
+            this._chats.push({ messages: [message.id], model });
             this._messagesComponents?.patchMessage(message, this._askAnswer.bind(this));
         }
     }
 
-    private _askAnswer() {
-        console.warn("askAnswer");
+    private async _askAnswer(message: DiscordMessage) {
+        const chat = this._chats.find((chat) => chat.messages.includes(message.id));
+
+        if (chat) {
+            const suggestion = await chat.model.suggestAnswer();
+            let answer: string = "";
+
+            for await (const chunk of suggestion.stream) {
+                const chunkText = chunk.text();
+
+                answer += chunkText;
+            }
+
+            console.warn("Answer", answer);
+        }
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
