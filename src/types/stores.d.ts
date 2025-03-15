@@ -141,7 +141,7 @@ export type ReadStateStore = {
 
 export type MessageStore = {
     getMessages(channelId: string): DiscordChannelMessages;
-    getMessage(channelId: string, messageId: string): DiscordMessage;
+    getMessage(channelId: string, messageId: string): DiscordMessage | undefined;
 };
 
 export type GuildMemberStore = {

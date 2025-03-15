@@ -234,6 +234,7 @@ export default class BDiscordAI {
 
             if (message) {
                 message.content += chunkText;
+                this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
             } else {
                 const messageId = generateMessageId(previousMessageId);
 
@@ -244,18 +245,13 @@ export default class BDiscordAI {
                     author: user,
                     content: chunkText,
                     flags: DiscordMessageFlags.EPHEMERAL,
-                    reply: referenceMessage
+                    reply: this._messageStore?.getMessage(channelId, referenceMessage)
                 });
-            }
-        }
 
-        if (message) {
-            this._messageActions.receiveMessage(channelId, message);
-            if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
-                this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
-            }
-            if (this._messageStore) {
-                this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
+                this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
+                if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
+                    this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+                }
             }
         }
     }

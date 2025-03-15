@@ -61,12 +61,20 @@ export function createMessage({
     author: DiscordUser;
     content: string;
     flags: DiscordMessageFlags;
-    reply?: string;
+    reply?: DiscordMessage;
     components?: Array<DiscordMessageComponent>;
 }): DiscordMessage {
     if (!id) {
         throw new Error("Either id or previousMessageId must be provided");
     }
+    const messageReference = reply
+        ? {
+              guild_id: guildId,
+              channel_id: channelId,
+              message_id: reply.id,
+              type: 0
+          }
+        : undefined;
     return {
         id,
         author,
@@ -92,14 +100,9 @@ export function createMessage({
         mentionRoles: [],
         mentioned: false,
         mentions: [],
-        messageReference: reply
-            ? {
-                  guild_id: guildId,
-                  channel_id: channelId,
-                  message_id: reply,
-                  type: 0
-              }
-            : undefined,
+        messageReference: messageReference,
+        message_reference: messageReference,
+        referenced_message: reply,
         nonce: null,
         pinned: false,
         reactions: [],

@@ -228,6 +228,13 @@ export type DiscordMessage = {
         message_id: string;
         type: number;
     };
+    message_reference?: {
+        guild_id: string;
+        channel_id: string;
+        message_id: string;
+        type: number;
+    };
+    referenced_message?: DiscordMessage;
     messageSnapshots?: any[]; // Replace 'any' with the appropriate type if known
     nick?: string | undefined;
     nonce: string | null;
@@ -468,6 +475,10 @@ export type DiscordEmoji = {
 
 export type MessageActions = {
     fetchMessages: (params: { channelId: string; limit: number; before?: string; after?: string }) => Promise<Array<DiscordMessage>>;
-    receiveMessage: (channelId: string, message: DiscordMessage) => void;
+    receiveMessage: (channelId: string, message: DiscordMessage, _?: unknown, options?: { messageReference?: {
+        guild_id: string;
+        channel_id: string;
+        message_id: string;
+    } }) => void;
     jumpToMessage(params: { channelId: string, messageId: string, flash?: boolean = false, offset?: number, context?: unknown, extraProperties?: any = null, isPreload?: boolean, returnMessageId?: string, skipLocalFetch: boolean, jumpType?: number}): void;
 };
