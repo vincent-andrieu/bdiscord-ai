@@ -28,7 +28,8 @@ export default {
             "/**",
             " * @name BDiscordAI",
             " * @author gassastsina",
-            " * @description Summurize unread messages in a channel",
+            " * @description Summurize unread messages with Gemini and block sensible medias content.",
+            " * @authorId 292388871381975040",
             " * @version 1.0.0",
             " */"
         ].join("\n") + '\n')
