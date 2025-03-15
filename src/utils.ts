@@ -1,6 +1,6 @@
 import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "./constants";
 import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
-import { Audio, DiscordMessage, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
+import { Audio, DiscordMessage, DiscordMessageComponent, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
 
 export function getOldestId(a: string | undefined, b: string): string;
 export function getOldestId(a: string, b?: string): string;
@@ -39,21 +39,49 @@ export function convertArrayBufferToBase64(buffer: ArrayBuffer): string {
     return btoa(binary);
 }
 
-export function createMessage(
-    guildId: string,
-    channelId: string,
-    previousMessageId: string,
-    author: DiscordUser,
-    content: string,
-    flags: DiscordMessageFlags = DiscordMessageFlags.DEFAULT,
-    reply?: string
-): DiscordMessage {
+export function generateMessageId(previousMessageId: string): string {
+    return (BigInt(previousMessageId) + BigInt(1)).toString();
+}
+
+export function createMessage({
+    guildId,
+    channelId,
+    previousMessageId,
+    id = previousMessageId ? generateMessageId(previousMessageId) : undefined,
+    author,
+    content,
+    flags = DiscordMessageFlags.DEFAULT,
+    reply,
+    components
+}: {
+    guildId: string;
+    channelId: string;
+    previousMessageId?: string;
+    id?: string;
+    author: DiscordUser;
+    content: string;
+    flags: DiscordMessageFlags;
+    reply?: string;
+    components?: Array<DiscordMessageComponent>;
+}): DiscordMessage {
+    if (!id) {
+        throw new Error("Either id or previousMessageId must be provided");
+    }
     return {
-        id: (BigInt(previousMessageId) + BigInt(1)).toString(),
-        author: author,
+        id,
+        author,
         blocked: false,
         bot: false,
         channel_id: channelId,
+        components: components?.length
+            ? [
+                  {
+                      components: components,
+                      id: "0",
+                      type: 1
+                  }
+              ]
+            : undefined,
         content: content,
         flags: flags,
         ignored: false,

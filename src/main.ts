@@ -7,7 +7,7 @@ import {
     SETTING_JUMP_TO_MESSAGE,
     SETTING_SENSITIVE_PANIC_MODE
 } from "./config";
-import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
+import { DiscordComponentVisualState, DiscordMessageComponentStyle, DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
@@ -32,7 +32,7 @@ import {
     UserStore
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
-import { createMessage, mapMessages } from "./utils";
+import { createMessage, generateMessageId, mapMessages } from "./utils";
 
 export default class BDiscordAI {
     private _userStore?: UserStore;
@@ -94,6 +94,7 @@ export default class BDiscordAI {
         this._closeApiKeyNotice?.();
 
         this._unsubscribeEvents();
+        BdApi.Patcher.unpatchAll(config.name);
         console.warn(LOG_PREFIX, "Stopped");
     }
 
@@ -230,7 +231,30 @@ export default class BDiscordAI {
             if (message) {
                 message.content += chunkText;
             } else {
-                message = createMessage(guildId, channelId, previousMessageId, user, chunkText, DiscordMessageFlags.EPHEMERAL, referenceMessage);
+                const messageId = generateMessageId(previousMessageId);
+                const skuId = `${guildId}-${channelId}-${messageId}`;
+
+                message = createMessage({
+                    guildId,
+                    channelId,
+                    id: messageId,
+                    author: user,
+                    content: chunkText,
+                    flags: DiscordMessageFlags.EPHEMERAL,
+                    reply: referenceMessage,
+                    components: [
+                        {
+                            customId: "askAnswer",
+                            id: "0,0",
+                            label: "Proposer une réponse",
+                            style: DiscordMessageComponentStyle.SECONDARY,
+                            type: 2,
+                            skuId
+                        }
+                    ]
+                });
+
+                this._patchMessageComponent(message);
             }
         }
 
@@ -243,6 +267,58 @@ export default class BDiscordAI {
                 this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
             }
         }
+    }
+
+    private _askAnswer() {
+        console.warn("askAnswer");
+    }
+
+    private _patchMessageComponent(message: DiscordMessage) {
+        const patchComponentData = () => {
+            const moduleFilter = BdApi.Webpack.Filters.byStrings("message", "shouldDisableInteractiveComponents", "components", "children");
+            const module = BdApi.Webpack.getModule<Record<string, unknown>>((module) =>
+                Object.values<Function>(module).some((subModule) => moduleFilter(subModule) && subModule.toString().startsWith("function"))
+            );
+            const key = module ? Object.keys(module).find((key) => moduleFilter(module[key])) : undefined;
+
+            if (!key) {
+                return this._log("Fail to burst shortcut reaction");
+            }
+            return BdApi.Patcher.before(config.name, module, key, (_, [props]: Array<{ message: DiscordMessage }>) => {
+                if (
+                    props?.message.id === message.id &&
+                    props.message.components?.[0].components.length &&
+                    message.components?.[0].components.length
+                ) {
+                    props.message.components[0].components[0] = message.components?.[0].components[0];
+                }
+            });
+        };
+        const patchComponentClick = () => {
+            const moduleFilter = BdApi.Webpack.Filters.byStrings("useContext", "useComponentState");
+            const module = BdApi.Webpack.getModule<Record<string, unknown>>((module) =>
+                Object.values<Function>(module).some((subModule) => moduleFilter(subModule) && subModule.toString().startsWith("function"))
+            );
+            const key = module ? Object.keys(module).find((key) => moduleFilter(module[key])) : undefined;
+
+            if (!key) {
+                return this._log("Fail to burst shortcut reaction");
+            }
+            return BdApi.Patcher.instead(config.name, module, key, (_, args, originalFunc) => {
+                if (args[0].skuId && args[0].skuId === message.components?.[0].components[0].skuId) {
+                    return {
+                        executeStateUpdate: this._askAnswer.bind(this),
+                        visualState: DiscordComponentVisualState.NORMAL,
+                        isDisabled: false
+                    };
+                } else {
+                    return originalFunc(...args);
+                }
+            });
+        };
+
+        patchComponentData();
+        patchComponentClick();
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {

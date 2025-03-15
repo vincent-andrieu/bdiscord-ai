@@ -5,7 +5,17 @@ export const LOG_PREFIX = `[${config.name}]`;
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
 export type ImageMimeType = (typeof imageMimeTypes)[number];
 
-export const videoMimeTypes = ["video/mp4", "video/mpeg", "video/mov", "video/avi", "video/x-flv", "video/mpg", "video/webm", "video/wmv", "video/3gpp"] as const;
+export const videoMimeTypes = [
+    "video/mp4",
+    "video/mpeg",
+    "video/mov",
+    "video/avi",
+    "video/x-flv",
+    "video/mpg",
+    "video/webm",
+    "video/wmv",
+    "video/3gpp"
+] as const;
 export type VideoMimeType = (typeof videoMimeTypes)[number];
 
 export const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"] as const;
@@ -93,4 +103,19 @@ export enum DiscordMessageState {
     SENT = "SENT",
     SENDING = "SENDING",
     SEND_FAILED = "SEND_FAILED"
+}
+
+export enum DiscordMessageComponentStyle {
+    PRIMARY = 1,
+    SECONDARY = 2,
+    SUCCESS = 3,
+    DESTRUCTIVE = 4,
+    LINK = 5,
+    PREMIUM = 6
+}
+
+export enum DiscordComponentVisualState {
+    NORMAL = 0,
+    LOADING = 1,
+    DISABLED = 2
 }

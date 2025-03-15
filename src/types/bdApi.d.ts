@@ -23,6 +23,7 @@ declare module BdApiModule {
 type PropsWithChildren<P> = HTMLElement | ({ children?: HTMLElement | (HTMLElement | string)[] | string } & P);
 
 type React = {
+    useState<T>(initialState: T): [T, (value: T) => void];
     createElement<T extends Components[keyof Components]>(component: T, props?: Parameters<T>[0], ...children: Array<Node | string | Array<Node | string>>): HTMLElement;
     createElement(component: string, props?: any, ...children: Array<Node | string | Array<Node | string>>): HTMLElement;
     createElement<T extends Components[keyof Components]>(component: T | string, props?: Parameters<T>[0] | any, ...children: Array<Node | string | Array<Node | string>>): HTMLElement;
@@ -103,7 +104,7 @@ type DOM = {
 type Patcher = {
     after(caller: string, moduleToPatch: Record<any, any>, functionName: string, callback: (thisObject: any, args: any, returnValue: any) => void): any;
     before(caller: string, moduleToPatch: Record<any, any>, functionName: string, callback: (thisObject: any, args: any) => void): any;
-    instead(caller: string, moduleToPatch: Record<any, any>, functionName: string, callback: (thisObject: any, args: any) => void): any;
+    instead(caller: string, moduleToPatch: Record<any, any>, functionName: string, callback: (thisObject: any, args: any, originalFunction: (...args: any[]) => any) => void): any;
     unpatchAll(caller: string): void;
     getPatchesByCaller(caller: string): Function[];
 };
@@ -172,6 +173,7 @@ type Webpack = {
     getAllByPrototypeKeys<T extends any[]>(...prototypes: WithOptions<string, WebpackOptions>): T;
     getByKeys<T = any>(...props: WithOptions<string, WebpackOptions>): T;
     getByStrings<T>(...strings: WithOptions<string, WebpackOptions>): T;
+    getModule<T extends any>(filter: Filter, options?: WebpackOptions): T;
     getModules<T extends any[]>(filter: Filter, options: WebpackOptions = {}): T;
     getStore<T = any>(name: string): T;
 

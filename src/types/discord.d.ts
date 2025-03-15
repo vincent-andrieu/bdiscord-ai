@@ -195,7 +195,11 @@ export type DiscordMessage = {
     channel_id: string;
     codedLinks?: any[]; // Replace 'any' with the appropriate type if known
     colorString?: string | undefined;
-    components?: any[]; // Replace 'any' with the appropriate type if known
+    components?: Array<{
+        components: Array<DiscordMessageComponent>;
+        id: string;
+        type: number;
+    }>;
     content: string;
     customRenderedContent?: any; // Replace 'any' with the appropriate type if known
     editedTimestamp?: string | null;
@@ -331,6 +335,18 @@ export type DiscordMessageEmbed = {
         url: string;
         width: number;
     };
+};
+
+export type DiscordMessageComponent = {
+    customId?: string;
+    disabled?: boolean;
+    emoji?: unknown;
+    id: string;
+    label: string;
+    skuId?: string;
+    style: number;
+    type: number;
+    url?: string;
 };
 
 export type DiscordUser = {
