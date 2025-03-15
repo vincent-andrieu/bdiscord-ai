@@ -1,13 +1,12 @@
 import { FileDataPart, GenerateContentStreamResult, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
 import { i18n } from "./i18n";
-import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./settings";
+import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, SETTING_MEDIA_MAX_SIZE } from "./settings";
 import { LogLevel, Media, Message } from "./types";
 import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
-const MAX_MEDIA_SIZE = 50_000_000;
 
 type PromptItem = { message: Message; dataPart?: Array<InlineDataPart> | Array<FileDataPart> };
 
@@ -144,7 +143,8 @@ export class GeminiAi {
     }
 
     private _filterUploadableMedias(messages: Array<Message>): Array<Message> {
-        const filterCondition = (media: Media) => media?.mimeType && media.size && media.size <= MAX_MEDIA_SIZE;
+        const maxMediaSize = (getSetting<number>(SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE) * 1_000_000;
+        const filterCondition = (media: Media) => media?.mimeType && media.size && media.size <= maxMediaSize;
 
         return messages.map((message) => ({
             ...message,

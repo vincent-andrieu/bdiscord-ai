@@ -2,9 +2,11 @@ import { SettingConfigElement } from "./types/settings";
 
 const name = "BDiscordAI";
 const DEFAULT_AI_MODEL = "gemini-2.0-flash";
+export const MAX_MEDIA_SIZE = 50;
 
 export const SETTING_GOOGLE_API_KEY = "googleApiKey";
 export const SETTING_AI_MODEL = "aiModel";
+export const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
 export const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
 export const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
 export const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
@@ -23,7 +25,7 @@ export const config: {
             id: "aiModel",
             name: "AI Model",
             collapsible: true,
-            shown: true,
+            shown: false,
             settings: [
                 {
                     type: "text",
@@ -36,7 +38,7 @@ export const config: {
                     type: "dropdown",
                     id: SETTING_AI_MODEL,
                     name: "Model",
-                    note: "Select the AI model to use",
+                    note: "Sélectionne le model Gemini à utiliser",
                     value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
                     defaultValue: DEFAULT_AI_MODEL,
                     options: [
@@ -48,9 +50,19 @@ export const config: {
                     ]
                 },
                 {
+                    type: "number",
+                    id: SETTING_MEDIA_MAX_SIZE,
+                    name: "Taille maximale des médias",
+                    note: "Taille max des médias à télécharger (en Mo)",
+                    value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
+                    defaultValue: MAX_MEDIA_SIZE,
+                    min: 0,
+                    max: 300
+                },
+                {
                     type: "switch",
                     id: SETTING_JUMP_TO_MESSAGE,
-                    name: "Auto scroll",
+                    name: "Scroll auto",
                     value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
                     defaultValue: true,
                     note: "Scroll automatiquement sur le message quand il est généré"

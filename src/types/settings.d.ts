@@ -94,4 +94,4 @@ export interface SettingsCategory {
     settings: SettingConfigElement[];
 }
 
-export type SettingConfigElement = SettingsCategory | TextSetting | DropdownSetting<string> | SwitchSetting;
+export type SettingConfigElement = SettingsCategory | TextSetting | DropdownSetting<string> | SwitchSetting | NumberSetting;

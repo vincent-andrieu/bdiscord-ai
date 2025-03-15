@@ -38,7 +38,7 @@ export class UnreadMessage {
             let nChar = 0;
 
             return messages.some((message) => {
-                if (getOldestId(message.id, channelReadState.oldestUnreadMessageId) === channelReadState.oldestUnreadMessageId) {
+                if (getOldestId(message.id, channelReadState.oldestUnreadMessageId || undefined) === channelReadState.oldestUnreadMessageId) {
                     nChar += message.content.length;
 
                     return nChar >= HAS_UNREAD_MIN_CHAR;
