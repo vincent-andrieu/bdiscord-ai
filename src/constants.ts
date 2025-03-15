@@ -1,4 +1,4 @@
-import { config } from "./config";
+import { config } from "./settings";
 
 export const LOG_PREFIX = `[${config.name}]`;
 

@@ -8,6 +8,8 @@ export const SETTING_AI_MODEL = "aiModel";
 export const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
 export const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
 export const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
+export const SETTING_EPILEPSY_MODE = "epilepsyMode";
+export const SETTING_SEXUALITY_MODE = "sexualityMode";
 export const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
 
 export const config: {
@@ -75,6 +77,22 @@ export const config: {
                     id: SETTING_ARACHNOPHOBIA_MODE,
                     name: "Arachnophobie",
                     value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
+                    defaultValue: false,
+                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                },
+                {
+                    type: "switch",
+                    id: SETTING_EPILEPSY_MODE,
+                    name: "Épilepsie",
+                    value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
+                    defaultValue: false,
+                    note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
+                },
+                {
+                    type: "switch",
+                    id: SETTING_SEXUALITY_MODE,
+                    name: "Sexualité",
+                    value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
                     defaultValue: false,
                     note: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded"
                 },

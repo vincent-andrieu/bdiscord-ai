@@ -1,17 +1,19 @@
-import {
-    config,
-    getSetting,
-    SETTING_ARACHNOPHOBIA_MODE,
-    SETTING_EMETOPHOBIA_MODE,
-    SETTING_GOOGLE_API_KEY,
-    SETTING_JUMP_TO_MESSAGE,
-    SETTING_SENSITIVE_PANIC_MODE
-} from "./config";
 import { DiscordMessageComponentStyle, DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n } from "./i18n";
 import { fetchMediasMetadata } from "./medias";
+import {
+    config,
+    getSetting,
+    SETTING_ARACHNOPHOBIA_MODE,
+    SETTING_EMETOPHOBIA_MODE,
+    SETTING_EPILEPSY_MODE,
+    SETTING_GOOGLE_API_KEY,
+    SETTING_JUMP_TO_MESSAGE,
+    SETTING_SENSITIVE_PANIC_MODE,
+    SETTING_SEXUALITY_MODE
+} from "./settings";
 import { SummaryButton } from "./summaryButton";
 import {
     DiscordEvent,
@@ -272,12 +274,14 @@ export default class BDiscordAI {
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
+        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
         const settingEmetophobia = getSetting<boolean>(SETTING_EMETOPHOBIA_MODE);
         const settingArachnophobia = getSetting<boolean>(SETTING_ARACHNOPHOBIA_MODE);
-        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
+        const settingEpilepsy = getSetting<boolean>(SETTING_EPILEPSY_MODE);
+        const settingSexuality = getSetting<boolean>(SETTING_SEXUALITY_MODE);
         const backup: { attachments: Record<string, boolean>; embeds: Array<DiscordMessageEmbed> } = { attachments: {}, embeds: [] };
 
-        if (!settingEmetophobia && !settingArachnophobia) return;
+        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality) return;
         if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
         if (
             this._userStore.getCurrentUser().id === discordMessage.author.id ||
@@ -316,7 +320,12 @@ export default class BDiscordAI {
         await fetchMediasMetadata(messages);
         const isSensitive = await new GeminiAi(this._log).isSensitiveContent(messages);
 
-        if ((settingEmetophobia && isSensitive?.isEmetophobia) || (settingArachnophobia && isSensitive?.isArachnophobia)) {
+        if (
+            (settingEmetophobia && isSensitive?.isEmetophobia) ||
+            (settingArachnophobia && isSensitive?.isArachnophobia) ||
+            (settingEpilepsy && isSensitive?.isEpileptic) ||
+            (settingSexuality && isSensitive?.isSexual)
+        ) {
             if (!panicMode) {
                 toggleSensitiveContent(true);
             }

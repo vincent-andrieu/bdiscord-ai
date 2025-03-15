@@ -9,8 +9,8 @@ import {
     SchemaType
 } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
-import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./config";
 import { i18n } from "./i18n";
+import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./settings";
 import { LogLevel, Media, Message } from "./types";
 import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
@@ -73,7 +73,9 @@ export class GeminiAi {
         return await this._chat.sendMessageStream(request);
     }
 
-    async isSensitiveContent(messages: Array<Message>): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean } | undefined> {
+    async isSensitiveContent(
+        messages: Array<Message>
+    ): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean; isEpileptic: boolean; isSexual: boolean } | undefined> {
         const request: Array<string | Part> = await this._getSensitiveContentPrompt(messages);
 
         if (!request.length || request.every((item) => typeof item === "string")) {
@@ -82,14 +84,12 @@ export class GeminiAi {
         const schema: Schema = {
             type: SchemaType.OBJECT,
             properties: {
-                isEmetophobia: {
-                    type: SchemaType.BOOLEAN
-                },
-                isArachnophobia: {
-                    type: SchemaType.BOOLEAN
-                }
+                isEmetophobia: { type: SchemaType.BOOLEAN },
+                isArachnophobia: { type: SchemaType.BOOLEAN },
+                isEpileptic: { type: SchemaType.BOOLEAN },
+                isSexual: { type: SchemaType.BOOLEAN }
             },
-            required: ["isEmetophobia", "isArachnophobia"]
+            required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
         };
         const model = this._genAI.getGenerativeModel({
             model: this._modelName,
@@ -97,7 +97,7 @@ export class GeminiAi {
                 responseMimeType: "application/json",
                 responseSchema: schema
             },
-            systemInstruction: [`Check if the content is sensitive for people with:`, `- Emetophobia`, `- Arachnophobia`].join("\n")
+            systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n")
         });
 
         const response = await model.generateContent(request);

@@ -1,6 +1,6 @@
-import { getSetting, SETTING_GOOGLE_API_KEY } from "./config";
 import { LOG_PREFIX } from "./constants";
 import { aiStarsIcon } from "./icons/aiStars";
+import { getSetting, SETTING_GOOGLE_API_KEY } from "./settings";
 
 export class SummaryButton {
     private _id = "summary-button";
@@ -38,7 +38,10 @@ export class SummaryButton {
             return this._log("Toolbar not found");
         }
         const button = BdApi.React.createElement(BdApi.Components.Button, {
-            children: [BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }), "Résumer"],
+            children: [
+                BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }),
+                "Résumer"
+            ],
             size: "bd-button-small",
             disabled: this._isLoading,
             style: { cursor: this._isLoading ? "wait" : undefined },
