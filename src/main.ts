@@ -189,7 +189,6 @@ export default class BDiscordAI {
                     break;
 
                 case "CHANNEL_SELECT":
-                case "MESSAGE_CREATE":
                 case "MESSAGE_DELETE":
                 case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
