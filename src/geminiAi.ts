@@ -1,13 +1,4 @@
-import {
-    ChatSession,
-    FileDataPart,
-    GenerateContentStreamResult,
-    GoogleGenerativeAI,
-    InlineDataPart,
-    Part,
-    Schema,
-    SchemaType
-} from "@google/generative-ai";
+import { FileDataPart, GenerateContentStreamResult, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
 import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
 import { i18n } from "./i18n";
 import { getSetting, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY } from "./settings";
@@ -23,8 +14,6 @@ type PromptItem = { message: Message; dataPart?: Array<InlineDataPart> | Array<F
 export class GeminiAi {
     private _genAI: GoogleGenerativeAI;
     private _fileManager: GoogleAIFileManager;
-
-    private _chat?: ChatSession;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -61,16 +50,12 @@ export class GeminiAi {
             ...(promptItem.dataPart || [])
         ]);
 
-        if (!this._chat) {
-            const model = this._genAI.getGenerativeModel({
-                model: this._modelName,
-                systemInstruction: this._getSystemInstruction(previousMessages, promptData)
-            });
+        const model = this._genAI.getGenerativeModel({
+            model: this._modelName,
+            systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+        });
 
-            this._chat = model.startChat();
-        }
-
-        return await this._chat.sendMessageStream(request);
+        return await model.generateContentStream(request);
     }
 
     async isSensitiveContent(

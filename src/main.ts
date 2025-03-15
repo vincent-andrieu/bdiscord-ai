@@ -57,7 +57,6 @@ export default class BDiscordAI {
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
     ];
-    private _chats: Array<{ messages: Array<string>; model: GeminiAi }> = [];
     private _isSensitiveMessageCheck = new Set<string>();
     private _closeApiKeyNotice?: () => void;
 
@@ -96,7 +95,6 @@ export default class BDiscordAI {
     stop() {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
-        this._chats = [];
         this._isSensitiveMessageCheck.clear();
 
         this._unsubscribeEvents();
@@ -259,8 +257,6 @@ export default class BDiscordAI {
             if (this._messageStore) {
                 this._messageStore.getMessage(channelId, message.id).messageReference = message.messageReference;
             }
-
-            this._chats.push({ messages: [message.id], model });
         }
     }
 
