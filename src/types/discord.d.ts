@@ -308,7 +308,8 @@ export type DiscordMessageEmbed = {
         height: number;
         placeholder: string;
         placeholderVersion: number;
-        proxyURL: string;
+        proxyURL?: string;
+        proxy_url?: string;
         srcIsAnimated: boolean;
         url: string;
         width: number;
@@ -337,7 +338,8 @@ export type DiscordMessageEmbed = {
         height: number;
         placeholder?: string;
         placeholderVersion?: number;
-        proxyURL: string;
+        proxyURL?: string;
+        proxy_url?: string;
         srcIsAnimated: boolean;
         url: string;
         width: number;

@@ -157,7 +157,7 @@ export function mapMessages(
         // Add embeds
         message.embeds?.forEach((embed) => {
             if (embed.type === "image" && embed.image) {
-                const url = embed.image.proxyURL || embed.image.url;
+                const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
                 const extension = url.split(".").pop();
                 const mimeType = extension ? `image/${extension}` : undefined;
 
@@ -167,7 +167,7 @@ export function mapMessages(
                     url: url
                 });
             } else if (["video", "gifv"].includes(embed.type) && embed.video) {
-                const url = embed.video.proxyURL || embed.video.url;
+                const url = embed.video.proxyURL || embed.video.proxy_url || embed.video.url;
                 const extension = url.split(".").pop();
                 const mimeType = extension ? `video/${extension}` : undefined;
 
