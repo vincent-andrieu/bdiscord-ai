@@ -15,115 +15,117 @@ export const SETTING_EPILEPSY_MODE = "epilepsyMode";
 export const SETTING_SEXUALITY_MODE = "sexualityMode";
 export const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
 
-export const config: {
+export function getConfig(): {
     name: string;
     settings: Array<SettingConfigElement>;
-} = {
-    name,
-    settings: [
-        {
-            type: "category",
-            id: "aiModel",
-            name: i18n.SETTING_CATEGORY_GEMINI_AI,
-            collapsible: true,
-            shown: false,
-            settings: [
-                {
-                    type: "text",
-                    id: SETTING_GOOGLE_API_KEY,
-                    name: i18n.SETTING_GOOGLE_API_KEY,
-                    note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
-                    value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
-                    placeholder: "API KEY"
-                },
-                {
-                    type: "dropdown",
-                    id: SETTING_AI_MODEL,
-                    name: i18n.SETTING_AI_MODEL,
-                    note: i18n.SETTING_AI_MODEL_NOTE,
-                    value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
-                    defaultValue: DEFAULT_AI_MODEL,
-                    options: [
-                        { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
-                        { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" },
-                        { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
-                        { label: "Gemini 1.5 Flash-8B", value: "gemini-1.5-flash-8b" },
-                        { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" }
-                    ]
-                },
-                {
-                    type: "number",
-                    id: SETTING_MEDIA_MAX_SIZE,
-                    name: i18n.SETTING_MEDIA_MAX_SIZE,
-                    note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
-                    value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
-                    defaultValue: MAX_MEDIA_SIZE,
-                    min: 0,
-                    max: 300
-                },
-                {
-                    type: "switch",
-                    id: SETTING_JUMP_TO_MESSAGE,
-                    name: i18n.SETTING_JUMP_TO_MESSAGE,
-                    value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
-                    defaultValue: true,
-                    note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE
-                }
-            ]
-        },
-        {
-            type: "category",
-            id: "sensitive",
-            name: i18n.SETTING_CATEGORY_SENSITIVE,
-            collapsible: true,
-            shown: false,
-            settings: [
-                {
-                    type: "switch",
-                    id: SETTING_EMETOPHOBIA_MODE,
-                    name: i18n.SETTING_EMETOPHOBIA_MODE,
-                    value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
-                    defaultValue: false,
-                    note: i18n.SETTING_SENSITIVE_NOTE
-                },
-                {
-                    type: "switch",
-                    id: SETTING_ARACHNOPHOBIA_MODE,
-                    name: i18n.SETTING_ARACHNOPHOBIA_MODE,
-                    value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
-                    defaultValue: false,
-                    note: i18n.SETTING_SENSITIVE_NOTE
-                },
-                {
-                    type: "switch",
-                    id: SETTING_EPILEPSY_MODE,
-                    name: i18n.SETTING_EPILEPSY_MODE,
-                    value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
-                    defaultValue: false,
-                    note: i18n.SETTING_SENSITIVE_NOTE
-                },
-                {
-                    type: "switch",
-                    id: SETTING_SEXUALITY_MODE,
-                    name: i18n.SETTING_SEXUALITY_MODE,
-                    value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
-                    defaultValue: false,
-                    note: i18n.SETTING_SENSITIVE_NOTE
-                },
-                {
-                    type: "switch",
-                    id: SETTING_SENSITIVE_PANIC_MODE,
-                    name: i18n.SETTING_SENSITIVE_PANIC_MODE,
-                    value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
-                    defaultValue: false,
-                    note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
-                }
-            ]
-        }
-    ]
-};
+} {
+    return {
+        name,
+        settings: [
+            {
+                type: "category",
+                id: "aiModel",
+                name: i18n.SETTING_CATEGORY_GEMINI_AI,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "text",
+                        id: SETTING_GOOGLE_API_KEY,
+                        name: i18n.SETTING_GOOGLE_API_KEY,
+                        note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
+                        value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
+                        placeholder: "API KEY"
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL,
+                        name: i18n.SETTING_AI_MODEL,
+                        note: i18n.SETTING_AI_MODEL_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
+                        defaultValue: DEFAULT_AI_MODEL,
+                        options: [
+                            { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
+                            { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" },
+                            { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
+                            { label: "Gemini 1.5 Flash-8B", value: "gemini-1.5-flash-8b" },
+                            { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" }
+                        ]
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_MEDIA_MAX_SIZE,
+                        name: i18n.SETTING_MEDIA_MAX_SIZE,
+                        note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
+                        value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
+                        defaultValue: MAX_MEDIA_SIZE,
+                        min: 0,
+                        max: 300
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_JUMP_TO_MESSAGE,
+                        name: i18n.SETTING_JUMP_TO_MESSAGE,
+                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
+                        defaultValue: true,
+                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "sensitive",
+                name: i18n.SETTING_CATEGORY_SENSITIVE,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_EMETOPHOBIA_MODE,
+                        name: i18n.SETTING_EMETOPHOBIA_MODE,
+                        value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_ARACHNOPHOBIA_MODE,
+                        name: i18n.SETTING_ARACHNOPHOBIA_MODE,
+                        value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_EPILEPSY_MODE,
+                        name: i18n.SETTING_EPILEPSY_MODE,
+                        value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SEXUALITY_MODE,
+                        name: i18n.SETTING_SEXUALITY_MODE,
+                        value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SENSITIVE_PANIC_MODE,
+                        name: i18n.SETTING_SENSITIVE_PANIC_MODE,
+                        value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
+                    }
+                ]
+            }
+        ]
+    };
+}
 
-export function getSetting<T>(id: string, settingsList: Array<SettingConfigElement> = config.settings): T | undefined {
+export function getSetting<T>(id: string, settingsList: Array<SettingConfigElement> = getConfig().settings): T | undefined {
     for (const setting of settingsList) {
         if (setting.type === "category") {
             const result = getSetting<T>(id, setting.settings);

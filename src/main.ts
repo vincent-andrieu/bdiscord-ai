@@ -1,10 +1,10 @@
 import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
-import { i18n } from "./i18n";
+import { i18n, setLocale } from "./i18n";
 import { fetchMediasMetadata } from "./medias";
 import {
-    config,
+    getConfig,
     getSetting,
     SETTING_ARACHNOPHOBIA_MODE,
     SETTING_EMETOPHOBIA_MODE,
@@ -29,8 +29,6 @@ import {
     ReadStateStore,
     SelectedChannelStore,
     SelectedGuildStore,
-    SettingConfigElement,
-    SettingItem,
     UserStore
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
@@ -62,6 +60,7 @@ export default class BDiscordAI {
 
     start() {
         console.warn(LOG_PREFIX, "Started");
+        setLocale();
         this._userStore = BdApi.Webpack.getStore<UserStore>("UserStore");
         this._guildMemberStore = BdApi.Webpack.getStore<GuildMemberStore>("GuildMemberStore");
         this._selectedGuildStore = BdApi.Webpack.getStore<SelectedGuildStore>("SelectedGuildStore");
@@ -98,34 +97,15 @@ export default class BDiscordAI {
         this._isSensitiveMessageCheck.clear();
 
         this._unsubscribeEvents();
-        BdApi.Patcher.unpatchAll(config.name);
+        BdApi.Patcher.unpatchAll(getConfig().name);
         console.warn(LOG_PREFIX, "Stopped");
     }
 
     getSettingsPanel() {
         return BdApi.UI.buildSettingsPanel({
-            settings: config.settings,
+            settings: getConfig().settings,
             onChange: (_category, id, value) => {
-                const getSettingItem = (id: string, settingsList: Array<SettingConfigElement> = config.settings): SettingItem | undefined => {
-                    for (const setting of settingsList) {
-                        if (setting.type === "category") {
-                            const result = getSettingItem(id, setting.settings);
-
-                            if (result !== undefined) {
-                                return result;
-                            }
-                        } else if (setting.id === id) {
-                            return setting;
-                        }
-                    }
-                    return undefined;
-                };
-                const setting = getSettingItem(id);
-
-                if (setting) {
-                    setting.value = value;
-                }
-                BdApi.Data.save(config.name, id, value);
+                BdApi.Data.save(getConfig().name, id, value);
                 if (this._closeApiKeyNotice && id === SETTING_GOOGLE_API_KEY) {
                     this._closeApiKeyNotice();
                     this._closeApiKeyNotice = undefined;
@@ -149,7 +129,7 @@ export default class BDiscordAI {
                     label: i18n.ADD,
                     onClick: () =>
                         BdApi.UI.showConfirmationModal(
-                            `${config.name} Settings`,
+                            `${getConfig().name} Settings`,
                             BdApi.React.createElement("div", {
                                 className: "bd-addon-settings-wrap",
                                 children: this.getSettingsPanel()

@@ -1,4 +1,4 @@
-import { config } from "./settings";
+import { getConfig } from "./settings";
 
 export function forceReloadMessages() {
     const instance = findInTree(
@@ -8,7 +8,7 @@ export function forceReloadMessages() {
     )?.stateNode;
 
     if (!instance) return;
-    const unpatch = BdApi.Patcher.after(config.name, instance, "render", (_this, _, ret) => {
+    const unpatch = BdApi.Patcher.after(getConfig().name, instance, "render", (_this, _, ret) => {
         unpatch();
         if (!ret) return;
         ret.key = Math.random().toString(36).substring(2, 10).toUpperCase();

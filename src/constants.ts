@@ -1,6 +1,6 @@
-import { config } from "./settings";
+import { getConfig } from "./settings";
 
-export const LOG_PREFIX = `[${config.name}]`;
+export const LOG_PREFIX = `[${getConfig().name}]`;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
 export type ImageMimeType = (typeof imageMimeTypes)[number];
