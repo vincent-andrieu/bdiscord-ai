@@ -14,6 +14,8 @@ export const fr = {
     SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
     SETTING_JUMP_TO_MESSAGE: "Scroll auto",
     SETTING_JUMP_TO_MESSAGE_NOTE: "Scroll automatiquement sur le résumé",
+    SETTING_SUMMARY_MIN_LENGTH: "Longueur minimale pour résumer",
+    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Longueur minimale du contenu pour afficher le bouton",
     SETTING_CATEGORY_SENSITIVE: "Contenu sensible",
     SETTING_EMETOPHOBIA_MODE: "Émétophobie",
     SETTING_ARACHNOPHOBIA_MODE: "Arachnophobie",

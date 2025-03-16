@@ -4,11 +4,13 @@ import { SettingConfigElement } from "./types/settings";
 const name = "BDiscordAI";
 const DEFAULT_AI_MODEL = "gemini-2.0-flash";
 export const MAX_MEDIA_SIZE = 50;
+const DEFAULT_SUMMARY_MIN_LENGTH = 300;
 
 export const SETTING_GOOGLE_API_KEY = "googleApiKey";
 export const SETTING_AI_MODEL = "aiModel";
 export const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
 export const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
+export const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
 export const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
 export const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
 export const SETTING_EPILEPSY_MODE = "epilepsyMode";
@@ -59,16 +61,24 @@ export function getConfig(): {
                         note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
                         value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
                         defaultValue: MAX_MEDIA_SIZE,
-                        min: 0,
-                        max: 300
+                        min: 0
                     },
                     {
                         type: "switch",
                         id: SETTING_JUMP_TO_MESSAGE,
                         name: i18n.SETTING_JUMP_TO_MESSAGE,
+                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
                         value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
-                        defaultValue: true,
-                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE
+                        defaultValue: true
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_SUMMARY_MIN_LENGTH,
+                        name: i18n.SETTING_SUMMARY_MIN_LENGTH,
+                        note: i18n.SETTING_SUMMARY_MIN_LENGTH_NOTE,
+                        value: BdApi.Data.load(name, SETTING_SUMMARY_MIN_LENGTH) || DEFAULT_SUMMARY_MIN_LENGTH,
+                        defaultValue: DEFAULT_SUMMARY_MIN_LENGTH,
+                        min: 1
                     }
                 ]
             },
@@ -125,7 +135,7 @@ export function getConfig(): {
     };
 }
 
-export function getSetting<T>(id: string, settingsList: Array<SettingConfigElement> = getConfig().settings): T | undefined {
+export function getSetting<T>(id: string, settingsList: Array<SettingConfigElement> = getConfig().settings): Readonly<T | undefined> {
     for (const setting of settingsList) {
         if (setting.type === "category") {
             const result = getSetting<T>(id, setting.settings);

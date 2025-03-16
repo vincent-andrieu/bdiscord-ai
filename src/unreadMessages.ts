@@ -1,3 +1,4 @@
+import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
     DiscordChannelMessages,
     DiscordMessage,
@@ -11,8 +12,6 @@ import {
     SelectedGuildStore
 } from "./types";
 import { getOldestId, mapMessages } from "./utils";
-
-const HAS_UNREAD_MIN_CHAR = 300;
 
 export class UnreadMessage {
     get channelId(): string | undefined {
@@ -35,13 +34,14 @@ export class UnreadMessage {
 
         if (channelReadState.oldestUnreadMessageId) {
             const messages = this._messageStore.getMessages(channelId);
+            const summaryMinLength = getSetting<number>(SETTING_SUMMARY_MIN_LENGTH);
             let nChar = 0;
 
             return messages.some((message) => {
                 if (getOldestId(message.id, channelReadState.oldestUnreadMessageId || undefined) === channelReadState.oldestUnreadMessageId) {
                     nChar += message.content.length;
 
-                    return nChar >= HAS_UNREAD_MIN_CHAR;
+                    return !summaryMinLength || nChar >= summaryMinLength;
                 }
                 return false;
             });
