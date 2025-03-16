@@ -1,7 +1,7 @@
 {
     "name": "player-map-history",
     "version": "1.0.0",
-    "license": "UNLICENSED",
+    "license": "MIT",
     "type": "module",
     "scripts": {
         "start": "node ./build/discord-ai.js",
