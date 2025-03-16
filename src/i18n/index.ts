@@ -19,7 +19,7 @@ export function setLocale(locale: string = getDiscordLocale()) {
             i18n = fr;
             break;
         default:
-            i18n = fr;
+            i18n = en;
             break;
     }
 }
