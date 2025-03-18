@@ -1305,7 +1305,12 @@ function isVideoMimeType(mimeType) {
 function isAudioMimeType(mimeType) {
     return audioMimeTypes.includes(mimeType);
 }
+/**
+ * @param messages Array of messages with medias to fetch metadata
+ * @returns Return medias that failed to fetch metadata
+ */
 async function fetchMediasMetadata(messages) {
+    let failedMedias = [];
     const medias = messages.flatMap((message) => [message.images, message.videos].filter(Boolean).flat());
     for (const media of medias) {
         if (media.mimeType && media.size) {
@@ -1325,8 +1330,10 @@ async function fetchMediasMetadata(messages) {
         }
         catch (error) {
             console.error(LOG_PREFIX, "Failed to fetch media metadata", error);
+            failedMedias.push(media);
         }
     }
+    return failedMedias;
 }
 async function fetchMediaMetadata(url, n = 0) {
     const response = await fetch(url, { method: "HEAD" });
@@ -1435,6 +1442,15 @@ function mapMessages(stores, messages) {
         const images = [];
         const videos = [];
         const audios = [];
+        const addImage = (url) => {
+            const extension = url.split(".").pop();
+            const mimeType = extension ? `image/${extension}` : undefined;
+            images.push({
+                name: url,
+                mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+                url: url
+            });
+        };
         // Add attachments
         message.attachments?.forEach((attachment) => {
             if (isImageMimeType(attachment.content_type)) {
@@ -1466,23 +1482,25 @@ function mapMessages(stores, messages) {
         message.embeds?.forEach((embed) => {
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
-                const extension = url.split(".").pop();
-                const mimeType = extension ? `image/${extension}` : undefined;
-                images.push({
-                    name: url,
-                    mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                    url: url
-                });
+                addImage(url);
             }
             else if (["video", "gifv"].includes(embed.type) && embed.video) {
-                const url = embed.video.proxyURL || embed.video.proxy_url || embed.video.url;
-                const extension = url.split(".").pop();
-                const mimeType = extension ? `video/${extension}` : undefined;
-                videos.push({
-                    name: url,
-                    mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                    url: url
-                });
+                const url = embed.video.proxyURL || embed.video.proxy_url;
+                if (url) {
+                    const extension = url.split(".").pop();
+                    const mimeType = extension ? `video/${extension}` : undefined;
+                    videos.push({
+                        name: url,
+                        mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
+                        url: url
+                    });
+                }
+                else {
+                    const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
+                    if (thumbnailUrl) {
+                        addImage(thumbnailUrl);
+                    }
+                }
             }
         });
         return {
@@ -2068,7 +2086,11 @@ class BDiscordAI {
         const user = this._userStore.getCurrentUser();
         if (!channelId)
             throw "Fail to get metadata";
-        await fetchMediasMetadata(unreadMessages);
+        const failedMediasMetadata = await fetchMediasMetadata(unreadMessages);
+        if (failedMediasMetadata.length) {
+            this._log("Failed to fetch medias metadata");
+            console.error(LOG_PREFIX, failedMediasMetadata);
+        }
         const model = new GeminiAi(this._log);
         const summary = await model.summarizeMessages(previousMessages, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;

@@ -128,6 +128,17 @@ export function mapMessages(
         const videos: Array<Video> = [];
         const audios: Array<Audio> = [];
 
+        const addImage = (url: string) => {
+            const extension = url.split(".").pop();
+            const mimeType = extension ? `image/${extension}` : undefined;
+
+            images.push({
+                name: url,
+                mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+                url: url
+            });
+        };
+
         // Add attachments
         message.attachments?.forEach((attachment) => {
             if (isImageMimeType(attachment.content_type)) {
@@ -158,24 +169,27 @@ export function mapMessages(
         message.embeds?.forEach((embed) => {
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
-                const extension = url.split(".").pop();
-                const mimeType = extension ? `image/${extension}` : undefined;
 
-                images.push({
-                    name: url,
-                    mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                    url: url
-                });
+                addImage(url);
             } else if (["video", "gifv"].includes(embed.type) && embed.video) {
-                const url = embed.video.proxyURL || embed.video.proxy_url || embed.video.url;
-                const extension = url.split(".").pop();
-                const mimeType = extension ? `video/${extension}` : undefined;
+                const url = embed.video.proxyURL || embed.video.proxy_url;
 
-                videos.push({
-                    name: url,
-                    mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                    url: url
-                });
+                if (url) {
+                    const extension = url.split(".").pop();
+                    const mimeType = extension ? `video/${extension}` : undefined;
+
+                    videos.push({
+                        name: url,
+                        mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
+                        url: url
+                    });
+                } else {
+                    const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
+
+                    if (thumbnailUrl) {
+                        addImage(thumbnailUrl);
+                    }
+                }
             }
         });
 

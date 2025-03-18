@@ -1,5 +1,5 @@
 import { AudioMimeType, audioMimeTypes, ImageMimeType, imageMimeTypes, LOG_PREFIX, VideoMimeType, videoMimeTypes } from "./constants";
-import { Image, Message, Video } from "./types";
+import { Image, Media, Message, Video } from "./types";
 
 export function isImageMimeType(mimeType: string): mimeType is ImageMimeType {
     return imageMimeTypes.includes(mimeType as ImageMimeType);
@@ -11,7 +11,12 @@ export function isAudioMimeType(mimeType: string): mimeType is AudioMimeType {
     return audioMimeTypes.includes(mimeType as AudioMimeType);
 }
 
-export async function fetchMediasMetadata(messages: Array<Message>): Promise<void> {
+/**
+ * @param messages Array of messages with medias to fetch metadata
+ * @returns Return medias that failed to fetch metadata
+ */
+export async function fetchMediasMetadata(messages: Array<Message>): Promise<Array<Media>> {
+    let failedMedias: Array<Media> = [];
     const medias = messages.flatMap((message) => [message.images, message.videos].filter(Boolean).flat() as Array<Image | Video>);
 
     for (const media of medias) {
@@ -32,8 +37,10 @@ export async function fetchMediasMetadata(messages: Array<Message>): Promise<voi
             }
         } catch (error) {
             console.error(LOG_PREFIX, "Failed to fetch media metadata", error);
+            failedMedias.push(media);
         }
     }
+    return failedMedias;
 }
 
 async function fetchMediaMetadata(url: string, n = 0): Promise<{ url?: string; contentType?: string; contentLength?: number }> {

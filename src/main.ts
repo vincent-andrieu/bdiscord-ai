@@ -202,7 +202,11 @@ export default class BDiscordAI {
         const user = this._userStore.getCurrentUser();
 
         if (!channelId) throw "Fail to get metadata";
-        await fetchMediasMetadata(unreadMessages);
+        const failedMediasMetadata = await fetchMediasMetadata(unreadMessages);
+        if (failedMediasMetadata.length) {
+            this._log("Failed to fetch medias metadata");
+            console.error(LOG_PREFIX, failedMediasMetadata);
+        }
 
         const model = new GeminiAi(this._log);
         const summary = await model.summarizeMessages(previousMessages, unreadMessages);
