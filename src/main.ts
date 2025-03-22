@@ -87,7 +87,7 @@ export default class BDiscordAI {
         if (!getSetting<string>(SETTING_GOOGLE_API_KEY)?.trim().length) {
             this._showAddApiKeyNotice();
         } else {
-            new GeminiAi(this._log).purgeMedias();
+            new GeminiAi(this._log.bind(this)).purgeMedias();
         }
     }
 

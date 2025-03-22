@@ -61,7 +61,7 @@ export class UnreadMessage {
                 this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
                     ? channelReadState.oldestUnreadMessageId
                     : channelReadState.ackMessageId;
-            const messages = await this._fetchAllMessages(channelId, oldestMessageId);
+            const messages = await this._fetchAllMessages(channelId, oldestMessageId, channelReadState.lastMessageId);
             const { previousMessages, unreadMessages } = messages.reduce(
                 (acc: { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> }, message) => {
                     if (getOldestId(message.id, oldestMessageId) === oldestMessageId) {
@@ -84,25 +84,41 @@ export class UnreadMessage {
         throw "No unread messages";
     }
 
-    private async _fetchAllMessages(channelId: string, oldestMessage: string): Promise<DiscordChannelMessages> {
+    private async _fetchAllMessages(channelId: string, oldestMessage: string, latestMessage: string): Promise<DiscordChannelMessages> {
+        await this._fetchAllMessagesBefore(channelId, oldestMessage);
+        return this._fetchAllMessagesAfter(channelId, latestMessage);
+    }
+
+    private async _fetchAllMessagesBefore(channelId: string, oldestMessage: string): Promise<DiscordChannelMessages> {
         const messages = this._messageStore.getMessages(channelId);
-        const firstMessage = messages.first().id;
+        const firstCurrentMessage = messages.first().id;
 
         // The second condition is a security to avoid infinite loop if the oldest message has been deleted
-        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstMessage, oldestMessage) === oldestMessage) {
-            await this._fetchMoreMessages(channelId, firstMessage);
+        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstCurrentMessage, oldestMessage) === oldestMessage) {
+            await this._messageActions.fetchMessages({ channelId, limit: 100, before: firstCurrentMessage });
             const newMessages = this._messageStore.getMessages(channelId);
 
-            if (newMessages.first().id === firstMessage) {
-                this._log("Fail to fetch all messages, loop avoided", "warn");
+            if (newMessages.first().id === firstCurrentMessage) {
                 return messages;
             }
-            return this._fetchAllMessages(channelId, oldestMessage);
+            return this._fetchAllMessagesBefore(channelId, oldestMessage);
         }
         return messages;
     }
 
-    private async _fetchMoreMessages(channelId: string, beforeMessage: string): Promise<void> {
-        await this._messageActions.fetchMessages({ channelId, limit: 100, before: beforeMessage });
+    private async _fetchAllMessagesAfter(channelId: string, lastMessage: string): Promise<DiscordChannelMessages> {
+        const messages = this._messageStore.getMessages(channelId);
+        const lastCurrentMessage = messages.last().id;
+
+        if (!messages.some((message) => message.id === lastMessage) && getOldestId(lastCurrentMessage, lastMessage) === lastCurrentMessage) {
+            await this._messageActions.fetchMessages({ channelId, limit: 100, after: lastCurrentMessage });
+            const newMessages = this._messageStore.getMessages(channelId);
+
+            if (newMessages.last().id === lastCurrentMessage) {
+                return messages;
+            }
+            return this._fetchAllMessagesAfter(channelId, lastMessage);
+        }
+        return messages;
     }
 }

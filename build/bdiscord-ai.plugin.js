@@ -1909,7 +1909,7 @@ class UnreadMessage {
                 this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
                 ? channelReadState.oldestUnreadMessageId
                 : channelReadState.ackMessageId;
-            const messages = await this._fetchAllMessages(channelId, oldestMessageId);
+            const messages = await this._fetchAllMessages(channelId, oldestMessageId, channelReadState.lastMessageId);
             const { previousMessages, unreadMessages } = messages.reduce((acc, message) => {
                 if (getOldestId(message.id, oldestMessageId) === oldestMessageId) {
                     acc.unreadMessages.push(message);
@@ -1928,23 +1928,36 @@ class UnreadMessage {
         }
         throw "No unread messages";
     }
-    async _fetchAllMessages(channelId, oldestMessage) {
+    async _fetchAllMessages(channelId, oldestMessage, latestMessage) {
+        await this._fetchAllMessagesBefore(channelId, oldestMessage);
+        return this._fetchAllMessagesAfter(channelId, latestMessage);
+    }
+    async _fetchAllMessagesBefore(channelId, oldestMessage) {
         const messages = this._messageStore.getMessages(channelId);
-        const firstMessage = messages.first().id;
+        const firstCurrentMessage = messages.first().id;
         // The second condition is a security to avoid infinite loop if the oldest message has been deleted
-        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstMessage, oldestMessage) === oldestMessage) {
-            await this._fetchMoreMessages(channelId, firstMessage);
+        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstCurrentMessage, oldestMessage) === oldestMessage) {
+            await this._messageActions.fetchMessages({ channelId, limit: 100, before: firstCurrentMessage });
             const newMessages = this._messageStore.getMessages(channelId);
-            if (newMessages.first().id === firstMessage) {
-                this._log("Fail to fetch all messages, loop avoided", "warn");
+            if (newMessages.first().id === firstCurrentMessage) {
                 return messages;
             }
-            return this._fetchAllMessages(channelId, oldestMessage);
+            return this._fetchAllMessagesBefore(channelId, oldestMessage);
         }
         return messages;
     }
-    async _fetchMoreMessages(channelId, beforeMessage) {
-        await this._messageActions.fetchMessages({ channelId, limit: 100, before: beforeMessage });
+    async _fetchAllMessagesAfter(channelId, lastMessage) {
+        const messages = this._messageStore.getMessages(channelId);
+        const lastCurrentMessage = messages.last().id;
+        if (!messages.some((message) => message.id === lastMessage) && getOldestId(lastCurrentMessage, lastMessage) === lastCurrentMessage) {
+            await this._messageActions.fetchMessages({ channelId, limit: 100, after: lastCurrentMessage });
+            const newMessages = this._messageStore.getMessages(channelId);
+            if (newMessages.last().id === lastCurrentMessage) {
+                return messages;
+            }
+            return this._fetchAllMessagesAfter(channelId, lastMessage);
+        }
+        return messages;
     }
 }
 
@@ -1989,7 +2002,7 @@ class BDiscordAI {
             this._showAddApiKeyNotice();
         }
         else {
-            new GeminiAi(this._log).purgeMedias();
+            new GeminiAi(this._log.bind(this)).purgeMedias();
         }
     }
     stop() {
