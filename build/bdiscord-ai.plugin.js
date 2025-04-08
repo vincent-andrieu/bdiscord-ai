@@ -277,6 +277,7 @@ function getSetting(id, settingsList = getConfig().settings) {
 }
 
 const LOG_PREFIX = `[${getConfig().name}]`;
+const GEMINI_VIDEOS_LIMIT = 10;
 const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
 const videoMimeTypes = [
     "video/mp4",
@@ -453,7 +454,7 @@ function resolveElement(node) {
 }
 
 /**
- * Bundled by jsDelivr using Rollup v2.79.2 and Terser v5.37.0.
+ * Bundled by jsDelivr using Rollup v2.79.2 and Terser v5.39.0.
  * Original file: /npm/@google/generative-ai@0.24.0/dist/index.mjs
  *
  * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
@@ -717,6 +718,13 @@ class GoogleGenerativeAIFetchError extends GoogleGenerativeAIError {
  */
 class GoogleGenerativeAIRequestInputError extends GoogleGenerativeAIError {
 }
+/**
+ * Error thrown when a request is aborted, either due to a timeout or
+ * intentional cancellation by the user.
+ * @public
+ */
+class GoogleGenerativeAIAbortError extends GoogleGenerativeAIError {
+}
 
 /**
  * @license
@@ -740,7 +748,7 @@ const DEFAULT_API_VERSION = "v1beta";
  * We can't `require` package.json if this runs on web. We will use rollup to
  * swap in the version number here at build time.
  */
-const PACKAGE_VERSION = "0.22.0";
+const PACKAGE_VERSION = "0.24.0";
 const PACKAGE_LOG_HEADER = "genai-js";
 var Task;
 (function (Task) {
@@ -776,7 +784,11 @@ async function makeRequest(url, fetchOptions, fetchFn = fetch) {
 }
 function handleResponseError(e, url) {
     let err = e;
-    if (!(e instanceof GoogleGenerativeAIFetchError ||
+    if (err.name === "AbortError") {
+        err = new GoogleGenerativeAIAbortError(`Request aborted when fetching ${url.toString()}: ${e.message}`);
+        err.stack = e.stack;
+    }
+    else if (!(e instanceof GoogleGenerativeAIFetchError ||
         e instanceof GoogleGenerativeAIRequestInputError)) {
         err = new GoogleGenerativeAIError(`Error fetching from ${url.toString()}: ${e.message}`);
         err.stack = e.stack;
@@ -884,9 +896,30 @@ class FilesRequestUrl extends ServerRequestUrl {
     }
 }
 function getHeaders(url) {
+    var _a;
     const headers = new Headers();
     headers.append("x-goog-api-client", getClientHeaders(url.requestOptions));
     headers.append("x-goog-api-key", url.apiKey);
+    let customHeaders = (_a = url.requestOptions) === null || _a === void 0 ? void 0 : _a.customHeaders;
+    if (customHeaders) {
+        if (!(customHeaders instanceof Headers)) {
+            try {
+                customHeaders = new Headers(customHeaders);
+            }
+            catch (e) {
+                throw new GoogleGenerativeAIRequestInputError(`unable to convert customHeaders value ${JSON.stringify(customHeaders)} to Headers: ${e.message}`);
+            }
+        }
+        for (const [headerName, headerValue] of customHeaders.entries()) {
+            if (headerName === "x-goog-api-key") {
+                throw new GoogleGenerativeAIRequestInputError(`Cannot set reserved header name ${headerName}`);
+            }
+            else if (headerName === "x-goog-api-client") {
+                throw new GoogleGenerativeAIRequestInputError(`Header name ${headerName} can only be set using the apiClient field`);
+            }
+            headers.append(headerName, headerValue);
+        }
+    }
     return headers;
 }
 async function makeServerRequest(url, headers, body, fetchFn = fetch) {
@@ -950,8 +983,8 @@ class GoogleAIFileManager {
     /**
      * Upload a file.
      */
-    async uploadFile(filePath, fileMetadata) {
-        const file = fs.readFileSync(filePath);
+    async uploadFile(fileData, fileMetadata) {
+        const file = fileData instanceof Buffer ? fileData : fs.readFileSync(fileData);
         const url = new FilesRequestUrl(RpcTask.UPLOAD, this.apiKey, this._requestOptions);
         const uploadHeaders = getHeaders(url);
         const boundary = generateBoundary();
@@ -1175,6 +1208,7 @@ var HarmCategory;
     HarmCategory["HARM_CATEGORY_SEXUALLY_EXPLICIT"] = "HARM_CATEGORY_SEXUALLY_EXPLICIT";
     HarmCategory["HARM_CATEGORY_HARASSMENT"] = "HARM_CATEGORY_HARASSMENT";
     HarmCategory["HARM_CATEGORY_DANGEROUS_CONTENT"] = "HARM_CATEGORY_DANGEROUS_CONTENT";
+    HarmCategory["HARM_CATEGORY_CIVIC_INTEGRITY"] = "HARM_CATEGORY_CIVIC_INTEGRITY";
 })(HarmCategory || (HarmCategory = {}));
 /**
  * Threshold above which a prompt or candidate will be blocked.
@@ -1182,15 +1216,15 @@ var HarmCategory;
  */
 var HarmBlockThreshold;
 (function (HarmBlockThreshold) {
-    // Threshold is unspecified.
+    /** Threshold is unspecified. */
     HarmBlockThreshold["HARM_BLOCK_THRESHOLD_UNSPECIFIED"] = "HARM_BLOCK_THRESHOLD_UNSPECIFIED";
-    // Content with NEGLIGIBLE will be allowed.
+    /** Content with NEGLIGIBLE will be allowed. */
     HarmBlockThreshold["BLOCK_LOW_AND_ABOVE"] = "BLOCK_LOW_AND_ABOVE";
-    // Content with NEGLIGIBLE and LOW will be allowed.
+    /** Content with NEGLIGIBLE and LOW will be allowed. */
     HarmBlockThreshold["BLOCK_MEDIUM_AND_ABOVE"] = "BLOCK_MEDIUM_AND_ABOVE";
-    // Content with NEGLIGIBLE, LOW, and MEDIUM will be allowed.
+    /** Content with NEGLIGIBLE, LOW, and MEDIUM will be allowed. */
     HarmBlockThreshold["BLOCK_ONLY_HIGH"] = "BLOCK_ONLY_HIGH";
-    // All content will be allowed.
+    /** All content will be allowed. */
     HarmBlockThreshold["BLOCK_NONE"] = "BLOCK_NONE";
 })(HarmBlockThreshold || (HarmBlockThreshold = {}));
 /**
@@ -1199,15 +1233,15 @@ var HarmBlockThreshold;
  */
 var HarmProbability;
 (function (HarmProbability) {
-    // Probability is unspecified.
+    /** Probability is unspecified. */
     HarmProbability["HARM_PROBABILITY_UNSPECIFIED"] = "HARM_PROBABILITY_UNSPECIFIED";
-    // Content has a negligible chance of being unsafe.
+    /** Content has a negligible chance of being unsafe. */
     HarmProbability["NEGLIGIBLE"] = "NEGLIGIBLE";
-    // Content has a low chance of being unsafe.
+    /** Content has a low chance of being unsafe. */
     HarmProbability["LOW"] = "LOW";
-    // Content has a medium chance of being unsafe.
+    /** Content has a medium chance of being unsafe. */
     HarmProbability["MEDIUM"] = "MEDIUM";
-    // Content has a high chance of being unsafe.
+    /** Content has a high chance of being unsafe. */
     HarmProbability["HIGH"] = "HIGH";
 })(HarmProbability || (HarmProbability = {}));
 /**
@@ -1435,22 +1469,23 @@ function createMessage({ guildId, channelId, previousMessageId, id = previousMes
         type: reply ? DiscordMessageType.REPLY : DiscordMessageType.DEFAULT
     };
 }
-function mapMessages(stores, messages) {
+function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
     const guildId = stores.selectedGuildStore.getGuildId();
-    return messages.map((message) => {
+    let countVideos = 0;
+    const addImage = (url) => {
+        const extension = url.split(".").pop();
+        const mimeType = extension ? `image/${extension}` : undefined;
+        return {
+            name: url,
+            mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+            url: url
+        };
+    };
+    const mappedMessages = messages.map((message) => {
         const member = stores.guildMemberStore.getMember(guildId, message.author.id);
         const images = [];
         const videos = [];
         const audios = [];
-        const addImage = (url) => {
-            const extension = url.split(".").pop();
-            const mimeType = extension ? `image/${extension}` : undefined;
-            images.push({
-                name: url,
-                mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                url: url
-            });
-        };
         // Add attachments
         message.attachments?.forEach((attachment) => {
             if (isImageMimeType(attachment.content_type)) {
@@ -1482,7 +1517,7 @@ function mapMessages(stores, messages) {
         message.embeds?.forEach((embed) => {
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
-                addImage(url);
+                images.push(addImage(url));
             }
             else if (["video", "gifv"].includes(embed.type) && embed.video) {
                 const url = embed.video.proxyURL || embed.video.proxy_url;
@@ -1492,17 +1527,19 @@ function mapMessages(stores, messages) {
                     videos.push({
                         name: url,
                         mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                        url: url
+                        url: url,
+                        thumbnail: embed.thumbnail.proxyURL || embed.thumbnail.proxy_url
                     });
                 }
                 else {
                     const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
                     if (thumbnailUrl) {
-                        addImage(thumbnailUrl);
+                        images.push(addImage(thumbnailUrl));
                     }
                 }
             }
         });
+        countVideos += videos.length;
         return {
             id: message.id,
             author: {
@@ -1516,6 +1553,24 @@ function mapMessages(stores, messages) {
             date: convertTimestampToUnix(message.timestamp)
         };
     });
+    // Limit the number of videos to maxVideos
+    if (countVideos > maxVideos) {
+        for (const message of mappedMessages) {
+            const videos = message.videos;
+            if (countVideos > maxVideos) {
+                for (let k = 0; k < videos.length && countVideos > maxVideos; k++) {
+                    const thumbnailUrl = videos[k]?.thumbnail;
+                    if (thumbnailUrl) {
+                        message.images.push(addImage(thumbnailUrl));
+                    }
+                    videos[k] = undefined;
+                    countVideos--;
+                }
+                message.videos = videos.filter((video) => video);
+            }
+        }
+    }
+    return mappedMessages;
 }
 
 const BASE_URL = "https://generativelanguage.googleapis.com";
@@ -1869,18 +1924,16 @@ class UnreadMessage {
     _readStateStore;
     _messageStore;
     _messageActions;
-    _log;
     get channelId() {
         return this._selectedChannelStore.getCurrentlySelectedChannelId();
     }
-    constructor(_selectedGuildStore, _guildMemberStore, _selectedChannelStore, _readStateStore, _messageStore, _messageActions, _log) {
+    constructor(_selectedGuildStore, _guildMemberStore, _selectedChannelStore, _readStateStore, _messageStore, _messageActions) {
         this._selectedGuildStore = _selectedGuildStore;
         this._guildMemberStore = _guildMemberStore;
         this._selectedChannelStore = _selectedChannelStore;
         this._readStateStore = _readStateStore;
         this._messageStore = _messageStore;
         this._messageActions = _messageActions;
-        this._log = _log;
     }
     hasUnreadMessages(channelId = this.channelId) {
         if (!channelId)
@@ -1920,10 +1973,12 @@ class UnreadMessage {
                 return acc;
             }, { previousMessages: [], unreadMessages: [] });
             const mapMessagesStores = { selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore };
+            const mappedUnreadMessages = mapMessages(mapMessagesStores, unreadMessages);
+            const unreadVideos = mappedUnreadMessages.reduce((acc, message) => acc + (message.videos?.length || 0), 0);
             return {
                 referenceMessage: oldestMessageId,
-                previousMessages: mapMessages(mapMessagesStores, previousMessages),
-                unreadMessages: mapMessages(mapMessagesStores, unreadMessages)
+                previousMessages: mapMessages(mapMessagesStores, previousMessages, GEMINI_VIDEOS_LIMIT - unreadVideos),
+                unreadMessages: mappedUnreadMessages
             };
         }
         throw "No unread messages";
@@ -1995,7 +2050,7 @@ class BDiscordAI {
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
-        this._unreadMessages = new UnreadMessage(this._selectedGuildStore, this._guildMemberStore, this._selectedChannelStore, this._readStateStore, this._messageStore, this._messageActions, this._log.bind(this));
+        this._unreadMessages = new UnreadMessage(this._selectedGuildStore, this._guildMemberStore, this._selectedChannelStore, this._readStateStore, this._messageStore, this._messageActions);
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
         if (!getSetting(SETTING_GOOGLE_API_KEY)?.trim().length) {

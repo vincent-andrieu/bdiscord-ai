@@ -77,8 +77,7 @@ export default class BDiscordAI {
             this._selectedChannelStore,
             this._readStateStore,
             this._messageStore,
-            this._messageActions,
-            this._log.bind(this)
+            this._messageActions
         );
 
         this._subscribeEvents();

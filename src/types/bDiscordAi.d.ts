@@ -31,6 +31,7 @@ export type Video = {
     url: string;
     mimeType?: VideoMimeType;
     size?: number;
+    thumbnail?: string;
 };
 
 export type Audio = {

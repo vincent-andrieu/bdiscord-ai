@@ -1,4 +1,4 @@
-import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType } from "./constants";
+import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType, GEMINI_VIDEOS_LIMIT } from "./constants";
 import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
 import { Audio, DiscordMessage, DiscordMessageComponent, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
 
@@ -118,26 +118,28 @@ export function mapMessages(
         selectedGuildStore: SelectedGuildStore;
         guildMemberStore: GuildMemberStore;
     },
-    messages: Array<DiscordMessage>
+    messages: Array<DiscordMessage>,
+    maxVideos: number = GEMINI_VIDEOS_LIMIT
 ): Array<Message> {
     const guildId = stores.selectedGuildStore.getGuildId();
+    let countVideos = 0;
 
-    return messages.map((message) => {
+    const addImage = (url: string): Image => {
+        const extension = url.split(".").pop();
+        const mimeType = extension ? `image/${extension}` : undefined;
+
+        return {
+            name: url,
+            mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
+            url: url
+        };
+    };
+
+    const mappedMessages = messages.map((message) => {
         const member = stores.guildMemberStore.getMember(guildId, message.author.id);
         const images: Array<Image> = [];
         const videos: Array<Video> = [];
         const audios: Array<Audio> = [];
-
-        const addImage = (url: string) => {
-            const extension = url.split(".").pop();
-            const mimeType = extension ? `image/${extension}` : undefined;
-
-            images.push({
-                name: url,
-                mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
-                url: url
-            });
-        };
 
         // Add attachments
         message.attachments?.forEach((attachment) => {
@@ -170,7 +172,7 @@ export function mapMessages(
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
 
-                addImage(url);
+                images.push(addImage(url));
             } else if (["video", "gifv"].includes(embed.type) && embed.video) {
                 const url = embed.video.proxyURL || embed.video.proxy_url;
 
@@ -181,18 +183,20 @@ export function mapMessages(
                     videos.push({
                         name: url,
                         mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
-                        url: url
+                        url: url,
+                        thumbnail: embed.thumbnail.proxyURL || embed.thumbnail.proxy_url
                     });
                 } else {
                     const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
 
                     if (thumbnailUrl) {
-                        addImage(thumbnailUrl);
+                        images.push(addImage(thumbnailUrl));
                     }
                 }
             }
         });
 
+        countVideos += videos.length;
         return {
             id: message.id,
             author: {
@@ -206,4 +210,25 @@ export function mapMessages(
             date: convertTimestampToUnix(message.timestamp)
         };
     });
+
+    // Limit the number of videos to maxVideos
+    if (countVideos > maxVideos) {
+        for (const message of mappedMessages) {
+            const videos: Array<Video | undefined> = message.videos;
+
+            if (countVideos > maxVideos) {
+                for (let k = 0; k < videos.length && countVideos > maxVideos; k++) {
+                    const thumbnailUrl = videos[k]?.thumbnail;
+
+                    if (thumbnailUrl) {
+                        message.images.push(addImage(thumbnailUrl));
+                    }
+                    videos[k] = undefined;
+                    countVideos--;
+                }
+                message.videos = videos.filter((video) => video) as Array<Video>;
+            }
+        }
+    }
+    return mappedMessages;
 }

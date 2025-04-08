@@ -1,9 +1,9 @@
+import { GEMINI_VIDEOS_LIMIT } from "./constants";
 import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
     DiscordChannelMessages,
     DiscordMessage,
     GuildMemberStore,
-    LogLevel,
     Message,
     MessageActions,
     MessageStore,
@@ -24,8 +24,7 @@ export class UnreadMessage {
         private _selectedChannelStore: SelectedChannelStore,
         private _readStateStore: ReadStateStore,
         private _messageStore: MessageStore,
-        private _messageActions: MessageActions,
-        private _log: (message: string, type: LogLevel) => void
+        private _messageActions: MessageActions
     ) {}
 
     public hasUnreadMessages(channelId: string | undefined = this.channelId): boolean {
@@ -74,11 +73,13 @@ export class UnreadMessage {
                 { previousMessages: [], unreadMessages: [] }
             ) as { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> };
             const mapMessagesStores = { selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore };
+            const mappedUnreadMessages = mapMessages(mapMessagesStores, unreadMessages);
+            const unreadVideos = mappedUnreadMessages.reduce((acc, message) => acc + (message.videos?.length || 0), 0);
 
             return {
                 referenceMessage: oldestMessageId,
-                previousMessages: mapMessages(mapMessagesStores, previousMessages),
-                unreadMessages: mapMessages(mapMessagesStores, unreadMessages)
+                previousMessages: mapMessages(mapMessagesStores, previousMessages, GEMINI_VIDEOS_LIMIT - unreadVideos),
+                unreadMessages: mappedUnreadMessages
             };
         }
         throw "No unread messages";

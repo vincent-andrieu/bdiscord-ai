@@ -1,6 +1,7 @@
 import { getConfig } from "./settings";
 
 export const LOG_PREFIX = `[${getConfig().name}]`;
+export const GEMINI_VIDEOS_LIMIT = 10;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
 export type ImageMimeType = (typeof imageMimeTypes)[number];
