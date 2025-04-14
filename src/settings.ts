@@ -68,7 +68,7 @@ export function getConfig(): {
                         id: SETTING_JUMP_TO_MESSAGE,
                         name: i18n.SETTING_JUMP_TO_MESSAGE,
                         note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
-                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) || true,
+                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) ?? true,
                         defaultValue: true
                     },
                     {
