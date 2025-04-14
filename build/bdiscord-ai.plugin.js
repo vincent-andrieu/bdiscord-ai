@@ -17,7 +17,9 @@ const en = {
     DATE: "Date",
     DONE: "Done",
     ADD: "Add",
+    UPDATE: "Update",
     API_KEY_NOTICE: "No Google API key is configured",
+    UPDATE_NOTICE: "New version available",
     SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
     SETTING_GOOGLE_API_KEY: "Google API Key",
     SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
@@ -67,7 +69,9 @@ const fr = {
     DATE: "Date",
     DONE: "Terminé",
     ADD: "Ajouter",
+    UPDATE: "Mettre à jour",
     API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
+    UPDATE_NOTICE: "Nouvelle version disponible",
     SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
     SETTING_GOOGLE_API_KEY: "Google API Key",
     SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
@@ -278,6 +282,9 @@ function getSetting(id, settingsList = getConfig().settings) {
 
 const LOG_PREFIX = `[${getConfig().name}]`;
 const GEMINI_VIDEOS_LIMIT = 10;
+const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
+const GITHUB_BRANCH = "add-check-updates";
+const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
 const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
 const videoMimeTypes = [
     "video/mp4",
@@ -1389,6 +1396,16 @@ async function fetchMediaMetadata(url, n = 0) {
     };
 }
 
+function getRuntimeRequire(packageName) {
+    try {
+        const nodeRequire = window.require;
+        return nodeRequire(packageName);
+    }
+    catch (error) {
+        console.error(`Failed to require package "${packageName}" at runtime:`, error);
+        return null;
+    }
+}
 function getOldestId(a, b) {
     if (!a && !b) {
         return undefined;
@@ -2016,6 +2033,91 @@ class UnreadMessage {
     }
 }
 
+class UpdateManager {
+    _log;
+    _localPluginFilePath;
+    _remotePlugin;
+    _closeUpdateNotice;
+    _fs;
+    constructor(_log) {
+        this._log = _log;
+        const path = getRuntimeRequire("path");
+        this._fs = getRuntimeRequire("fs");
+        this._localPluginFilePath = path.join(BdApi.Plugins.folder, PLUGIN_FILE_NAME);
+    }
+    async ask() {
+        const shouldUpdate = await this.check();
+        if (shouldUpdate) {
+            this._showUpdateNotice();
+        }
+    }
+    async check() {
+        const [remotePlugin, localPlugin] = await Promise.all([this._getRemotePlugin(), this._getLocalPlugin()]);
+        return remotePlugin !== localPlugin;
+    }
+    async update() {
+        try {
+            await new Promise((resolve, reject) => {
+                if (!this._remotePlugin) {
+                    reject(new Error("No remote plugin found"));
+                    return;
+                }
+                this._fs.writeFile(this._localPluginFilePath, this._remotePlugin, (error) => (error ? reject(error) : resolve()));
+            });
+            this.cancel();
+            this._log("Updated successfully", "success");
+        }
+        catch (error) {
+            this._log("Failed to update plugin", "error");
+            throw error;
+        }
+    }
+    cancel() {
+        if (this._closeUpdateNotice) {
+            this._closeUpdateNotice();
+            this._closeUpdateNotice = undefined;
+        }
+    }
+    async _getLocalPlugin() {
+        try {
+            const currentPluginBuffer = await new Promise((resolve, reject) => {
+                this._fs.readFile(this._localPluginFilePath, "utf8", (error, data) => error ? reject(error) : resolve(data));
+            });
+            return currentPluginBuffer.toString();
+        }
+        catch (error) {
+            this._log("Failed to read current plugin", "error");
+            throw error;
+        }
+    }
+    async _getRemotePlugin() {
+        try {
+            const response = await BdApi.Net.fetch(GITHUB_SOURCE);
+            if (!response.ok) {
+                throw new Error("Failed to fetch remote plugin");
+            }
+            const data = await response.text();
+            this._remotePlugin = data;
+            return data;
+        }
+        catch (error) {
+            this._log("Failed to fetch remote plugin", "error");
+            throw error;
+        }
+    }
+    _showUpdateNotice() {
+        this._closeUpdateNotice = BdApi.UI.showNotice(`${LOG_PREFIX} ${i18n.UPDATE_NOTICE}`, {
+            type: "info",
+            buttons: [
+                {
+                    label: i18n.UPDATE,
+                    onClick: () => this.update()
+                }
+            ]
+        });
+    }
+}
+
 class BDiscordAI {
     _userStore;
     _guildMemberStore;
@@ -2026,6 +2128,7 @@ class BDiscordAI {
     _messageActions;
     _fluxDispatcher;
     _onEventSubscriptionCb = this._onEvent.bind(this);
+    _updateManager;
     _summaryButton;
     _unreadMessages;
     _listeningEvents = [
@@ -2049,6 +2152,7 @@ class BDiscordAI {
         this._messageStore = BdApi.Webpack.getStore("MessageStore");
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
+        this._updateManager = new UpdateManager(this._log.bind(this));
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
         this._unreadMessages = new UnreadMessage(this._selectedGuildStore, this._guildMemberStore, this._selectedChannelStore, this._readStateStore, this._messageStore, this._messageActions);
         this._subscribeEvents();
@@ -2059,13 +2163,16 @@ class BDiscordAI {
         else {
             new GeminiAi(this._log.bind(this)).purgeMedias();
         }
+        this._updateManager.ask();
     }
     stop() {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
+        this._closeApiKeyNotice = undefined;
         this._isSensitiveMessageCheck.clear();
         this._unsubscribeEvents();
         BdApi.Patcher.unpatchAll(getConfig().name);
+        this._updateManager?.cancel();
         console.warn(LOG_PREFIX, "Stopped");
     }
     getSettingsPanel() {
@@ -2082,8 +2189,13 @@ class BDiscordAI {
     }
     _log(message, type = "error") {
         const logMessage = `${LOG_PREFIX} ${message}`;
-        BdApi.UI.showToast(logMessage, { type: type === "warn" ? "warning" : "error" });
-        console[type](logMessage);
+        BdApi.UI.showToast(logMessage, { type: type === "warn" ? "warning" : type });
+        if (type !== "success") {
+            console[type](logMessage);
+        }
+        else {
+            console.log(logMessage);
+        }
     }
     _showAddApiKeyNotice() {
         this._closeApiKeyNotice = BdApi.UI.showNotice(`${LOG_PREFIX} ${i18n.API_KEY_NOTICE}`, {

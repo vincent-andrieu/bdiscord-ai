@@ -1,6 +1,6 @@
 import { AudioMimeType, ImageMimeType, VideoMimeType } from "src/constants";
 
-export type LogLevel = "error" | "warn";
+export type LogLevel = "success" | "error" | "warn";
 
 export type Author = {
     username: string;

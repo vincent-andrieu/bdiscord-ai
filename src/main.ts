@@ -32,6 +32,7 @@ import {
     UserStore
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
+import { UpdateManager } from "./updates";
 import { createMessage, generateMessageId, mapMessages } from "./utils";
 
 export default class BDiscordAI {
@@ -45,6 +46,7 @@ export default class BDiscordAI {
     private _fluxDispatcher: any;
     private _onEventSubscriptionCb: typeof BDiscordAI.prototype._onEvent = this._onEvent.bind(this);
 
+    private _updateManager?: UpdateManager;
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
     private _listeningEvents: Array<DiscordEventType> = [
@@ -70,6 +72,7 @@ export default class BDiscordAI {
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
         this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
 
+        this._updateManager = new UpdateManager(this._log.bind(this));
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
         this._unreadMessages = new UnreadMessage(
             this._selectedGuildStore,
@@ -88,15 +91,19 @@ export default class BDiscordAI {
         } else {
             new GeminiAi(this._log.bind(this)).purgeMedias();
         }
+
+        this._updateManager.ask();
     }
 
     stop() {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
+        this._closeApiKeyNotice = undefined;
         this._isSensitiveMessageCheck.clear();
 
         this._unsubscribeEvents();
         BdApi.Patcher.unpatchAll(getConfig().name);
+        this._updateManager?.cancel();
         console.warn(LOG_PREFIX, "Stopped");
     }
 
@@ -116,8 +123,12 @@ export default class BDiscordAI {
     private _log(message: string, type: LogLevel = "error"): void {
         const logMessage = `${LOG_PREFIX} ${message}`;
 
-        BdApi.UI.showToast(logMessage, { type: type === "warn" ? "warning" : "error" });
-        console[type](logMessage);
+        BdApi.UI.showToast(logMessage, { type: type === "warn" ? "warning" : type });
+        if (type !== "success") {
+            console[type](logMessage);
+        } else {
+            console.log(logMessage);
+        }
     }
 
     private _showAddApiKeyNotice(): void {
