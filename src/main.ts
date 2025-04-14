@@ -7,6 +7,7 @@ import {
     getConfig,
     getSetting,
     SETTING_ARACHNOPHOBIA_MODE,
+    SETTING_CHECK_UPDATES,
     SETTING_EMETOPHOBIA_MODE,
     SETTING_EPILEPSY_MODE,
     SETTING_GOOGLE_API_KEY,
@@ -92,7 +93,9 @@ export default class BDiscordAI {
             new GeminiAi(this._log.bind(this)).purgeMedias();
         }
 
-        this._updateManager.ask();
+        if (getSetting<boolean>(SETTING_CHECK_UPDATES)) {
+            this._updateManager.ask();
+        }
     }
 
     stop() {

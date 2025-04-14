@@ -26,6 +26,9 @@ export const en = {
     SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
     SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
     SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
+    SETTING_CATEGORY_OTHERS: "Others",
+    SETTING_CHECK_UPDATES: "Check for updates",
+    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
     SUMMARY_BUTTON: "Summarize",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:

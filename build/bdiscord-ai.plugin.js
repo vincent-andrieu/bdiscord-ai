@@ -39,6 +39,9 @@ const en = {
     SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
     SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
     SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
+    SETTING_CATEGORY_OTHERS: "Others",
+    SETTING_CHECK_UPDATES: "Check for updates",
+    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
     SUMMARY_BUTTON: "Summarize",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION: "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging. Your response is in markdown format.",
@@ -91,6 +94,9 @@ const fr = {
     SETTING_SENSITIVE_NOTE: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded",
     SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
     SETTING_SENSITIVE_PANIC_MODE_NOTE: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
+    SETTING_CATEGORY_OTHERS: "Autres",
+    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
+    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
     SUMMARY_BUTTON: "Résumer",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION: "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord. Ta réponse est au format markdown.",
@@ -151,6 +157,7 @@ const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
 const SETTING_EPILEPSY_MODE = "epilepsyMode";
 const SETTING_SEXUALITY_MODE = "sexualityMode";
 const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
+const SETTING_CHECK_UPDATES = "checkUpdates";
 function getConfig() {
     return {
         name,
@@ -259,6 +266,23 @@ function getConfig() {
                         value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
                         defaultValue: false,
                         note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "others",
+                name: i18n.SETTING_CATEGORY_OTHERS,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_CHECK_UPDATES,
+                        name: i18n.SETTING_CHECK_UPDATES,
+                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
+                        value: BdApi.Data.load(name, SETTING_CHECK_UPDATES) ?? true,
+                        defaultValue: true
                     }
                 ]
             }
@@ -2163,7 +2187,9 @@ class BDiscordAI {
         else {
             new GeminiAi(this._log.bind(this)).purgeMedias();
         }
-        this._updateManager.ask();
+        if (getSetting(SETTING_CHECK_UPDATES)) {
+            this._updateManager.ask();
+        }
     }
     stop() {
         this._summaryButton?.toggle(false);

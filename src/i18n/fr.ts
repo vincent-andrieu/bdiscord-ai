@@ -27,6 +27,9 @@ export const fr = {
     SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
     SETTING_SENSITIVE_PANIC_MODE_NOTE:
         "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
+    SETTING_CATEGORY_OTHERS: "Autres",
+    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
+    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
     SUMMARY_BUTTON: "Résumer",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:
