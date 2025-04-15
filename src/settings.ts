@@ -1,5 +1,5 @@
 import { i18n } from "./i18n";
-import { SettingConfigElement } from "./types/settings";
+import { SettingConfigElement } from "./types";
 
 const name = "BDiscordAI";
 const DEFAULT_AI_MODEL = "gemini-2.0-flash";
