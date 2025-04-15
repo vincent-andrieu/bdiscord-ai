@@ -5,7 +5,7 @@
  * @version 1.0.0
  * @authorId 292388871381975040
  * @source https://github.com/vincent-andrieu/bdiscord-ai
- * @updateUrl https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/main/build/bdiscord-ai.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/add-check-updates/build/bdiscord-ai.plugin.js
  */
 'use strict';
 
