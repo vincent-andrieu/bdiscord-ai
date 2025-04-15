@@ -72,7 +72,7 @@ export class UpdateManager {
 
     private async _getRemotePlugin(): Promise<string> {
         try {
-            const response = await BdApi.Net.fetch(GITHUB_SOURCE);
+            const response = await fetch(GITHUB_SOURCE);
 
             if (!response.ok) {
                 throw new Error("Failed to fetch remote plugin");
