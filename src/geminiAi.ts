@@ -190,6 +190,7 @@ export class GeminiAi {
 
     private async _getMediasFileManager(messages: Array<Message>): Promise<Array<PromptItem>> {
         const messagesFiles: Array<{ message: Message; files: Array<FileMetadataResponse> }> = [];
+        const uploadedCache: Record<string, FileMetadataResponse> = {};
 
         for (const message of messages) {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
@@ -197,7 +198,14 @@ export class GeminiAi {
 
             for (const media of medias) {
                 try {
-                    files.push(await this._uploadFileFromUrl(media));
+                    if (uploadedCache[media.url]) {
+                        files.push(uploadedCache[media.url]);
+                    } else {
+                        const file = await this._uploadFileFromUrl(media);
+
+                        files.push(file);
+                        uploadedCache[media.url] = file;
+                    }
                 } catch (error) {
                     this._log(`Failed to upload media ${error}`, "warn");
                 }
@@ -206,16 +214,21 @@ export class GeminiAi {
         }
 
         const timeout = Date.now() + 60_000;
+        const verifiedFiles = new Set<string>();
         while (messagesFiles.some((messageFiles) => messageFiles.files.some((file) => file.state === FileState.PROCESSING))) {
             for (const messageFiles of messagesFiles) {
                 for (let i = 0; i < messageFiles.files.length; i++) {
-                    if (messageFiles.files[i].state === FileState.PROCESSING) {
-                        await new Promise((resolve) => setTimeout(resolve, 100));
+                    if (!verifiedFiles.has(messageFiles.files[i].name)) {
+                        if (messageFiles.files[i].state === FileState.PROCESSING) {
+                            await new Promise((resolve) => setTimeout(resolve, 100));
 
-                        try {
-                            messageFiles.files[i] = await this._fileManager.getFile(messageFiles.files[i].name);
-                        } catch (error) {
-                            this._log(`Failed to fetch file metadata ${error}`, "warn");
+                            try {
+                                messageFiles.files[i] = await this._fileManager.getFile(messageFiles.files[i].name);
+                            } catch (error) {
+                                this._log(`Failed to fetch file metadata ${error}`, "warn");
+                            }
+                        } else {
+                            verifiedFiles.add(messageFiles.files[i].name);
                         }
                     }
                 }
