@@ -16,14 +16,12 @@ import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, S
 import { LogLevel, Media, Message } from "./types";
 import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
-const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 
 type PromptItem = { message: Message; dataPart?: Array<Part> };
 
 export class GeminiAi {
     private _genAI: GoogleGenAI;
-    private _apiKey: string;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -38,7 +36,6 @@ export class GeminiAi {
         if (!apiKey) {
             throw "Google API Key is missing";
         }
-        this._apiKey = apiKey;
         this._genAI = new GoogleGenAI({ apiKey });
     }
 
@@ -207,20 +204,22 @@ export class GeminiAi {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
             const files: Array<File> = [];
 
-            for (const media of medias) {
-                try {
-                    if (uploadedCache[media.url]) {
-                        files.push(uploadedCache[media.url]);
-                    } else {
-                        const file = await this._uploadFileFromUrl(media);
+            await Promise.all(
+                medias.map(async (media) => {
+                    try {
+                        if (uploadedCache[media.url]) {
+                            files.push(uploadedCache[media.url]);
+                        } else {
+                            const file = await this._uploadFileFromUrl(media);
 
-                        files.push(file);
-                        uploadedCache[media.url] = file;
+                            files.push(file);
+                            uploadedCache[media.url] = file;
+                        }
+                    } catch (error) {
+                        this._log(`Failed to upload media ${error}`, "warn");
                     }
-                } catch (error) {
-                    this._log(`Failed to upload media ${error}`, "warn");
-                }
-            }
+                })
+            );
             messagesFiles.push({ message, files });
         }
 
@@ -233,6 +232,8 @@ export class GeminiAi {
 
                     if (file.name && !verifiedFiles.has(file.name)) {
                         if (file.state === FileState.PROCESSING) {
+                            await new Promise((resolve) => setTimeout(resolve, 100));
+
                             try {
                                 messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
                             } catch (error) {
