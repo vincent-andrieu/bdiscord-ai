@@ -950,7 +950,7 @@ class GeminiAi {
         for (const message of messages) {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat();
             const files = [];
-            for (const media of medias) {
+            await Promise.all(medias.map(async (media) => {
                 try {
                     if (uploadedCache[media.url]) {
                         files.push(uploadedCache[media.url]);
@@ -964,7 +964,7 @@ class GeminiAi {
                 catch (error) {
                     this._log(`Failed to upload media ${error}`, "warn");
                 }
-            }
+            }));
             messagesFiles.push({ message, files });
         }
         const timeout = Date.now() + 30_000;
@@ -975,6 +975,7 @@ class GeminiAi {
                     const file = messageFiles.files[i];
                     if (file.name && !verifiedFiles.has(file.name)) {
                         if (file.state === st.PROCESSING) {
+                            await new Promise((resolve) => setTimeout(resolve, 100));
                             try {
                                 messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
                             }

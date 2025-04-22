@@ -204,20 +204,22 @@ export class GeminiAi {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
             const files: Array<File> = [];
 
-            for (const media of medias) {
-                try {
-                    if (uploadedCache[media.url]) {
-                        files.push(uploadedCache[media.url]);
-                    } else {
-                        const file = await this._uploadFileFromUrl(media);
+            await Promise.all(
+                medias.map(async (media) => {
+                    try {
+                        if (uploadedCache[media.url]) {
+                            files.push(uploadedCache[media.url]);
+                        } else {
+                            const file = await this._uploadFileFromUrl(media);
 
-                        files.push(file);
-                        uploadedCache[media.url] = file;
+                            files.push(file);
+                            uploadedCache[media.url] = file;
+                        }
+                    } catch (error) {
+                        this._log(`Failed to upload media ${error}`, "warn");
                     }
-                } catch (error) {
-                    this._log(`Failed to upload media ${error}`, "warn");
-                }
-            }
+                })
+            );
             messagesFiles.push({ message, files });
         }
 
@@ -230,6 +232,8 @@ export class GeminiAi {
 
                     if (file.name && !verifiedFiles.has(file.name)) {
                         if (file.state === FileState.PROCESSING) {
+                            await new Promise((resolve) => setTimeout(resolve, 100));
+
                             try {
                                 messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
                             } catch (error) {
