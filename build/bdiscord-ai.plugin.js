@@ -803,7 +803,6 @@ const MAX_INLINE_DATA_SIZE = 20_000_000;
 class GeminiAi {
     _log;
     _genAI;
-    _apiKey;
     get _modelName() {
         const modelName = getSetting(SETTING_AI_MODEL);
         if (!modelName)
@@ -816,7 +815,6 @@ class GeminiAi {
         if (!apiKey) {
             throw "Google API Key is missing";
         }
-        this._apiKey = apiKey;
         this._genAI = new Me({ apiKey });
     }
     async purgeMedias() {

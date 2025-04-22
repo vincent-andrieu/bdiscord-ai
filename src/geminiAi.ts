@@ -16,14 +16,12 @@ import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, S
 import { LogLevel, Media, Message } from "./types";
 import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
-const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 
 type PromptItem = { message: Message; dataPart?: Array<Part> };
 
 export class GeminiAi {
     private _genAI: GoogleGenAI;
-    private _apiKey: string;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -38,7 +36,6 @@ export class GeminiAi {
         if (!apiKey) {
             throw "Google API Key is missing";
         }
-        this._apiKey = apiKey;
         this._genAI = new GoogleGenAI({ apiKey });
     }
 
