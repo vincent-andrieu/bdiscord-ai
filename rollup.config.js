@@ -19,7 +19,7 @@ export default {
         }),
         httpResolve({
             resolveIdFallback: (specifier, importer) => {
-                if (specifier === "@google/generative-ai") {
+                if (specifier === "@google/genai") {
                     return `https://esm.run/${specifier}`;
                 }
             }

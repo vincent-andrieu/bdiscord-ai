@@ -9,9 +9,7 @@
  */
 'use strict';
 
-var fs = require('fs');
-
-const en = {
+const en$1 = {
     AUTHOR: "Author",
     CONTENT: "Content",
     DATE: "Date",
@@ -118,13 +116,13 @@ function setLocale(locale = getDiscordLocale()) {
     switch (locale) {
         case "en-US":
         case "en-GB":
-            i18n = en;
+            i18n = en$1;
             break;
         case "fr":
             i18n = fr;
             break;
         default:
-            i18n = en;
+            i18n = en$1;
             break;
     }
 }
@@ -455,880 +453,108 @@ function resolveElement(node) {
 
 /**
  * Bundled by jsDelivr using Rollup v2.79.2 and Terser v5.39.0.
- * Original file: /npm/@google/generative-ai@0.24.0/dist/index.mjs
+ * Original file: /npm/@google/genai@0.9.0/dist/web/index.mjs
  *
  * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
  */
-var t,e,n;!function(t){t.STRING="string",t.NUMBER="number",t.INTEGER="integer",t.BOOLEAN="boolean",t.ARRAY="array",t.OBJECT="object";}(t||(t={})),function(t){t.LANGUAGE_UNSPECIFIED="language_unspecified",t.PYTHON="python";}(e||(e={})),function(t){t.OUTCOME_UNSPECIFIED="outcome_unspecified",t.OUTCOME_OK="outcome_ok",t.OUTCOME_FAILED="outcome_failed",t.OUTCOME_DEADLINE_EXCEEDED="outcome_deadline_exceeded";}(n||(n={}));
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
-const s=["user","model","function","system"];var o,i,a,r,c,d,l,u;!function(t){t.HARM_CATEGORY_UNSPECIFIED="HARM_CATEGORY_UNSPECIFIED",t.HARM_CATEGORY_HATE_SPEECH="HARM_CATEGORY_HATE_SPEECH",t.HARM_CATEGORY_SEXUALLY_EXPLICIT="HARM_CATEGORY_SEXUALLY_EXPLICIT",t.HARM_CATEGORY_HARASSMENT="HARM_CATEGORY_HARASSMENT",t.HARM_CATEGORY_DANGEROUS_CONTENT="HARM_CATEGORY_DANGEROUS_CONTENT",t.HARM_CATEGORY_CIVIC_INTEGRITY="HARM_CATEGORY_CIVIC_INTEGRITY";}(o||(o={})),function(t){t.HARM_BLOCK_THRESHOLD_UNSPECIFIED="HARM_BLOCK_THRESHOLD_UNSPECIFIED",t.BLOCK_LOW_AND_ABOVE="BLOCK_LOW_AND_ABOVE",t.BLOCK_MEDIUM_AND_ABOVE="BLOCK_MEDIUM_AND_ABOVE",t.BLOCK_ONLY_HIGH="BLOCK_ONLY_HIGH",t.BLOCK_NONE="BLOCK_NONE";}(i||(i={})),function(t){t.HARM_PROBABILITY_UNSPECIFIED="HARM_PROBABILITY_UNSPECIFIED",t.NEGLIGIBLE="NEGLIGIBLE",t.LOW="LOW",t.MEDIUM="MEDIUM",t.HIGH="HIGH";}(a||(a={})),function(t){t.BLOCKED_REASON_UNSPECIFIED="BLOCKED_REASON_UNSPECIFIED",t.SAFETY="SAFETY",t.OTHER="OTHER";}(r||(r={})),function(t){t.FINISH_REASON_UNSPECIFIED="FINISH_REASON_UNSPECIFIED",t.STOP="STOP",t.MAX_TOKENS="MAX_TOKENS",t.SAFETY="SAFETY",t.RECITATION="RECITATION",t.LANGUAGE="LANGUAGE",t.BLOCKLIST="BLOCKLIST",t.PROHIBITED_CONTENT="PROHIBITED_CONTENT",t.SPII="SPII",t.MALFORMED_FUNCTION_CALL="MALFORMED_FUNCTION_CALL",t.OTHER="OTHER";}(c||(c={})),function(t){t.TASK_TYPE_UNSPECIFIED="TASK_TYPE_UNSPECIFIED",t.RETRIEVAL_QUERY="RETRIEVAL_QUERY",t.RETRIEVAL_DOCUMENT="RETRIEVAL_DOCUMENT",t.SEMANTIC_SIMILARITY="SEMANTIC_SIMILARITY",t.CLASSIFICATION="CLASSIFICATION",t.CLUSTERING="CLUSTERING";}(d||(d={})),function(t){t.MODE_UNSPECIFIED="MODE_UNSPECIFIED",t.AUTO="AUTO",t.ANY="ANY",t.NONE="NONE";}(l||(l={})),function(t){t.MODE_UNSPECIFIED="MODE_UNSPECIFIED",t.MODE_DYNAMIC="MODE_DYNAMIC";}(u||(u={}));
+class t{}function n(t,n){return t.replace(/\{([^}]+)\}/g,((t,e)=>{if(Object.prototype.hasOwnProperty.call(n,e)){const t=n[e];return null!=t?String(t):""}throw new Error(`Key '${e}' not found in valueMap.`)}))}function e(t,n,o){for(let i=0;i<n.length-1;i++){const s=n[i];if(s.endsWith("[]")){const r=s.slice(0,-2);if(!(r in t)){if(!Array.isArray(o))throw new Error(`Value must be a list given an array path ${s}`);t[r]=Array.from({length:o.length},(()=>({})));}if(Array.isArray(t[r])){const s=t[r];if(Array.isArray(o))for(let t=0;t<s.length;t++){e(s[t],n.slice(i+1),o[t]);}else for(const t of s)e(t,n.slice(i+1),o);}return}if(s.endsWith("[0]")){const r=s.slice(0,-3);r in t||(t[r]=[{}]);return void e(t[r][0],n.slice(i+1),o)}t[s]&&"object"==typeof t[s]||(t[s]={}),t=t[s];}const i=n[n.length-1],s=t[i];if(void 0!==s){if(!o||"object"==typeof o&&0===Object.keys(o).length)return;if(o===s)return;if("object"!=typeof s||"object"!=typeof o||null===s||null===o)throw new Error(`Cannot set value for an existing key. Key: ${i}`);Object.assign(s,o);}else t[i]=o;}function o(t,n){try{if(1===n.length&&"_self"===n[0])return t;for(let e=0;e<n.length;e++){if("object"!=typeof t||null===t)return;const i=n[e];if(i.endsWith("[]")){const s=i.slice(0,-2);if(s in t){const i=t[s];if(!Array.isArray(i))return;return i.map((t=>o(t,n.slice(e+1))))}return}t=t[i];}return t}catch(t){if(t instanceof TypeError)return;throw t}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-class h extends Error{constructor(t){super(`[GoogleGenerativeAI Error]: ${t}`);}}class f extends h{constructor(t,e){super(t),this.response=e;}}class g extends h{constructor(t,e,n,s){super(t),this.status=e,this.statusText=n,this.errorDetails=s;}}class E extends h{}class C extends h{}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function i(t,n){if(!n||"string"!=typeof n)throw new Error("model is required and must be a string");if(t.isVertexAI()){if(n.startsWith("publishers/")||n.startsWith("projects/")||n.startsWith("models/"))return n;if(n.indexOf("/")>=0){const t=n.split("/",2);return `publishers/${t[0]}/models/${t[1]}`}return `publishers/google/models/${n}`}return n.startsWith("models/")||n.startsWith("tunedModels/")?n:`models/${n}`}function s(t,n){const e=i(t,n);return e?e.startsWith("publishers/")&&t.isVertexAI()?`projects/${t.getProject()}/locations/${t.getLocation()}/${e}`:e.startsWith("models/")&&t.isVertexAI()?`projects/${t.getProject()}/locations/${t.getLocation()}/publishers/google/${e}`:e:""}function r(t,n){if(null==n)throw new Error("PartUnion is required");if("object"==typeof n)return n;if("string"==typeof n)return {text:n};throw new Error("Unsupported part type: "+typeof n)}function l(t,n){if(null==n||Array.isArray(n)&&0===n.length)throw new Error("PartListUnion is required");return Array.isArray(n)?n.map((t=>r(0,t))):[r(0,n)]}function a(t){return null!=t&&"object"==typeof t&&"parts"in t&&Array.isArray(t.parts)}function u(t){return null!=t&&"object"==typeof t&&"functionCall"in t}function c(t){return null!=t&&"object"==typeof t&&"functionResponse"in t}function p(t,n){if(null==n)throw new Error("ContentUnion is required");return a(n)?n:{role:"user",parts:l(0,n)}}function d(t,n){if(!n)return [];if(t.isVertexAI()&&Array.isArray(n))return n.flatMap((t=>{const n=p(0,t);return n.parts&&n.parts.length>0&&void 0!==n.parts[0].text?[n.parts[0].text]:[]}));if(t.isVertexAI()){const t=p(0,n);return t.parts&&t.parts.length>0&&void 0!==t.parts[0].text?[t.parts[0].text]:[]}return Array.isArray(n)?n.map((t=>p(0,t))):[p(0,n)]}function h(t,n){if(null==n||Array.isArray(n)&&0===n.length)throw new Error("contents are required");if(!Array.isArray(n)){if(u(n)||c(n))throw new Error("To specify functionCall or functionResponse parts, please wrap them in a Content object, specifying the role for them");return [p(0,n)]}const e=[],o=[],i=a(n[0]);for(const t of n){const n=a(t);if(n!=i)throw new Error("Mixing Content and Parts is not supported, please group the parts into a the appropriate Content objects and specify the roles for them");if(n)e.push(t);else {if(u(t)||c(t))throw new Error("To specify functionCall or functionResponse parts, please wrap them, and any other parts, in Content objects as appropriate, specifying the role for them");o.push(t);}}return i||e.push({role:"user",parts:l(0,o)}),e}function f(t,n){if(!t.isVertexAI()&&"default"in n)throw new Error("Default value is not supported in the response schema for the Gemini API.");if("anyOf"in n&&void 0!==n.anyOf)for(const e of n.anyOf)f(t,e);if("items"in n&&void 0!==n.items&&f(t,n.items),"properties"in n&&void 0!==n.properties)for(const e of Object.values(n.properties))f(t,e);}function m(t,n){return f(t,n),n}function g(t,n){if("object"==typeof n&&"voiceConfig"in n)return n;if("string"==typeof n)return {voiceConfig:{prebuiltVoiceConfig:{voiceName:n}}};throw new Error("Unsupported speechConfig type: "+typeof n)}function y(t,n){return n}function C(t,n){if(!Array.isArray(n))throw new Error("tool is required and must be an array of Tools");return n}function v(t,n){if("string"!=typeof n)throw new Error("name must be a string");return function(t,n,e,o=1){const i=!n.startsWith(`${e}/`)&&n.split("/").length===o;return t.isVertexAI()?n.startsWith("projects/")?n:n.startsWith("locations/")?`projects/${t.getProject()}/${n}`:n.startsWith(`${e}/`)?`projects/${t.getProject()}/locations/${t.getLocation()}/${n}`:i?`projects/${t.getProject()}/locations/${t.getLocation()}/${e}/${n}`:n:i?`${e}/${n}`:n}(t,n,"cachedContents")}function E(t,n){if("string"!=typeof n)throw new Error("fromImageBytes must be a string");return n}function T(t,n){if("string"!=typeof n)throw new Error("fromName must be a string");return n.startsWith("files/")?n.split("files/")[1]:n}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */var p;!function(t){t.GENERATE_CONTENT="generateContent",t.STREAM_GENERATE_CONTENT="streamGenerateContent",t.COUNT_TOKENS="countTokens",t.EMBED_CONTENT="embedContent",t.BATCH_EMBED_CONTENTS="batchEmbedContents";}(p||(p={}));class m{constructor(t,e,n,s,o){this.model=t,this.task=e,this.apiKey=n,this.stream=s,this.requestOptions=o;}toString(){var t,e;const n=(null===(t=this.requestOptions)||void 0===t?void 0:t.apiVersion)||"v1beta";let s=`${(null===(e=this.requestOptions)||void 0===e?void 0:e.baseUrl)||"https://generativelanguage.googleapis.com"}/${n}/${this.model}:${this.task}`;return this.stream&&(s+="?alt=sse"),s}}async function O(t){var e;const n=new Headers;n.append("Content-Type","application/json"),n.append("x-goog-api-client",function(t){const e=[];return (null==t?void 0:t.apiClient)&&e.push(t.apiClient),e.push("genai-js/0.24.0"),e.join(" ")}(t.requestOptions)),n.append("x-goog-api-key",t.apiKey);let s=null===(e=t.requestOptions)||void 0===e?void 0:e.customHeaders;if(s){if(!(s instanceof Headers))try{s=new Headers(s);}catch(t){throw new E(`unable to convert customHeaders value ${JSON.stringify(s)} to Headers: ${t.message}`)}for(const[t,e]of s.entries()){if("x-goog-api-key"===t)throw new E(`Cannot set reserved header name ${t}`);if("x-goog-api-client"===t)throw new E(`Header name ${t} can only be set using the apiClient field`);n.append(t,e);}}return n}async function _(t,e,n,s,o,i={},a=fetch){const{url:r,fetchOptions:c}=await async function(t,e,n,s,o,i){const a=new m(t,e,n,s,i);return {url:a.toString(),fetchOptions:Object.assign(Object.assign({},y(i)),{method:"POST",headers:await O(a),body:o})}}(t,e,n,s,o,i);return async function(t,e,n=fetch){let s;try{s=await n(t,e);}catch(e){!function(t,e){let n=t;"AbortError"===n.name?(n=new C(`Request aborted when fetching ${e.toString()}: ${t.message}`),n.stack=t.stack):t instanceof g||t instanceof E||(n=new h(`Error fetching from ${e.toString()}: ${t.message}`),n.stack=t.stack);throw n}(e,t);}s.ok||await async function(t,e){let n,s="";try{const e=await t.json();s=e.error.message,e.error.details&&(s+=` ${JSON.stringify(e.error.details)}`,n=e.error.details);}catch(t){}throw new g(`Error fetching from ${e.toString()}: [${t.status} ${t.statusText}] ${s}`,t.status,t.statusText,n)}(s,t);return s}(r,c,a)}function y(t){const e={};if(void 0!==(null==t?void 0:t.signal)||(null==t?void 0:t.timeout)>=0){const n=new AbortController;(null==t?void 0:t.timeout)>=0&&setTimeout((()=>n.abort()),t.timeout),(null==t?void 0:t.signal)&&t.signal.addEventListener("abort",(()=>{n.abort();})),e.signal=n.signal;}return e}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function O(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["videoMetadata"]))throw new Error("videoMetadata parameter is not supported in Gemini API.");const s=o(n,["thought"]);null!=s&&e(i,["thought"],s);const r=o(n,["codeExecutionResult"]);null!=r&&e(i,["codeExecutionResult"],r);const l=o(n,["executableCode"]);null!=l&&e(i,["executableCode"],l);const a=o(n,["fileData"]);null!=a&&e(i,["fileData"],a);const u=o(n,["functionCall"]);null!=u&&e(i,["functionCall"],u);const c=o(n,["functionResponse"]);null!=c&&e(i,["functionResponse"],c);const p=o(n,["inlineData"]);null!=p&&e(i,["inlineData"],p);const d=o(n,["text"]);return null!=d&&e(i,["text"],d),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function I(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function A(t,n){const i={},s=o(n,["functionDeclarations"]);if(null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["response"]))throw new Error("response parameter is not supported in Gemini API.");const s=o(n,["description"]);null!=s&&e(i,["description"],s);const r=o(n,["name"]);null!=r&&e(i,["name"],r);const l=o(n,["parameters"]);return null!=l&&e(i,["parameters"],l),i}(0,t)))):e(i,["functionDeclarations"],s)),void 0!==o(n,["retrieval"]))throw new Error("retrieval parameter is not supported in Gemini API.");null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const r=o(n,["googleSearchRetrieval"]);null!=r&&e(i,["googleSearchRetrieval"],I(0,r));const l=o(n,["codeExecution"]);return null!=l&&e(i,["codeExecution"],l),i}function _(t,n){const i={},s=o(n,["functionCallingConfig"]);return null!=s&&e(i,["functionCallingConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["allowedFunctionNames"]);return null!=r&&e(i,["allowedFunctionNames"],r),i}(0,s)),i}function S(t,n){const i={},r=o(n,["model"]);null!=r&&e(i,["model"],s(t,r));const l=o(n,["config"]);return null!=l&&e(i,["config"],function(t,n,i){const s=o(n,["ttl"]);void 0!==i&&null!=s&&e(i,["ttl"],s);const r=o(n,["expireTime"]);void 0!==i&&null!=r&&e(i,["expireTime"],r);const l=o(n,["displayName"]);void 0!==i&&null!=l&&e(i,["displayName"],l);const a=o(n,["contents"]);void 0!==i&&null!=a&&(Array.isArray(a)?e(i,["contents"],h(0,h(0,a).map((t=>O(0,t))))):e(i,["contents"],h(0,a)));const u=o(n,["systemInstruction"]);void 0!==i&&null!=u&&e(i,["systemInstruction"],O(0,p(0,u)));const c=o(n,["tools"]);void 0!==i&&null!=c&&(Array.isArray(c)?e(i,["tools"],c.map((t=>A(0,t)))):e(i,["tools"],c));const d=o(n,["toolConfig"]);return void 0!==i&&null!=d&&e(i,["toolConfig"],_(0,d)),{}}(0,l,i)),i}function w(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],function(t,n,i){const s=o(n,["ttl"]);void 0!==i&&null!=s&&e(i,["ttl"],s);const r=o(n,["expireTime"]);return void 0!==i&&null!=r&&e(i,["expireTime"],r),{}}(0,r,i)),i}function P(t,n){const i={},s=o(n,["config"]);return null!=s&&e(i,["config"],function(t,n,i){const s=o(n,["pageSize"]);void 0!==i&&null!=s&&e(i,["_query","pageSize"],s);const r=o(n,["pageToken"]);return void 0!==i&&null!=r&&e(i,["_query","pageToken"],r),{}}(0,s,i)),i}function R(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["videoMetadata"]);null!=s&&e(i,["videoMetadata"],s);const r=o(n,["thought"]);null!=r&&e(i,["thought"],r);const l=o(n,["codeExecutionResult"]);null!=l&&e(i,["codeExecutionResult"],l);const a=o(n,["executableCode"]);null!=a&&e(i,["executableCode"],a);const u=o(n,["fileData"]);null!=u&&e(i,["fileData"],u);const c=o(n,["functionCall"]);null!=c&&e(i,["functionCall"],c);const p=o(n,["functionResponse"]);null!=p&&e(i,["functionResponse"],p);const d=o(n,["inlineData"]);null!=d&&e(i,["inlineData"],d);const h=o(n,["text"]);return null!=h&&e(i,["text"],h),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function N(t,n){const i={},s=o(n,["response"]);null!=s&&e(i,["response"],function(t,n){const i={},s=o(n,["example"]);null!=s&&e(i,["example"],s);const r=o(n,["pattern"]);null!=r&&e(i,["pattern"],r);const l=o(n,["default"]);null!=l&&e(i,["default"],l);const a=o(n,["maxLength"]);null!=a&&e(i,["maxLength"],a);const u=o(n,["minLength"]);null!=u&&e(i,["minLength"],u);const c=o(n,["minProperties"]);null!=c&&e(i,["minProperties"],c);const p=o(n,["maxProperties"]);null!=p&&e(i,["maxProperties"],p);const d=o(n,["anyOf"]);null!=d&&e(i,["anyOf"],d);const h=o(n,["description"]);null!=h&&e(i,["description"],h);const f=o(n,["enum"]);null!=f&&e(i,["enum"],f);const m=o(n,["format"]);null!=m&&e(i,["format"],m);const g=o(n,["items"]);null!=g&&e(i,["items"],g);const y=o(n,["maxItems"]);null!=y&&e(i,["maxItems"],y);const C=o(n,["maximum"]);null!=C&&e(i,["maximum"],C);const v=o(n,["minItems"]);null!=v&&e(i,["minItems"],v);const E=o(n,["minimum"]);null!=E&&e(i,["minimum"],E);const T=o(n,["nullable"]);null!=T&&e(i,["nullable"],T);const O=o(n,["properties"]);null!=O&&e(i,["properties"],O);const I=o(n,["propertyOrdering"]);null!=I&&e(i,["propertyOrdering"],I);const A=o(n,["required"]);null!=A&&e(i,["required"],A);const _=o(n,["title"]);null!=_&&e(i,["title"],_);const S=o(n,["type"]);return null!=S&&e(i,["type"],S),i}(0,s));const r=o(n,["description"]);null!=r&&e(i,["description"],r);const l=o(n,["name"]);null!=l&&e(i,["name"],l);const a=o(n,["parameters"]);return null!=a&&e(i,["parameters"],a),i}function b(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function D(t,n){const i={},s=o(n,["functionCallingConfig"]);return null!=s&&e(i,["functionCallingConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["allowedFunctionNames"]);return null!=r&&e(i,["allowedFunctionNames"],r),i}(0,s)),i}function x(t,n,i){const s=o(n,["ttl"]);void 0!==i&&null!=s&&e(i,["ttl"],s);const r=o(n,["expireTime"]);void 0!==i&&null!=r&&e(i,["expireTime"],r);const l=o(n,["displayName"]);void 0!==i&&null!=l&&e(i,["displayName"],l);const a=o(n,["contents"]);void 0!==i&&null!=a&&(Array.isArray(a)?e(i,["contents"],h(0,h(0,a).map((t=>R(0,t))))):e(i,["contents"],h(0,a)));const u=o(n,["systemInstruction"]);void 0!==i&&null!=u&&e(i,["systemInstruction"],R(0,p(0,u)));const c=o(n,["tools"]);void 0!==i&&null!=c&&(Array.isArray(c)?e(i,["tools"],c.map((t=>function(t,n){const i={},s=o(n,["functionDeclarations"]);null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>N(0,t)))):e(i,["functionDeclarations"],s));const r=o(n,["retrieval"]);null!=r&&e(i,["retrieval"],r),null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const l=o(n,["googleSearchRetrieval"]);null!=l&&e(i,["googleSearchRetrieval"],b(0,l));const a=o(n,["codeExecution"]);return null!=a&&e(i,["codeExecution"],a),i}(0,t)))):e(i,["tools"],c));const d=o(n,["toolConfig"]);return void 0!==i&&null!=d&&e(i,["toolConfig"],D(0,d)),{}}function M(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],function(t,n,i){const s=o(n,["ttl"]);void 0!==i&&null!=s&&e(i,["ttl"],s);const r=o(n,["expireTime"]);return void 0!==i&&null!=r&&e(i,["expireTime"],r),{}}(0,r,i)),i}function U(t,n){const i={},s=o(n,["config"]);return null!=s&&e(i,["config"],function(t,n,i){const s=o(n,["pageSize"]);void 0!==i&&null!=s&&e(i,["_query","pageSize"],s);const r=o(n,["pageToken"]);return void 0!==i&&null!=r&&e(i,["_query","pageToken"],r),{}}(0,s,i)),i}function L(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["model"]);null!=l&&e(i,["model"],l);const a=o(n,["createTime"]);null!=a&&e(i,["createTime"],a);const u=o(n,["updateTime"]);null!=u&&e(i,["updateTime"],u);const c=o(n,["expireTime"]);null!=c&&e(i,["expireTime"],c);const p=o(n,["usageMetadata"]);return null!=p&&e(i,["usageMetadata"],p),i}function q(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["model"]);null!=l&&e(i,["model"],l);const a=o(n,["createTime"]);null!=a&&e(i,["createTime"],a);const u=o(n,["updateTime"]);null!=u&&e(i,["updateTime"],u);const c=o(n,["expireTime"]);null!=c&&e(i,["expireTime"],c);const p=o(n,["usageMetadata"]);return null!=p&&e(i,["usageMetadata"],p),i}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */function I(t){return t.text=()=>{if(t.candidates&&t.candidates.length>0){if(t.candidates.length>1&&console.warn(`This response had ${t.candidates.length} candidates. Returning text from the first candidate only. Access response.candidates directly to use the other candidates.`),N(t.candidates[0]))throw new f(`${R(t)}`,t);return function(t){var e,n,s,o;const i=[];if(null===(n=null===(e=t.candidates)||void 0===e?void 0:e[0].content)||void 0===n?void 0:n.parts)for(const e of null===(o=null===(s=t.candidates)||void 0===s?void 0:s[0].content)||void 0===o?void 0:o.parts)e.text&&i.push(e.text),e.executableCode&&i.push("\n```"+e.executableCode.language+"\n"+e.executableCode.code+"\n```\n"),e.codeExecutionResult&&i.push("\n```\n"+e.codeExecutionResult.output+"\n```\n");return i.length>0?i.join(""):""}(t)}if(t.promptFeedback)throw new f(`Text not available. ${R(t)}`,t);return ""},t.functionCall=()=>{if(t.candidates&&t.candidates.length>0){if(t.candidates.length>1&&console.warn(`This response had ${t.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),N(t.candidates[0]))throw new f(`${R(t)}`,t);return console.warn("response.functionCall() is deprecated. Use response.functionCalls() instead."),v(t)[0]}if(t.promptFeedback)throw new f(`Function call not available. ${R(t)}`,t)},t.functionCalls=()=>{if(t.candidates&&t.candidates.length>0){if(t.candidates.length>1&&console.warn(`This response had ${t.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),N(t.candidates[0]))throw new f(`${R(t)}`,t);return v(t)}if(t.promptFeedback)throw new f(`Function call not available. ${R(t)}`,t)},t}function v(t){var e,n,s,o;const i=[];if(null===(n=null===(e=t.candidates)||void 0===e?void 0:e[0].content)||void 0===n?void 0:n.parts)for(const e of null===(o=null===(s=t.candidates)||void 0===s?void 0:s[0].content)||void 0===o?void 0:o.parts)e.functionCall&&i.push(e.functionCall);return i.length>0?i:void 0}const T=[c.RECITATION,c.SAFETY,c.LANGUAGE];function N(t){return !!t.finishReason&&T.includes(t.finishReason)}function R(t){var e,n,s;let o="";if(t.candidates&&0!==t.candidates.length||!t.promptFeedback){if(null===(s=t.candidates)||void 0===s?void 0:s[0]){const e=t.candidates[0];N(e)&&(o+=`Candidate was blocked due to ${e.finishReason}`,e.finishMessage&&(o+=`: ${e.finishMessage}`));}}else o+="Response was blocked",(null===(e=t.promptFeedback)||void 0===e?void 0:e.blockReason)&&(o+=` due to ${t.promptFeedback.blockReason}`),(null===(n=t.promptFeedback)||void 0===n?void 0:n.blockReasonMessage)&&(o+=`: ${t.promptFeedback.blockReasonMessage}`);return o}function A(t){return this instanceof A?(this.v=t,this):new A(t)}function S(t,e,n){if(!Symbol.asyncIterator)throw new TypeError("Symbol.asyncIterator is not defined.");var s,o=n.apply(t,e||[]),i=[];return s={},a("next"),a("throw"),a("return"),s[Symbol.asyncIterator]=function(){return this},s;function a(t){o[t]&&(s[t]=function(e){return new Promise((function(n,s){i.push([t,e,n,s])>1||r(t,e);}))});}function r(t,e){try{(n=o[t](e)).value instanceof A?Promise.resolve(n.value.v).then(c,d):l(i[0][2],n);}catch(t){l(i[0][3],t);}var n;}function c(t){r("next",t);}function d(t){r("throw",t);}function l(t,e){t(e),i.shift(),i.length&&r(i[0][0],i[0][1]);}}"function"==typeof SuppressedError&&SuppressedError;
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+var G,k,V,H,F,j,B,Y,K,J,W,$,z,X,Q,Z,tt,nt,et,ot,it,st,rt,lt,at,ut,ct,pt,dt,ht,ft;!function(t){t.PAGED_ITEM_BATCH_JOBS="batchJobs",t.PAGED_ITEM_MODELS="models",t.PAGED_ITEM_TUNING_JOBS="tuningJobs",t.PAGED_ITEM_FILES="files",t.PAGED_ITEM_CACHED_CONTENTS="cachedContents";}(G||(G={}));class mt{constructor(t,n,e,o){this.pageInternal=[],this.paramsInternal={},this.requestInternal=n,this.init(t,e,o);}init(t,n,e){var o,i;this.nameInternal=t,this.pageInternal=n[this.nameInternal]||[],this.idxInternal=0;let s={config:{}};s=e?"object"==typeof e?Object.assign({},e):e:{config:{}},s.config&&(s.config.pageToken=n.nextPageToken),this.paramsInternal=s,this.pageInternalSize=null!==(i=null===(o=s.config)||void 0===o?void 0:o.pageSize)&&void 0!==i?i:this.pageInternal.length;}initNextPage(t){this.init(this.nameInternal,t,this.paramsInternal);}get page(){return this.pageInternal}get name(){return this.nameInternal}get pageSize(){return this.pageInternalSize}get params(){return this.paramsInternal}get pageLength(){return this.pageInternal.length}getItem(t){return this.pageInternal[t]}[Symbol.asyncIterator](){return {next:async()=>{if(this.idxInternal>=this.pageLength){if(!this.hasNextPage())return {value:void 0,done:true};await this.nextPage();}const t=this.getItem(this.idxInternal);return this.idxInternal+=1,{value:t,done:false}},return:async()=>({value:void 0,done:true})}}async nextPage(){if(!this.hasNextPage())throw new Error("No more pages to fetch.");const t=await this.requestInternal(this.params);return this.initNextPage(t),this.page}hasNextPage(){var t;return void 0!==(null===(t=this.params.config)||void 0===t?void 0:t.pageToken)}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-const w=/^data\: (.*)(?:\n\n|\r\r|\r\n\r\n)/;function b(t){const e=function(t){const e=t.getReader();return new ReadableStream({start(t){let n="";return s();function s(){return e.read().then((({value:e,done:o})=>{if(o)return n.trim()?void t.error(new h("Failed to parse stream")):void t.close();n+=e;let i,a=n.match(w);for(;a;){try{i=JSON.parse(a[1]);}catch(e){return void t.error(new h(`Error parsing JSON response: "${a[1]}"`))}t.enqueue(i),n=n.substring(a[0].length),a=n.match(w);}return s()})).catch((t=>{let e=t;throw e.stack=t.stack,e="AbortError"===e.name?new C("Request aborted when reading from the stream"):new h("Error reading from the stream"),e}))}}})}(t.body.pipeThrough(new TextDecoderStream("utf8",{fatal:true}))),[n,s]=e.tee();return {stream:D(n),response:M(s)}}async function M(t){const e=[],n=t.getReader();for(;;){const{done:t,value:s}=await n.read();if(t)return I(L(e));e.push(s);}}function D(t){return S(this,arguments,(function*(){const e=t.getReader();for(;;){const{value:t,done:n}=yield A(e.read());if(n)break;yield yield A(I(t));}}))}function L(t){const e=t[t.length-1],n={promptFeedback:null==e?void 0:e.promptFeedback};for(const e of t){if(e.candidates){let t=0;for(const s of e.candidates)if(n.candidates||(n.candidates=[]),n.candidates[t]||(n.candidates[t]={index:t}),n.candidates[t].citationMetadata=s.citationMetadata,n.candidates[t].groundingMetadata=s.groundingMetadata,n.candidates[t].finishReason=s.finishReason,n.candidates[t].finishMessage=s.finishMessage,n.candidates[t].safetyRatings=s.safetyRatings,s.content&&s.content.parts){n.candidates[t].content||(n.candidates[t].content={role:s.content.role||"user",parts:[]});const e={};for(const o of s.content.parts)o.text&&(e.text=o.text),o.functionCall&&(e.functionCall=o.functionCall),o.executableCode&&(e.executableCode=o.executableCode),o.codeExecutionResult&&(e.codeExecutionResult=o.codeExecutionResult),0===Object.keys(e).length&&(e.text=""),n.candidates[t].content.parts.push(e);}t++;}e.usageMetadata&&(n.usageMetadata=e.usageMetadata);}return n}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */!function(t){t.OUTCOME_UNSPECIFIED="OUTCOME_UNSPECIFIED",t.OUTCOME_OK="OUTCOME_OK",t.OUTCOME_FAILED="OUTCOME_FAILED",t.OUTCOME_DEADLINE_EXCEEDED="OUTCOME_DEADLINE_EXCEEDED";}(k||(k={})),function(t){t.LANGUAGE_UNSPECIFIED="LANGUAGE_UNSPECIFIED",t.PYTHON="PYTHON";}(V||(V={})),function(t){t.TYPE_UNSPECIFIED="TYPE_UNSPECIFIED",t.STRING="STRING",t.NUMBER="NUMBER",t.INTEGER="INTEGER",t.BOOLEAN="BOOLEAN",t.ARRAY="ARRAY",t.OBJECT="OBJECT";}(H||(H={})),function(t){t.HARM_CATEGORY_UNSPECIFIED="HARM_CATEGORY_UNSPECIFIED",t.HARM_CATEGORY_HATE_SPEECH="HARM_CATEGORY_HATE_SPEECH",t.HARM_CATEGORY_DANGEROUS_CONTENT="HARM_CATEGORY_DANGEROUS_CONTENT",t.HARM_CATEGORY_HARASSMENT="HARM_CATEGORY_HARASSMENT",t.HARM_CATEGORY_SEXUALLY_EXPLICIT="HARM_CATEGORY_SEXUALLY_EXPLICIT",t.HARM_CATEGORY_CIVIC_INTEGRITY="HARM_CATEGORY_CIVIC_INTEGRITY";}(F||(F={})),function(t){t.HARM_BLOCK_METHOD_UNSPECIFIED="HARM_BLOCK_METHOD_UNSPECIFIED",t.SEVERITY="SEVERITY",t.PROBABILITY="PROBABILITY";}(j||(j={})),function(t){t.HARM_BLOCK_THRESHOLD_UNSPECIFIED="HARM_BLOCK_THRESHOLD_UNSPECIFIED",t.BLOCK_LOW_AND_ABOVE="BLOCK_LOW_AND_ABOVE",t.BLOCK_MEDIUM_AND_ABOVE="BLOCK_MEDIUM_AND_ABOVE",t.BLOCK_ONLY_HIGH="BLOCK_ONLY_HIGH",t.BLOCK_NONE="BLOCK_NONE",t.OFF="OFF";}(B||(B={})),function(t){t.MODE_UNSPECIFIED="MODE_UNSPECIFIED",t.MODE_DYNAMIC="MODE_DYNAMIC";}(Y||(Y={})),function(t){t.FINISH_REASON_UNSPECIFIED="FINISH_REASON_UNSPECIFIED",t.STOP="STOP",t.MAX_TOKENS="MAX_TOKENS",t.SAFETY="SAFETY",t.RECITATION="RECITATION",t.OTHER="OTHER",t.BLOCKLIST="BLOCKLIST",t.PROHIBITED_CONTENT="PROHIBITED_CONTENT",t.SPII="SPII",t.MALFORMED_FUNCTION_CALL="MALFORMED_FUNCTION_CALL",t.IMAGE_SAFETY="IMAGE_SAFETY";}(K||(K={})),function(t){t.HARM_PROBABILITY_UNSPECIFIED="HARM_PROBABILITY_UNSPECIFIED",t.NEGLIGIBLE="NEGLIGIBLE",t.LOW="LOW",t.MEDIUM="MEDIUM",t.HIGH="HIGH";}(J||(J={})),function(t){t.HARM_SEVERITY_UNSPECIFIED="HARM_SEVERITY_UNSPECIFIED",t.HARM_SEVERITY_NEGLIGIBLE="HARM_SEVERITY_NEGLIGIBLE",t.HARM_SEVERITY_LOW="HARM_SEVERITY_LOW",t.HARM_SEVERITY_MEDIUM="HARM_SEVERITY_MEDIUM",t.HARM_SEVERITY_HIGH="HARM_SEVERITY_HIGH";}(W||(W={})),function(t){t.BLOCKED_REASON_UNSPECIFIED="BLOCKED_REASON_UNSPECIFIED",t.SAFETY="SAFETY",t.OTHER="OTHER",t.BLOCKLIST="BLOCKLIST",t.PROHIBITED_CONTENT="PROHIBITED_CONTENT";}($||($={})),function(t){t.TRAFFIC_TYPE_UNSPECIFIED="TRAFFIC_TYPE_UNSPECIFIED",t.ON_DEMAND="ON_DEMAND",t.PROVISIONED_THROUGHPUT="PROVISIONED_THROUGHPUT";}(z||(z={})),function(t){t.MODALITY_UNSPECIFIED="MODALITY_UNSPECIFIED",t.TEXT="TEXT",t.IMAGE="IMAGE",t.AUDIO="AUDIO";}(X||(X={})),function(t){t.MEDIA_RESOLUTION_UNSPECIFIED="MEDIA_RESOLUTION_UNSPECIFIED",t.MEDIA_RESOLUTION_LOW="MEDIA_RESOLUTION_LOW",t.MEDIA_RESOLUTION_MEDIUM="MEDIA_RESOLUTION_MEDIUM",t.MEDIA_RESOLUTION_HIGH="MEDIA_RESOLUTION_HIGH";}(Q||(Q={})),function(t){t.FEATURE_SELECTION_PREFERENCE_UNSPECIFIED="FEATURE_SELECTION_PREFERENCE_UNSPECIFIED",t.PRIORITIZE_QUALITY="PRIORITIZE_QUALITY",t.BALANCED="BALANCED",t.PRIORITIZE_COST="PRIORITIZE_COST";}(Z||(Z={})),function(t){t.MODE_UNSPECIFIED="MODE_UNSPECIFIED",t.MODE_DYNAMIC="MODE_DYNAMIC";}(tt||(tt={})),function(t){t.MODE_UNSPECIFIED="MODE_UNSPECIFIED",t.AUTO="AUTO",t.ANY="ANY",t.NONE="NONE";}(nt||(nt={})),function(t){t.BLOCK_LOW_AND_ABOVE="BLOCK_LOW_AND_ABOVE",t.BLOCK_MEDIUM_AND_ABOVE="BLOCK_MEDIUM_AND_ABOVE",t.BLOCK_ONLY_HIGH="BLOCK_ONLY_HIGH",t.BLOCK_NONE="BLOCK_NONE";}(et||(et={})),function(t){t.DONT_ALLOW="DONT_ALLOW",t.ALLOW_ADULT="ALLOW_ADULT",t.ALLOW_ALL="ALLOW_ALL";}(ot||(ot={})),function(t){t.auto="auto",t.en="en",t.ja="ja",t.ko="ko",t.hi="hi";}(it||(it={})),function(t){t.STATE_UNSPECIFIED="STATE_UNSPECIFIED",t.PROCESSING="PROCESSING",t.ACTIVE="ACTIVE",t.FAILED="FAILED";}(st||(st={})),function(t){t.SOURCE_UNSPECIFIED="SOURCE_UNSPECIFIED",t.UPLOADED="UPLOADED",t.GENERATED="GENERATED";}(rt||(rt={})),function(t){t.MASK_MODE_DEFAULT="MASK_MODE_DEFAULT",t.MASK_MODE_USER_PROVIDED="MASK_MODE_USER_PROVIDED",t.MASK_MODE_BACKGROUND="MASK_MODE_BACKGROUND",t.MASK_MODE_FOREGROUND="MASK_MODE_FOREGROUND",t.MASK_MODE_SEMANTIC="MASK_MODE_SEMANTIC";}(lt||(lt={})),function(t){t.CONTROL_TYPE_DEFAULT="CONTROL_TYPE_DEFAULT",t.CONTROL_TYPE_CANNY="CONTROL_TYPE_CANNY",t.CONTROL_TYPE_SCRIBBLE="CONTROL_TYPE_SCRIBBLE",t.CONTROL_TYPE_FACE_MESH="CONTROL_TYPE_FACE_MESH";}(at||(at={})),function(t){t.SUBJECT_TYPE_DEFAULT="SUBJECT_TYPE_DEFAULT",t.SUBJECT_TYPE_PERSON="SUBJECT_TYPE_PERSON",t.SUBJECT_TYPE_ANIMAL="SUBJECT_TYPE_ANIMAL",t.SUBJECT_TYPE_PRODUCT="SUBJECT_TYPE_PRODUCT";}(ut||(ut={})),function(t){t.MODALITY_UNSPECIFIED="MODALITY_UNSPECIFIED",t.TEXT="TEXT",t.IMAGE="IMAGE",t.VIDEO="VIDEO",t.AUDIO="AUDIO",t.DOCUMENT="DOCUMENT";}(ct||(ct={})),function(t){t.START_SENSITIVITY_UNSPECIFIED="START_SENSITIVITY_UNSPECIFIED",t.START_SENSITIVITY_HIGH="START_SENSITIVITY_HIGH",t.START_SENSITIVITY_LOW="START_SENSITIVITY_LOW";}(pt||(pt={})),function(t){t.END_SENSITIVITY_UNSPECIFIED="END_SENSITIVITY_UNSPECIFIED",t.END_SENSITIVITY_HIGH="END_SENSITIVITY_HIGH",t.END_SENSITIVITY_LOW="END_SENSITIVITY_LOW";}(dt||(dt={})),function(t){t.ACTIVITY_HANDLING_UNSPECIFIED="ACTIVITY_HANDLING_UNSPECIFIED",t.START_OF_ACTIVITY_INTERRUPTS="START_OF_ACTIVITY_INTERRUPTS",t.NO_INTERRUPTION="NO_INTERRUPTION";}(ht||(ht={})),function(t){t.TURN_COVERAGE_UNSPECIFIED="TURN_COVERAGE_UNSPECIFIED",t.TURN_INCLUDES_ONLY_ACTIVITY="TURN_INCLUDES_ONLY_ACTIVITY",t.TURN_INCLUDES_ALL_INPUT="TURN_INCLUDES_ALL_INPUT";}(ft||(ft={}));function yt(t,n){return {fileData:{fileUri:t,mimeType:n}}}function Tt(t,n){return {inlineData:{data:t,mimeType:n}}}class Nt{get text(){var t,n,e,o,i,s,r,l;if(0===(null===(o=null===(e=null===(n=null===(t=this.candidates)||void 0===t?void 0:t[0])||void 0===n?void 0:n.content)||void 0===e?void 0:e.parts)||void 0===o?void 0:o.length))return;this.candidates&&this.candidates.length>1&&console.warn("there are multiple candidates in the response, returning text from the first one.");let a="",u=false;const c=[];for(const t of null!==(l=null===(r=null===(s=null===(i=this.candidates)||void 0===i?void 0:i[0])||void 0===s?void 0:s.content)||void 0===r?void 0:r.parts)&&void 0!==l?l:[]){for(const[n,e]of Object.entries(t))"text"===n||"thought"===n||null===e&&void 0===e||c.push(n);if("string"==typeof t.text){if("boolean"==typeof t.thought&&t.thought)continue;u=true,a+=t.text;}}return c.length>0&&console.warn(`there are non-text parts ${c} in the response, returning concatenation of all text parts. Please refer to the non text parts for a full response from model.`),u?a:void 0}get functionCalls(){var t,n,e,o,i,s,r,l;if(0===(null===(o=null===(e=null===(n=null===(t=this.candidates)||void 0===t?void 0:t[0])||void 0===n?void 0:n.content)||void 0===e?void 0:e.parts)||void 0===o?void 0:o.length))return;this.candidates&&this.candidates.length>1&&console.warn("there are multiple candidates in the response, returning function calls from the first one.");const a=null===(l=null===(r=null===(s=null===(i=this.candidates)||void 0===i?void 0:i[0])||void 0===s?void 0:s.content)||void 0===r?void 0:r.parts)||void 0===l?void 0:l.filter((t=>t.functionCall)).map((t=>t.functionCall)).filter((t=>void 0!==t));return 0!==(null==a?void 0:a.length)?a:void 0}get executableCode(){var t,n,e,o,i,s,r,l,a;if(0===(null===(o=null===(e=null===(n=null===(t=this.candidates)||void 0===t?void 0:t[0])||void 0===n?void 0:n.content)||void 0===e?void 0:e.parts)||void 0===o?void 0:o.length))return;this.candidates&&this.candidates.length>1&&console.warn("there are multiple candidates in the response, returning executable code from the first one.");const u=null===(l=null===(r=null===(s=null===(i=this.candidates)||void 0===i?void 0:i[0])||void 0===s?void 0:s.content)||void 0===r?void 0:r.parts)||void 0===l?void 0:l.filter((t=>t.executableCode)).map((t=>t.executableCode)).filter((t=>void 0!==t));return 0!==(null==u?void 0:u.length)?null===(a=null==u?void 0:u[0])||void 0===a?void 0:a.code:void 0}get codeExecutionResult(){var t,n,e,o,i,s,r,l,a;if(0===(null===(o=null===(e=null===(n=null===(t=this.candidates)||void 0===t?void 0:t[0])||void 0===n?void 0:n.content)||void 0===e?void 0:e.parts)||void 0===o?void 0:o.length))return;this.candidates&&this.candidates.length>1&&console.warn("there are multiple candidates in the response, returning code execution result from the first one.");const u=null===(l=null===(r=null===(s=null===(i=this.candidates)||void 0===i?void 0:i[0])||void 0===s?void 0:s.content)||void 0===r?void 0:r.parts)||void 0===l?void 0:l.filter((t=>t.codeExecutionResult)).map((t=>t.codeExecutionResult)).filter((t=>void 0!==t));return 0!==(null==u?void 0:u.length)?null===(a=null==u?void 0:u[0])||void 0===a?void 0:a.output:void 0}}class bt{}class Dt{}class xt{}class Mt{}class Lt{}class qt{}class Gt{}class kt{constructor(t){const n={};for(const e of t.headers.entries())n[e[0]]=e[1];this.headers=n,this.responseInternal=t;}json(){return this.responseInternal.json()}}class Vt{}class Ht{}/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */class Yt extends t{constructor(t){super(),this.apiClient=t,this.list=async(t={})=>new mt(G.PAGED_ITEM_CACHED_CONTENTS,(t=>this.listInternal(t)),await this.listInternal(t),t);}async create(t){var i,r;let l,a="",u={};if(this.apiClient.isVertexAI()){const r=function(t,n){const i={},r=o(n,["model"]);null!=r&&e(i,["model"],s(t,r));const l=o(n,["config"]);return null!=l&&e(i,["config"],x(0,l,i)),i}(this.apiClient,t);return a=n("cachedContents",r._url),u=r._query,delete r.config,delete r._url,delete r._query,l=this.apiClient.request({path:a,queryParams:u,body:JSON.stringify(r),httpMethod:"POST",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),l.then((t=>q(this.apiClient,t)))}{const e=S(this.apiClient,t);return a=n("cachedContents",e._url),u=e._query,delete e.config,delete e._url,delete e._query,l=this.apiClient.request({path:a,queryParams:u,body:JSON.stringify(e),httpMethod:"POST",httpOptions:null===(r=t.config)||void 0===r?void 0:r.httpOptions}).then((t=>t.json())),l.then((t=>L(this.apiClient,t)))}}async get(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{name}",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"GET",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((t=>q(this.apiClient,t)))}{const i=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{name}",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"GET",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>L(this.apiClient,t)))}}async delete(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{name}",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"DELETE",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((()=>{const t={},n=new Lt;return Object.assign(n,t),n}))}{const i=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","name"],v(t,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{name}",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"DELETE",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((()=>{const t={},n=new Lt;return Object.assign(n,t),n}))}}async update(t){var e,o;let i,s="",r={};if(this.apiClient.isVertexAI()){const o=M(this.apiClient,t);return s=n("{name}",o._url),r=o._query,delete o.config,delete o._url,delete o._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(o),httpMethod:"PATCH",httpOptions:null===(e=t.config)||void 0===e?void 0:e.httpOptions}).then((t=>t.json())),i.then((t=>q(this.apiClient,t)))}{const e=w(this.apiClient,t);return s=n("{name}",e._url),r=e._query,delete e.config,delete e._url,delete e._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(e),httpMethod:"PATCH",httpOptions:null===(o=t.config)||void 0===o?void 0:o.httpOptions}).then((t=>t.json())),i.then((t=>L(this.apiClient,t)))}}async listInternal(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=U(this.apiClient,t);return l=n("cachedContents",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"GET",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["nextPageToken"]);null!=s&&e(i,["nextPageToken"],s);const r=o(n,["cachedContents"]);return null!=r&&(Array.isArray(r)?e(i,["cachedContents"],r.map((t=>q(0,t)))):e(i,["cachedContents"],r)),i}(this.apiClient,t),i=new qt;return Object.assign(i,n),i}))}{const i=P(this.apiClient,t);return l=n("cachedContents",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"GET",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["nextPageToken"]);null!=s&&e(i,["nextPageToken"],s);const r=o(n,["cachedContents"]);return null!=r&&(Array.isArray(r)?e(i,["cachedContents"],r.map((t=>L(0,t)))):e(i,["cachedContents"],r)),i}(this.apiClient,t),i=new qt;return Object.assign(i,n),i}))}}}function Kt(t){var n="function"==typeof Symbol&&Symbol.iterator,e=n&&t[n],o=0;if(e)return e.call(t);if(t&&"number"==typeof t.length)return {next:function(){return t&&o>=t.length&&(t=void 0),{value:t&&t[o++],done:!t}}};throw new TypeError(n?"Object is not iterable.":"Symbol.iterator is not defined.")}function Jt(t){return this instanceof Jt?(this.v=t,this):new Jt(t)}function Wt(t,n,e){if(!Symbol.asyncIterator)throw new TypeError("Symbol.asyncIterator is not defined.");var o,i=e.apply(t,n||[]),s=[];return o=Object.create(("function"==typeof AsyncIterator?AsyncIterator:Object).prototype),r("next"),r("throw"),r("return",(function(t){return function(n){return Promise.resolve(n).then(t,u)}})),o[Symbol.asyncIterator]=function(){return this},o;function r(t,n){i[t]&&(o[t]=function(n){return new Promise((function(e,o){s.push([t,n,e,o])>1||l(t,n);}))},n&&(o[t]=n(o[t])));}function l(t,n){try{(e=i[t](n)).value instanceof Jt?Promise.resolve(e.value.v).then(a,u):c(s[0][2],e);}catch(t){c(s[0][3],t);}var e;}function a(t){l("next",t);}function u(t){l("throw",t);}function c(t,n){t(n),s.shift(),s.length&&l(s[0][0],s[0][1]);}}function $t(t){if(!Symbol.asyncIterator)throw new TypeError("Symbol.asyncIterator is not defined.");var n,e=t[Symbol.asyncIterator];return e?e.call(t):(t=Kt(t),n={},o("next"),o("throw"),o("return"),n[Symbol.asyncIterator]=function(){return this},n);function o(e){n[e]=t[e]&&function(n){return new Promise((function(o,i){(function(t,n,e,o){Promise.resolve(o).then((function(n){t({value:n,done:e});}),n);})(o,i,(n=t[e](n)).done,n.value);}))};}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */async function x(t,e,n,s){return b(await _(e,p.STREAM_GENERATE_CONTENT,t,true,JSON.stringify(n),s))}async function H(t,e,n,s){const o=await _(e,p.GENERATE_CONTENT,t,false,JSON.stringify(n),s);return {response:I(await o.json())}}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+function zt(t){var n;if(null==t.candidates||0===t.candidates.length)return  false;const e=null===(n=t.candidates[0])||void 0===n?void 0:n.content;return void 0!==e&&Xt(e)}function Xt(t){if(void 0===t.parts||0===t.parts.length)return  false;for(const n of t.parts){if(void 0===n||0===Object.keys(n).length)return  false;if(void 0!==n.text&&""===n.text)return  false}return  true}"function"==typeof SuppressedError&&SuppressedError;class Qt{constructor(t,n){this.modelsModule=t,this.apiClient=n;}create(t){return new Zt(this.apiClient,this.modelsModule,t.model,t.config,t.history)}}class Zt{constructor(t,n,e,o={},i=[]){this.apiClient=t,this.modelsModule=n,this.model=e,this.config=o,this.history=i,this.sendPromise=Promise.resolve(),function(t){if(0!==t.length){if("user"!==t[0].role)throw new Error("History must start with a user turn.");for(const n of t)if("user"!==n.role&&"model"!==n.role)throw new Error(`Role must be user or model, but got ${n.role}.`)}}(i);}async sendMessage(t){var n;await this.sendPromise;const e=p(this.apiClient,t.message),o=this.modelsModule.generateContent({model:this.model,contents:this.getHistory(true).concat(e),config:null!==(n=t.config)&&void 0!==n?n:this.config});return this.sendPromise=(async()=>{var t,n;const i=null===(n=null===(t=(await o).candidates)||void 0===t?void 0:t[0])||void 0===n?void 0:n.content,s=i?[i]:[];this.recordHistory(e,s);})(),await this.sendPromise,o}async sendMessageStream(t){var n;await this.sendPromise;const e=p(this.apiClient,t.message),o=this.modelsModule.generateContentStream({model:this.model,contents:this.getHistory(true).concat(e),config:null!==(n=t.config)&&void 0!==n?n:this.config});this.sendPromise=o.then((()=>{}));const i=await o;return this.processStreamResponse(i,e)}getHistory(t=false){return t?function(t){if(void 0===t||0===t.length)return [];const n=[],e=t.length;let o=0,i=t[0];for(;o<e;)if("user"===t[o].role)i=t[o],o++;else {const s=[];let r=true;for(;o<e&&"model"===t[o].role;)s.push(t[o]),r&&!Xt(t[o])&&(r=false),o++;r&&(n.push(i),n.push(...s));}return n}(this.history):this.history}processStreamResponse(t,n){var e,o;return Wt(this,arguments,(function*(){var i,s,r,l;const a=[];try{for(var u,c=!0,p=$t(t);!(i=(u=yield Jt(p.next())).done);c=!0){l=u.value,c=!1;const t=l;if(zt(t)){const n=null===(o=null===(e=t.candidates)||void 0===e?void 0:e[0])||void 0===o?void 0:o.content;void 0!==n&&a.push(n);}yield yield Jt(t);}}catch(t){s={error:t};}finally{try{c||i||!(r=p.return)||(yield Jt(r.call(p)));}finally{if(s)throw s.error}}this.recordHistory(n,a);}))}recordHistory(t,n){let e=[];n.length>0&&n.every((t=>"model"===t.role))?e=n:e.push({role:"model",parts:[]}),this.history.push(t),this.history.push(...e);}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */function U(t){if(null!=t)return "string"==typeof t?{role:"system",parts:[{text:t}]}:t.text?{role:"system",parts:[t]}:t.parts?t.role?t:{role:"system",parts:t.parts}:void 0}function F(t){let e=[];if("string"==typeof t)e=[{text:t}];else for(const n of t)"string"==typeof n?e.push({text:n}):e.push(n);return function(t){const e={role:"user",parts:[]},n={role:"function",parts:[]};let s=false,o=false;for(const i of t)"functionResponse"in i?(n.parts.push(i),o=true):(e.parts.push(i),s=true);if(s&&o)throw new h("Within a single message, FunctionResponse cannot be mixed with other type of part in the request for sending chat message.");if(!s&&!o)throw new h("No content is provided for sending chat message.");if(s)return e;return n}(e)}function P(t){let e;if(t.contents)e=t;else {e={contents:[F(t)]};}return t.systemInstruction&&(e.systemInstruction=U(t.systemInstruction)),e}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function tn(t,n){const i={},s=o(n,["config"]);return null!=s&&e(i,["config"],function(t,n,i){const s=o(n,["pageSize"]);void 0!==i&&null!=s&&e(i,["_query","pageSize"],s);const r=o(n,["pageToken"]);return void 0!==i&&null!=r&&e(i,["_query","pageToken"],r),{}}(0,s,i)),i}function nn(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["mimeType"]);null!=l&&e(i,["mimeType"],l);const a=o(n,["sizeBytes"]);null!=a&&e(i,["sizeBytes"],a);const u=o(n,["createTime"]);null!=u&&e(i,["createTime"],u);const c=o(n,["expirationTime"]);null!=c&&e(i,["expirationTime"],c);const p=o(n,["updateTime"]);null!=p&&e(i,["updateTime"],p);const d=o(n,["sha256Hash"]);null!=d&&e(i,["sha256Hash"],d);const h=o(n,["uri"]);null!=h&&e(i,["uri"],h);const f=o(n,["downloadUri"]);null!=f&&e(i,["downloadUri"],f);const m=o(n,["state"]);null!=m&&e(i,["state"],m);const g=o(n,["source"]);null!=g&&e(i,["source"],g);const y=o(n,["videoMetadata"]);null!=y&&e(i,["videoMetadata"],y);const C=o(n,["error"]);return null!=C&&e(i,["error"],function(t,n){const i={},s=o(n,["details"]);null!=s&&e(i,["details"],s);const r=o(n,["message"]);null!=r&&e(i,["message"],r);const l=o(n,["code"]);return null!=l&&e(i,["code"],l),i}(0,C)),i}function en(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["mimeType"]);null!=l&&e(i,["mimeType"],l);const a=o(n,["sizeBytes"]);null!=a&&e(i,["sizeBytes"],a);const u=o(n,["createTime"]);null!=u&&e(i,["createTime"],u);const c=o(n,["expirationTime"]);null!=c&&e(i,["expirationTime"],c);const p=o(n,["updateTime"]);null!=p&&e(i,["updateTime"],p);const d=o(n,["sha256Hash"]);null!=d&&e(i,["sha256Hash"],d);const h=o(n,["uri"]);null!=h&&e(i,["uri"],h);const f=o(n,["downloadUri"]);null!=f&&e(i,["downloadUri"],f);const m=o(n,["state"]);null!=m&&e(i,["state"],m);const g=o(n,["source"]);null!=g&&e(i,["source"],g);const y=o(n,["videoMetadata"]);null!=y&&e(i,["videoMetadata"],y);const C=o(n,["error"]);return null!=C&&e(i,["error"],function(t,n){const i={},s=o(n,["details"]);null!=s&&e(i,["details"],s);const r=o(n,["message"]);null!=r&&e(i,["message"],r);const l=o(n,["code"]);return null!=l&&e(i,["code"],l),i}(0,C)),i}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
-const G=["text","inlineData","functionCall","functionResponse","executableCode","codeExecutionResult"],$={user:["text","inlineData"],function:["functionResponse"],model:["text","functionCall","executableCode","codeExecutionResult"],system:["text"]};function j(t){var e;if(void 0===t.candidates||0===t.candidates.length)return  false;const n=null===(e=t.candidates[0])||void 0===e?void 0:e.content;if(void 0===n)return  false;if(void 0===n.parts||0===n.parts.length)return  false;for(const t of n.parts){if(void 0===t||0===Object.keys(t).length)return  false;if(void 0!==t.text&&""===t.text)return  false}return  true}
+class on extends t{constructor(t){super(),this.apiClient=t,this.list=async(t={})=>new mt(G.PAGED_ITEM_FILES,(t=>this.listInternal(t)),await this.listInternal(t),t);}async upload(t){if(this.apiClient.isVertexAI())throw new Error("Vertex AI does not support uploading files. You can share files through a GCS bucket.");return this.apiClient.uploadFile(t.file,t.config).then((t=>en(this.apiClient,t)))}async listInternal(t){var i;let s,r="",l={};if(this.apiClient.isVertexAI())throw new Error("This method is only supported by the Gemini Developer API.");{const a=tn(this.apiClient,t);return r=n("files",a._url),l=a._query,delete a.config,delete a._url,delete a._query,s=this.apiClient.request({path:r,queryParams:l,body:JSON.stringify(a),httpMethod:"GET",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),s.then((t=>{const n=function(t,n){const i={},s=o(n,["nextPageToken"]);null!=s&&e(i,["nextPageToken"],s);const r=o(n,["files"]);return null!=r&&(Array.isArray(r)?e(i,["files"],r.map((t=>en(0,t)))):e(i,["files"],r)),i}(this.apiClient,t),i=new Gt;return Object.assign(i,n),i}))}}async createInternal(t){var i;let s,r="",l={};if(this.apiClient.isVertexAI())throw new Error("This method is only supported by the Gemini Developer API.");{const a=function(t,n){const i={},s=o(n,["file"]);null!=s&&e(i,["file"],nn(0,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return r=n("upload/v1beta/files",a._url),l=a._query,delete a.config,delete a._url,delete a._query,s=this.apiClient.request({path:r,queryParams:l,body:JSON.stringify(a),httpMethod:"POST",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),s.then((()=>{const t={},n=new Vt;return Object.assign(n,t),n}))}}async get(t){var i;let s,r="",l={};if(this.apiClient.isVertexAI())throw new Error("This method is only supported by the Gemini Developer API.");{const a=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","file"],T(0,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return r=n("files/{file}",a._url),l=a._query,delete a.config,delete a._url,delete a._query,s=this.apiClient.request({path:r,queryParams:l,body:JSON.stringify(a),httpMethod:"GET",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),s.then((t=>en(this.apiClient,t)))}}async delete(t){var i;let s,r="",l={};if(this.apiClient.isVertexAI())throw new Error("This method is only supported by the Gemini Developer API.");{const a=function(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["_url","file"],T(0,s));const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return r=n("files/{file}",a._url),l=a._query,delete a.config,delete a._url,delete a._query,s=this.apiClient.request({path:r,queryParams:l,body:JSON.stringify(a),httpMethod:"DELETE",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),s.then((()=>{const t={},n=new Ht;return Object.assign(n,t),n}))}}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */const Y="SILENT_ERROR";class K{constructor(t,e,n,o={}){this.model=e,this.params=n,this._requestOptions=o,this._history=[],this._sendPromise=Promise.resolve(),this._apiKey=t,(null==n?void 0:n.history)&&(!function(t){let e=false;for(const n of t){const{role:t,parts:o}=n;if(!e&&"user"!==t)throw new h(`First content should be with role 'user', got ${t}`);if(!s.includes(t))throw new h(`Each item should include role field. Got ${t} but valid roles are: ${JSON.stringify(s)}`);if(!Array.isArray(o))throw new h("Content should have 'parts' property with an array of Parts");if(0===o.length)throw new h("Each Content should have at least one part");const i={text:0,inlineData:0,functionCall:0,functionResponse:0,fileData:0,executableCode:0,codeExecutionResult:0};for(const t of o)for(const e of G)e in t&&(i[e]+=1);const a=$[t];for(const e of G)if(!a.includes(e)&&i[e]>0)throw new h(`Content with role '${t}' can't contain '${e}' part`);e=true;}}(n.history),this._history=n.history);}async getHistory(){return await this._sendPromise,this._history}async sendMessage(t,e={}){var n,s,o,i,a,r;await this._sendPromise;const c=F(t),d={safetySettings:null===(n=this.params)||void 0===n?void 0:n.safetySettings,generationConfig:null===(s=this.params)||void 0===s?void 0:s.generationConfig,tools:null===(o=this.params)||void 0===o?void 0:o.tools,toolConfig:null===(i=this.params)||void 0===i?void 0:i.toolConfig,systemInstruction:null===(a=this.params)||void 0===a?void 0:a.systemInstruction,cachedContent:null===(r=this.params)||void 0===r?void 0:r.cachedContent,contents:[...this._history,c]},l=Object.assign(Object.assign({},this._requestOptions),e);let u;return this._sendPromise=this._sendPromise.then((()=>H(this._apiKey,this.model,d,l))).then((t=>{var e;if(j(t.response)){this._history.push(c);const n=Object.assign({parts:[],role:"model"},null===(e=t.response.candidates)||void 0===e?void 0:e[0].content);this._history.push(n);}else {const e=R(t.response);e&&console.warn(`sendMessage() was unsuccessful. ${e}. Inspect response object for details.`);}u=t;})),await this._sendPromise,u}async sendMessageStream(t,e={}){var n,s,o,i,a,r;await this._sendPromise;const c=F(t),d={safetySettings:null===(n=this.params)||void 0===n?void 0:n.safetySettings,generationConfig:null===(s=this.params)||void 0===s?void 0:s.generationConfig,tools:null===(o=this.params)||void 0===o?void 0:o.tools,toolConfig:null===(i=this.params)||void 0===i?void 0:i.toolConfig,systemInstruction:null===(a=this.params)||void 0===a?void 0:a.systemInstruction,cachedContent:null===(r=this.params)||void 0===r?void 0:r.cachedContent,contents:[...this._history,c]},l=Object.assign(Object.assign({},this._requestOptions),e),u=x(this._apiKey,this.model,d,l);return this._sendPromise=this._sendPromise.then((()=>u)).catch((t=>{throw new Error(Y)})).then((t=>t.response)).then((t=>{if(j(t)){this._history.push(c);const e=Object.assign({},t.candidates[0].content);e.role||(e.role="model"),this._history.push(e);}else {const e=R(t);e&&console.warn(`sendMessageStream() was unsuccessful. ${e}. Inspect response object for details.`);}})).catch((t=>{t.message!==Y&&console.error(t);})),u}}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function sn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["videoMetadata"]))throw new Error("videoMetadata parameter is not supported in Gemini API.");const s=o(n,["thought"]);null!=s&&e(i,["thought"],s);const r=o(n,["codeExecutionResult"]);null!=r&&e(i,["codeExecutionResult"],r);const l=o(n,["executableCode"]);null!=l&&e(i,["executableCode"],l);const a=o(n,["fileData"]);null!=a&&e(i,["fileData"],a);const u=o(n,["functionCall"]);null!=u&&e(i,["functionCall"],u);const c=o(n,["functionResponse"]);null!=c&&e(i,["functionResponse"],c);const p=o(n,["inlineData"]);null!=p&&e(i,["inlineData"],p);const d=o(n,["text"]);return null!=d&&e(i,["text"],d),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function rn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["videoMetadata"]);null!=s&&e(i,["videoMetadata"],s);const r=o(n,["thought"]);null!=r&&e(i,["thought"],r);const l=o(n,["codeExecutionResult"]);null!=l&&e(i,["codeExecutionResult"],l);const a=o(n,["executableCode"]);null!=a&&e(i,["executableCode"],a);const u=o(n,["fileData"]);null!=u&&e(i,["fileData"],u);const c=o(n,["functionCall"]);null!=c&&e(i,["functionCall"],c);const p=o(n,["functionResponse"]);null!=p&&e(i,["functionResponse"],p);const d=o(n,["inlineData"]);null!=d&&e(i,["inlineData"],d);const h=o(n,["text"]);return null!=h&&e(i,["text"],h),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function ln(t,n){const i={},s=o(n,["response"]);null!=s&&e(i,["response"],function(t,n){const i={},s=o(n,["example"]);null!=s&&e(i,["example"],s);const r=o(n,["pattern"]);null!=r&&e(i,["pattern"],r);const l=o(n,["default"]);null!=l&&e(i,["default"],l);const a=o(n,["maxLength"]);null!=a&&e(i,["maxLength"],a);const u=o(n,["minLength"]);null!=u&&e(i,["minLength"],u);const c=o(n,["minProperties"]);null!=c&&e(i,["minProperties"],c);const p=o(n,["maxProperties"]);null!=p&&e(i,["maxProperties"],p);const d=o(n,["anyOf"]);null!=d&&e(i,["anyOf"],d);const h=o(n,["description"]);null!=h&&e(i,["description"],h);const f=o(n,["enum"]);null!=f&&e(i,["enum"],f);const m=o(n,["format"]);null!=m&&e(i,["format"],m);const g=o(n,["items"]);null!=g&&e(i,["items"],g);const y=o(n,["maxItems"]);null!=y&&e(i,["maxItems"],y);const C=o(n,["maximum"]);null!=C&&e(i,["maximum"],C);const v=o(n,["minItems"]);null!=v&&e(i,["minItems"],v);const E=o(n,["minimum"]);null!=E&&e(i,["minimum"],E);const T=o(n,["nullable"]);null!=T&&e(i,["nullable"],T);const O=o(n,["properties"]);null!=O&&e(i,["properties"],O);const I=o(n,["propertyOrdering"]);null!=I&&e(i,["propertyOrdering"],I);const A=o(n,["required"]);null!=A&&e(i,["required"],A);const _=o(n,["title"]);null!=_&&e(i,["title"],_);const S=o(n,["type"]);return null!=S&&e(i,["type"],S),i}(0,s));const r=o(n,["description"]);null!=r&&e(i,["description"],r);const l=o(n,["name"]);null!=l&&e(i,["name"],l);const a=o(n,["parameters"]);return null!=a&&e(i,["parameters"],a),i}function an(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function un(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function cn(t,n){const i={},s=o(n,["functionDeclarations"]);if(null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["response"]))throw new Error("response parameter is not supported in Gemini API.");const s=o(n,["description"]);null!=s&&e(i,["description"],s);const r=o(n,["name"]);null!=r&&e(i,["name"],r);const l=o(n,["parameters"]);return null!=l&&e(i,["parameters"],l),i}(0,t)))):e(i,["functionDeclarations"],s)),void 0!==o(n,["retrieval"]))throw new Error("retrieval parameter is not supported in Gemini API.");null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const r=o(n,["googleSearchRetrieval"]);null!=r&&e(i,["googleSearchRetrieval"],an(0,r));const l=o(n,["codeExecution"]);return null!=l&&e(i,["codeExecution"],l),i}function pn(t,n){const i={},s=o(n,["automaticActivityDetection"]);null!=s&&e(i,["automaticActivityDetection"],function(t,n){const i={},s=o(n,["disabled"]);null!=s&&e(i,["disabled"],s);const r=o(n,["startOfSpeechSensitivity"]);null!=r&&e(i,["startOfSpeechSensitivity"],r);const l=o(n,["endOfSpeechSensitivity"]);null!=l&&e(i,["endOfSpeechSensitivity"],l);const a=o(n,["prefixPaddingMs"]);null!=a&&e(i,["prefixPaddingMs"],a);const u=o(n,["silenceDurationMs"]);return null!=u&&e(i,["silenceDurationMs"],u),i}(0,s));const r=o(n,["activityHandling"]);null!=r&&e(i,["activityHandling"],r);const l=o(n,["turnCoverage"]);return null!=l&&e(i,["turnCoverage"],l),i}function dn(t,n){const i={},s=o(n,["automaticActivityDetection"]);null!=s&&e(i,["automaticActivityDetection"],function(t,n){const i={},s=o(n,["disabled"]);null!=s&&e(i,["disabled"],s);const r=o(n,["startOfSpeechSensitivity"]);null!=r&&e(i,["startOfSpeechSensitivity"],r);const l=o(n,["endOfSpeechSensitivity"]);null!=l&&e(i,["endOfSpeechSensitivity"],l);const a=o(n,["prefixPaddingMs"]);null!=a&&e(i,["prefixPaddingMs"],a);const u=o(n,["silenceDurationMs"]);return null!=u&&e(i,["silenceDurationMs"],u),i}(0,s));const r=o(n,["activityHandling"]);null!=r&&e(i,["activityHandling"],r);const l=o(n,["turnCoverage"]);return null!=l&&e(i,["turnCoverage"],l),i}function hn(t,n){const i={},s=o(n,["triggerTokens"]);null!=s&&e(i,["triggerTokens"],s);const r=o(n,["slidingWindow"]);return null!=r&&e(i,["slidingWindow"],function(t,n){const i={},s=o(n,["targetTokens"]);return null!=s&&e(i,["targetTokens"],s),i}(0,r)),i}function fn(t,n){const i={},s=o(n,["triggerTokens"]);null!=s&&e(i,["triggerTokens"],s);const r=o(n,["slidingWindow"]);return null!=r&&e(i,["slidingWindow"],function(t,n){const i={},s=o(n,["targetTokens"]);return null!=s&&e(i,["targetTokens"],s),i}(0,r)),i}function mn(t,n,i){const s=o(n,["generationConfig"]);void 0!==i&&null!=s&&e(i,["setup","generationConfig"],s);const r=o(n,["responseModalities"]);void 0!==i&&null!=r&&e(i,["setup","generationConfig","responseModalities"],r);const l=o(n,["temperature"]);void 0!==i&&null!=l&&e(i,["setup","generationConfig","temperature"],l);const a=o(n,["topP"]);void 0!==i&&null!=a&&e(i,["setup","generationConfig","topP"],a);const u=o(n,["topK"]);void 0!==i&&null!=u&&e(i,["setup","generationConfig","topK"],u);const c=o(n,["maxOutputTokens"]);void 0!==i&&null!=c&&e(i,["setup","generationConfig","maxOutputTokens"],c);const d=o(n,["mediaResolution"]);void 0!==i&&null!=d&&e(i,["setup","generationConfig","mediaResolution"],d);const h=o(n,["seed"]);void 0!==i&&null!=h&&e(i,["setup","generationConfig","seed"],h);const f=o(n,["speechConfig"]);void 0!==i&&null!=f&&e(i,["setup","generationConfig","speechConfig"],f);const m=o(n,["systemInstruction"]);void 0!==i&&null!=m&&e(i,["setup","systemInstruction"],sn(0,p(0,m)));const g=o(n,["tools"]);void 0!==i&&null!=g&&(Array.isArray(g)?e(i,["setup","tools"],C(0,C(0,g).map((t=>cn(0,y(0,t)))))):e(i,["setup","tools"],C(0,g)));const v=o(n,["sessionResumption"]);if(void 0!==i&&null!=v&&e(i,["setup","sessionResumption"],function(t,n){const i={},s=o(n,["handle"]);if(null!=s&&e(i,["handle"],s),void 0!==o(n,["transparent"]))throw new Error("transparent parameter is not supported in Gemini API.");return i}(0,v)),void 0!==o(n,["inputAudioTranscription"]))throw new Error("inputAudioTranscription parameter is not supported in Gemini API.");const E=o(n,["outputAudioTranscription"]);void 0!==i&&null!=E&&e(i,["setup","outputAudioTranscription"],{});const T=o(n,["realtimeInputConfig"]);void 0!==i&&null!=T&&e(i,["setup","realtimeInputConfig"],pn(0,T));const O=o(n,["contextWindowCompression"]);return void 0!==i&&null!=O&&e(i,["setup","contextWindowCompression"],hn(0,O)),{}}function gn(t,n,i){const s=o(n,["generationConfig"]);void 0!==i&&null!=s&&e(i,["setup","generationConfig"],s);const r=o(n,["responseModalities"]);void 0!==i&&null!=r&&e(i,["setup","generationConfig","responseModalities"],r);const l=o(n,["temperature"]);void 0!==i&&null!=l&&e(i,["setup","generationConfig","temperature"],l);const a=o(n,["topP"]);void 0!==i&&null!=a&&e(i,["setup","generationConfig","topP"],a);const u=o(n,["topK"]);void 0!==i&&null!=u&&e(i,["setup","generationConfig","topK"],u);const c=o(n,["maxOutputTokens"]);void 0!==i&&null!=c&&e(i,["setup","generationConfig","maxOutputTokens"],c);const d=o(n,["mediaResolution"]);void 0!==i&&null!=d&&e(i,["setup","generationConfig","mediaResolution"],d);const h=o(n,["seed"]);void 0!==i&&null!=h&&e(i,["setup","generationConfig","seed"],h);const f=o(n,["speechConfig"]);void 0!==i&&null!=f&&e(i,["setup","generationConfig","speechConfig"],f);const m=o(n,["systemInstruction"]);void 0!==i&&null!=m&&e(i,["setup","systemInstruction"],rn(0,p(0,m)));const g=o(n,["tools"]);void 0!==i&&null!=g&&(Array.isArray(g)?e(i,["setup","tools"],C(0,C(0,g).map((t=>function(t,n){const i={},s=o(n,["functionDeclarations"]);null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>ln(0,t)))):e(i,["functionDeclarations"],s));const r=o(n,["retrieval"]);null!=r&&e(i,["retrieval"],r),null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const l=o(n,["googleSearchRetrieval"]);null!=l&&e(i,["googleSearchRetrieval"],un(0,l));const a=o(n,["codeExecution"]);return null!=a&&e(i,["codeExecution"],a),i}(0,y(0,t)))))):e(i,["setup","tools"],C(0,g)));const v=o(n,["sessionResumption"]);void 0!==i&&null!=v&&e(i,["setup","sessionResumption"],function(t,n){const i={},s=o(n,["handle"]);null!=s&&e(i,["handle"],s);const r=o(n,["transparent"]);return null!=r&&e(i,["transparent"],r),i}(0,v));const E=o(n,["inputAudioTranscription"]);void 0!==i&&null!=E&&e(i,["setup","inputAudioTranscription"],{});const T=o(n,["outputAudioTranscription"]);void 0!==i&&null!=T&&e(i,["setup","outputAudioTranscription"],{});const O=o(n,["realtimeInputConfig"]);void 0!==i&&null!=O&&e(i,["setup","realtimeInputConfig"],dn(0,O));const I=o(n,["contextWindowCompression"]);return void 0!==i&&null!=I&&e(i,["setup","contextWindowCompression"],fn(0,I)),{}}function yn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["thought"]);null!=s&&e(i,["thought"],s);const r=o(n,["codeExecutionResult"]);null!=r&&e(i,["codeExecutionResult"],r);const l=o(n,["executableCode"]);null!=l&&e(i,["executableCode"],l);const a=o(n,["fileData"]);null!=a&&e(i,["fileData"],a);const u=o(n,["functionCall"]);null!=u&&e(i,["functionCall"],u);const c=o(n,["functionResponse"]);null!=c&&e(i,["functionResponse"],c);const p=o(n,["inlineData"]);null!=p&&e(i,["inlineData"],p);const d=o(n,["text"]);return null!=d&&e(i,["text"],d),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function Cn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["videoMetadata"]);null!=s&&e(i,["videoMetadata"],s);const r=o(n,["thought"]);null!=r&&e(i,["thought"],r);const l=o(n,["codeExecutionResult"]);null!=l&&e(i,["codeExecutionResult"],l);const a=o(n,["executableCode"]);null!=a&&e(i,["executableCode"],a);const u=o(n,["fileData"]);null!=u&&e(i,["fileData"],u);const c=o(n,["functionCall"]);null!=c&&e(i,["functionCall"],c);const p=o(n,["functionResponse"]);null!=p&&e(i,["functionResponse"],p);const d=o(n,["inlineData"]);null!=d&&e(i,["inlineData"],d);const h=o(n,["text"]);return null!=h&&e(i,["text"],h),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function vn(t,n){const i={},s=o(n,["text"]);null!=s&&e(i,["text"],s);const r=o(n,["finished"]);return null!=r&&e(i,["finished"],r),i}function En(t,n){const i={},s=o(n,["text"]);null!=s&&e(i,["text"],s);const r=o(n,["finished"]);return null!=r&&e(i,["finished"],r),i}function Tn(t,n){const i={},s=o(n,["functionCalls"]);return null!=s&&(Array.isArray(s)?e(i,["functionCalls"],s.map((t=>function(t,n){const i={},s=o(n,["id"]);null!=s&&e(i,["id"],s);const r=o(n,["args"]);null!=r&&e(i,["args"],r);const l=o(n,["name"]);return null!=l&&e(i,["name"],l),i}(0,t)))):e(i,["functionCalls"],s)),i}function On(t,n){const i={},s=o(n,["functionCalls"]);return null!=s&&(Array.isArray(s)?e(i,["functionCalls"],s.map((t=>function(t,n){const i={},s=o(n,["args"]);null!=s&&e(i,["args"],s);const r=o(n,["name"]);return null!=r&&e(i,["name"],r),i}(0,t)))):e(i,["functionCalls"],s)),i}function In(t,n){const i={},s=o(n,["modality"]);null!=s&&e(i,["modality"],s);const r=o(n,["tokenCount"]);return null!=r&&e(i,["tokenCount"],r),i}function An(t,n){const i={},s=o(n,["modality"]);null!=s&&e(i,["modality"],s);const r=o(n,["tokenCount"]);return null!=r&&e(i,["tokenCount"],r),i}function _n(t,n){const i={};null!=o(n,["setupComplete"])&&e(i,["setupComplete"],{});const s=o(n,["serverContent"]);null!=s&&e(i,["serverContent"],function(t,n){const i={},s=o(n,["modelTurn"]);null!=s&&e(i,["modelTurn"],yn(0,s));const r=o(n,["turnComplete"]);null!=r&&e(i,["turnComplete"],r);const l=o(n,["interrupted"]);null!=l&&e(i,["interrupted"],l);const a=o(n,["generationComplete"]);null!=a&&e(i,["generationComplete"],a);const u=o(n,["inputTranscription"]);null!=u&&e(i,["inputTranscription"],vn(0,u));const c=o(n,["outputTranscription"]);return null!=c&&e(i,["outputTranscription"],vn(0,c)),i}(0,s));const r=o(n,["toolCall"]);null!=r&&e(i,["toolCall"],Tn(0,r));const l=o(n,["toolCallCancellation"]);null!=l&&e(i,["toolCallCancellation"],function(t,n){const i={},s=o(n,["ids"]);return null!=s&&e(i,["ids"],s),i}(0,l));const a=o(n,["usageMetadata"]);null!=a&&e(i,["usageMetadata"],function(t,n){const i={},s=o(n,["promptTokenCount"]);null!=s&&e(i,["promptTokenCount"],s);const r=o(n,["cachedContentTokenCount"]);null!=r&&e(i,["cachedContentTokenCount"],r);const l=o(n,["responseTokenCount"]);null!=l&&e(i,["responseTokenCount"],l);const a=o(n,["toolUsePromptTokenCount"]);null!=a&&e(i,["toolUsePromptTokenCount"],a);const u=o(n,["thoughtsTokenCount"]);null!=u&&e(i,["thoughtsTokenCount"],u);const c=o(n,["totalTokenCount"]);null!=c&&e(i,["totalTokenCount"],c);const p=o(n,["promptTokensDetails"]);null!=p&&(Array.isArray(p)?e(i,["promptTokensDetails"],p.map((t=>In(0,t)))):e(i,["promptTokensDetails"],p));const d=o(n,["cacheTokensDetails"]);null!=d&&(Array.isArray(d)?e(i,["cacheTokensDetails"],d.map((t=>In(0,t)))):e(i,["cacheTokensDetails"],d));const h=o(n,["responseTokensDetails"]);null!=h&&(Array.isArray(h)?e(i,["responseTokensDetails"],h.map((t=>In(0,t)))):e(i,["responseTokensDetails"],h));const f=o(n,["toolUsePromptTokensDetails"]);return null!=f&&(Array.isArray(f)?e(i,["toolUsePromptTokensDetails"],f.map((t=>In(0,t)))):e(i,["toolUsePromptTokensDetails"],f)),i}(0,a));const u=o(n,["goAway"]);null!=u&&e(i,["goAway"],function(t,n){const i={},s=o(n,["timeLeft"]);return null!=s&&e(i,["timeLeft"],s),i}(0,u));const c=o(n,["sessionResumptionUpdate"]);return null!=c&&e(i,["sessionResumptionUpdate"],function(t,n){const i={},s=o(n,["newHandle"]);null!=s&&e(i,["newHandle"],s);const r=o(n,["resumable"]);null!=r&&e(i,["resumable"],r);const l=o(n,["lastConsumedClientMessageIndex"]);return null!=l&&e(i,["lastConsumedClientMessageIndex"],l),i}(0,c)),i}function Sn(t,n){const i={};null!=o(n,["setupComplete"])&&e(i,["setupComplete"],{});const s=o(n,["serverContent"]);null!=s&&e(i,["serverContent"],function(t,n){const i={},s=o(n,["modelTurn"]);null!=s&&e(i,["modelTurn"],Cn(0,s));const r=o(n,["turnComplete"]);null!=r&&e(i,["turnComplete"],r);const l=o(n,["interrupted"]);null!=l&&e(i,["interrupted"],l);const a=o(n,["generationComplete"]);null!=a&&e(i,["generationComplete"],a);const u=o(n,["inputTranscription"]);null!=u&&e(i,["inputTranscription"],En(0,u));const c=o(n,["outputTranscription"]);return null!=c&&e(i,["outputTranscription"],En(0,c)),i}(0,s));const r=o(n,["toolCall"]);null!=r&&e(i,["toolCall"],On(0,r));const l=o(n,["toolCallCancellation"]);null!=l&&e(i,["toolCallCancellation"],function(t,n){const i={},s=o(n,["ids"]);return null!=s&&e(i,["ids"],s),i}(0,l));const a=o(n,["usageMetadata"]);null!=a&&e(i,["usageMetadata"],function(t,n){const i={},s=o(n,["promptTokenCount"]);null!=s&&e(i,["promptTokenCount"],s);const r=o(n,["cachedContentTokenCount"]);null!=r&&e(i,["cachedContentTokenCount"],r);const l=o(n,["candidatesTokenCount"]);null!=l&&e(i,["responseTokenCount"],l);const a=o(n,["toolUsePromptTokenCount"]);null!=a&&e(i,["toolUsePromptTokenCount"],a);const u=o(n,["thoughtsTokenCount"]);null!=u&&e(i,["thoughtsTokenCount"],u);const c=o(n,["totalTokenCount"]);null!=c&&e(i,["totalTokenCount"],c);const p=o(n,["promptTokensDetails"]);null!=p&&(Array.isArray(p)?e(i,["promptTokensDetails"],p.map((t=>An(0,t)))):e(i,["promptTokensDetails"],p));const d=o(n,["cacheTokensDetails"]);null!=d&&(Array.isArray(d)?e(i,["cacheTokensDetails"],d.map((t=>An(0,t)))):e(i,["cacheTokensDetails"],d));const h=o(n,["candidatesTokensDetails"]);null!=h&&(Array.isArray(h)?e(i,["responseTokensDetails"],h.map((t=>An(0,t)))):e(i,["responseTokensDetails"],h));const f=o(n,["toolUsePromptTokensDetails"]);null!=f&&(Array.isArray(f)?e(i,["toolUsePromptTokensDetails"],f.map((t=>An(0,t)))):e(i,["toolUsePromptTokensDetails"],f));const m=o(n,["trafficType"]);return null!=m&&e(i,["trafficType"],m),i}(0,a));const u=o(n,["goAway"]);null!=u&&e(i,["goAway"],function(t,n){const i={},s=o(n,["timeLeft"]);return null!=s&&e(i,["timeLeft"],s),i}(0,u));const c=o(n,["sessionResumptionUpdate"]);return null!=c&&e(i,["sessionResumptionUpdate"],function(t,n){const i={},s=o(n,["newHandle"]);null!=s&&e(i,["newHandle"],s);const r=o(n,["resumable"]);null!=r&&e(i,["resumable"],r);const l=o(n,["lastConsumedClientMessageIndex"]);return null!=l&&e(i,["lastConsumedClientMessageIndex"],l),i}(0,c)),i}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function wn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["videoMetadata"]))throw new Error("videoMetadata parameter is not supported in Gemini API.");const s=o(n,["thought"]);null!=s&&e(i,["thought"],s);const r=o(n,["codeExecutionResult"]);null!=r&&e(i,["codeExecutionResult"],r);const l=o(n,["executableCode"]);null!=l&&e(i,["executableCode"],l);const a=o(n,["fileData"]);null!=a&&e(i,["fileData"],a);const u=o(n,["functionCall"]);null!=u&&e(i,["functionCall"],u);const c=o(n,["functionResponse"]);null!=c&&e(i,["functionResponse"],c);const p=o(n,["inlineData"]);null!=p&&e(i,["inlineData"],p);const d=o(n,["text"]);return null!=d&&e(i,["text"],d),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function Pn(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function Rn(t,n){const i={},s=o(n,["functionDeclarations"]);if(null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>function(t,n){const i={};if(void 0!==o(n,["response"]))throw new Error("response parameter is not supported in Gemini API.");const s=o(n,["description"]);null!=s&&e(i,["description"],s);const r=o(n,["name"]);null!=r&&e(i,["name"],r);const l=o(n,["parameters"]);return null!=l&&e(i,["parameters"],l),i}(0,t)))):e(i,["functionDeclarations"],s)),void 0!==o(n,["retrieval"]))throw new Error("retrieval parameter is not supported in Gemini API.");null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const r=o(n,["googleSearchRetrieval"]);null!=r&&e(i,["googleSearchRetrieval"],Pn(0,r));const l=o(n,["codeExecution"]);return null!=l&&e(i,["codeExecution"],l),i}function Nn(t,n){const i={},s=o(n,["functionCallingConfig"]);return null!=s&&e(i,["functionCallingConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["allowedFunctionNames"]);return null!=r&&e(i,["allowedFunctionNames"],r),i}(0,s)),i}function bn(t,n){const i={},s=o(n,["prebuiltVoiceConfig"]);return null!=s&&e(i,["prebuiltVoiceConfig"],function(t,n){const i={},s=o(n,["voiceName"]);return null!=s&&e(i,["voiceName"],s),i}(0,s)),i}function Dn(t,n,i){const s={},r=o(n,["systemInstruction"]);void 0!==i&&null!=r&&e(i,["systemInstruction"],wn(0,p(0,r)));const l=o(n,["temperature"]);null!=l&&e(s,["temperature"],l);const a=o(n,["topP"]);null!=a&&e(s,["topP"],a);const u=o(n,["topK"]);null!=u&&e(s,["topK"],u);const c=o(n,["candidateCount"]);null!=c&&e(s,["candidateCount"],c);const d=o(n,["maxOutputTokens"]);null!=d&&e(s,["maxOutputTokens"],d);const h=o(n,["stopSequences"]);null!=h&&e(s,["stopSequences"],h);const f=o(n,["responseLogprobs"]);null!=f&&e(s,["responseLogprobs"],f);const E=o(n,["logprobs"]);null!=E&&e(s,["logprobs"],E);const T=o(n,["presencePenalty"]);null!=T&&e(s,["presencePenalty"],T);const O=o(n,["frequencyPenalty"]);null!=O&&e(s,["frequencyPenalty"],O);const I=o(n,["seed"]);null!=I&&e(s,["seed"],I);const A=o(n,["responseMimeType"]);null!=A&&e(s,["responseMimeType"],A);const _=o(n,["responseSchema"]);if(null!=_&&e(s,["responseSchema"],function(t,n){const i={};if(void 0!==o(n,["example"]))throw new Error("example parameter is not supported in Gemini API.");if(void 0!==o(n,["pattern"]))throw new Error("pattern parameter is not supported in Gemini API.");if(void 0!==o(n,["default"]))throw new Error("default parameter is not supported in Gemini API.");if(void 0!==o(n,["maxLength"]))throw new Error("maxLength parameter is not supported in Gemini API.");if(void 0!==o(n,["minLength"]))throw new Error("minLength parameter is not supported in Gemini API.");if(void 0!==o(n,["minProperties"]))throw new Error("minProperties parameter is not supported in Gemini API.");if(void 0!==o(n,["maxProperties"]))throw new Error("maxProperties parameter is not supported in Gemini API.");const s=o(n,["anyOf"]);null!=s&&e(i,["anyOf"],s);const r=o(n,["description"]);null!=r&&e(i,["description"],r);const l=o(n,["enum"]);null!=l&&e(i,["enum"],l);const a=o(n,["format"]);null!=a&&e(i,["format"],a);const u=o(n,["items"]);null!=u&&e(i,["items"],u);const c=o(n,["maxItems"]);null!=c&&e(i,["maxItems"],c);const p=o(n,["maximum"]);null!=p&&e(i,["maximum"],p);const d=o(n,["minItems"]);null!=d&&e(i,["minItems"],d);const h=o(n,["minimum"]);null!=h&&e(i,["minimum"],h);const f=o(n,["nullable"]);null!=f&&e(i,["nullable"],f);const m=o(n,["properties"]);null!=m&&e(i,["properties"],m);const g=o(n,["propertyOrdering"]);null!=g&&e(i,["propertyOrdering"],g);const y=o(n,["required"]);null!=y&&e(i,["required"],y);const C=o(n,["title"]);null!=C&&e(i,["title"],C);const v=o(n,["type"]);return null!=v&&e(i,["type"],v),i}(0,m(t,_))),void 0!==o(n,["routingConfig"]))throw new Error("routingConfig parameter is not supported in Gemini API.");if(void 0!==o(n,["modelSelectionConfig"]))throw new Error("modelSelectionConfig parameter is not supported in Gemini API.");const S=o(n,["safetySettings"]);void 0!==i&&null!=S&&(Array.isArray(S)?e(i,["safetySettings"],S.map((t=>function(t,n){const i={};if(void 0!==o(n,["method"]))throw new Error("method parameter is not supported in Gemini API.");const s=o(n,["category"]);null!=s&&e(i,["category"],s);const r=o(n,["threshold"]);return null!=r&&e(i,["threshold"],r),i}(0,t)))):e(i,["safetySettings"],S));const w=o(n,["tools"]);void 0!==i&&null!=w&&(Array.isArray(w)?e(i,["tools"],C(0,C(0,w).map((t=>Rn(0,y(0,t)))))):e(i,["tools"],C(0,w)));const P=o(n,["toolConfig"]);if(void 0!==i&&null!=P&&e(i,["toolConfig"],Nn(0,P)),void 0!==o(n,["labels"]))throw new Error("labels parameter is not supported in Gemini API.");const R=o(n,["cachedContent"]);void 0!==i&&null!=R&&e(i,["cachedContent"],v(t,R));const N=o(n,["responseModalities"]);null!=N&&e(s,["responseModalities"],N);const b=o(n,["mediaResolution"]);null!=b&&e(s,["mediaResolution"],b);const D=o(n,["speechConfig"]);if(null!=D&&e(s,["speechConfig"],function(t,n){const i={},s=o(n,["voiceConfig"]);null!=s&&e(i,["voiceConfig"],bn(0,s));const r=o(n,["languageCode"]);return null!=r&&e(i,["languageCode"],r),i}(0,g(0,D))),void 0!==o(n,["audioTimestamp"]))throw new Error("audioTimestamp parameter is not supported in Gemini API.");const x=o(n,["thinkingConfig"]);return null!=x&&e(s,["thinkingConfig"],function(t,n){const i={},s=o(n,["includeThoughts"]);null!=s&&e(i,["includeThoughts"],s);const r=o(n,["thinkingBudget"]);return null!=r&&e(i,["thinkingBudget"],r),i}(0,x)),s}function xn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&(Array.isArray(l)?e(s,["contents"],h(0,h(0,l).map((t=>wn(0,t))))):e(s,["contents"],h(0,l)));const a=o(n,["config"]);return null!=a&&e(s,["generationConfig"],Dn(t,a,s)),s}function Mn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&e(s,["requests[]","content"],d(t,l));const a=o(n,["config"]);null!=a&&e(s,["config"],function(t,n,i){const s=o(n,["taskType"]);void 0!==i&&null!=s&&e(i,["requests[]","taskType"],s);const r=o(n,["title"]);void 0!==i&&null!=r&&e(i,["requests[]","title"],r);const l=o(n,["outputDimensionality"]);if(void 0!==i&&null!=l&&e(i,["requests[]","outputDimensionality"],l),void 0!==o(n,["mimeType"]))throw new Error("mimeType parameter is not supported in Gemini API.");if(void 0!==o(n,["autoTruncate"]))throw new Error("autoTruncate parameter is not supported in Gemini API.");return {}}(0,a,s));const u=o(n,["model"]);return void 0!==u&&e(s,["requests[]","model"],i(t,u)),s}function Un(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["prompt"]);null!=l&&e(s,["instances[0]","prompt"],l);const a=o(n,["config"]);return null!=a&&e(s,["config"],function(t,n,i){if(void 0!==o(n,["outputGcsUri"]))throw new Error("outputGcsUri parameter is not supported in Gemini API.");if(void 0!==o(n,["negativePrompt"]))throw new Error("negativePrompt parameter is not supported in Gemini API.");const s=o(n,["numberOfImages"]);void 0!==i&&null!=s&&e(i,["parameters","sampleCount"],s);const r=o(n,["aspectRatio"]);void 0!==i&&null!=r&&e(i,["parameters","aspectRatio"],r);const l=o(n,["guidanceScale"]);if(void 0!==i&&null!=l&&e(i,["parameters","guidanceScale"],l),void 0!==o(n,["seed"]))throw new Error("seed parameter is not supported in Gemini API.");const a=o(n,["safetyFilterLevel"]);void 0!==i&&null!=a&&e(i,["parameters","safetySetting"],a);const u=o(n,["personGeneration"]);void 0!==i&&null!=u&&e(i,["parameters","personGeneration"],u);const c=o(n,["includeSafetyAttributes"]);void 0!==i&&null!=c&&e(i,["parameters","includeSafetyAttributes"],c);const p=o(n,["includeRaiReason"]);void 0!==i&&null!=p&&e(i,["parameters","includeRaiReason"],p);const d=o(n,["language"]);void 0!==i&&null!=d&&e(i,["parameters","language"],d);const h=o(n,["outputMimeType"]);void 0!==i&&null!=h&&e(i,["parameters","outputOptions","mimeType"],h);const f=o(n,["outputCompressionQuality"]);if(void 0!==i&&null!=f&&e(i,["parameters","outputOptions","compressionQuality"],f),void 0!==o(n,["addWatermark"]))throw new Error("addWatermark parameter is not supported in Gemini API.");if(void 0!==o(n,["enhancePrompt"]))throw new Error("enhancePrompt parameter is not supported in Gemini API.");return {}}(0,a,s)),s}function Ln(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&(Array.isArray(l)?e(s,["contents"],h(0,h(0,l).map((t=>wn(0,t))))):e(s,["contents"],h(0,l)));const a=o(n,["config"]);return null!=a&&e(s,["config"],function(t,n){if(void 0!==o(n,["systemInstruction"]))throw new Error("systemInstruction parameter is not supported in Gemini API.");if(void 0!==o(n,["tools"]))throw new Error("tools parameter is not supported in Gemini API.");if(void 0!==o(n,["generationConfig"]))throw new Error("generationConfig parameter is not supported in Gemini API.");return {}}(0,a)),s}function qn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["prompt"]);null!=l&&e(s,["instances[0]","prompt"],l);const a=o(n,["image"]);null!=a&&e(s,["instances[0]","image"],function(t,n){const i={};if(void 0!==o(n,["gcsUri"]))throw new Error("gcsUri parameter is not supported in Gemini API.");const s=o(n,["imageBytes"]);null!=s&&e(i,["bytesBase64Encoded"],E(0,s));const r=o(n,["mimeType"]);return null!=r&&e(i,["mimeType"],r),i}(0,a));const u=o(n,["config"]);return null!=u&&e(s,["config"],function(t,n,i){const s=o(n,["numberOfVideos"]);if(void 0!==i&&null!=s&&e(i,["parameters","sampleCount"],s),void 0!==o(n,["outputGcsUri"]))throw new Error("outputGcsUri parameter is not supported in Gemini API.");if(void 0!==o(n,["fps"]))throw new Error("fps parameter is not supported in Gemini API.");const r=o(n,["durationSeconds"]);if(void 0!==i&&null!=r&&e(i,["parameters","durationSeconds"],r),void 0!==o(n,["seed"]))throw new Error("seed parameter is not supported in Gemini API.");const l=o(n,["aspectRatio"]);if(void 0!==i&&null!=l&&e(i,["parameters","aspectRatio"],l),void 0!==o(n,["resolution"]))throw new Error("resolution parameter is not supported in Gemini API.");const a=o(n,["personGeneration"]);if(void 0!==i&&null!=a&&e(i,["parameters","personGeneration"],a),void 0!==o(n,["pubsubTopic"]))throw new Error("pubsubTopic parameter is not supported in Gemini API.");const u=o(n,["negativePrompt"]);if(void 0!==i&&null!=u&&e(i,["parameters","negativePrompt"],u),void 0!==o(n,["enhancePrompt"]))throw new Error("enhancePrompt parameter is not supported in Gemini API.");return {}}(0,u,s)),s}function Gn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["videoMetadata"]);null!=s&&e(i,["videoMetadata"],s);const r=o(n,["thought"]);null!=r&&e(i,["thought"],r);const l=o(n,["codeExecutionResult"]);null!=l&&e(i,["codeExecutionResult"],l);const a=o(n,["executableCode"]);null!=a&&e(i,["executableCode"],a);const u=o(n,["fileData"]);null!=u&&e(i,["fileData"],u);const c=o(n,["functionCall"]);null!=c&&e(i,["functionCall"],c);const p=o(n,["functionResponse"]);null!=p&&e(i,["functionResponse"],p);const d=o(n,["inlineData"]);null!=d&&e(i,["inlineData"],d);const h=o(n,["text"]);return null!=h&&e(i,["text"],h),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function kn(t,n){const i={},s=o(n,["example"]);null!=s&&e(i,["example"],s);const r=o(n,["pattern"]);null!=r&&e(i,["pattern"],r);const l=o(n,["default"]);null!=l&&e(i,["default"],l);const a=o(n,["maxLength"]);null!=a&&e(i,["maxLength"],a);const u=o(n,["minLength"]);null!=u&&e(i,["minLength"],u);const c=o(n,["minProperties"]);null!=c&&e(i,["minProperties"],c);const p=o(n,["maxProperties"]);null!=p&&e(i,["maxProperties"],p);const d=o(n,["anyOf"]);null!=d&&e(i,["anyOf"],d);const h=o(n,["description"]);null!=h&&e(i,["description"],h);const f=o(n,["enum"]);null!=f&&e(i,["enum"],f);const m=o(n,["format"]);null!=m&&e(i,["format"],m);const g=o(n,["items"]);null!=g&&e(i,["items"],g);const y=o(n,["maxItems"]);null!=y&&e(i,["maxItems"],y);const C=o(n,["maximum"]);null!=C&&e(i,["maximum"],C);const v=o(n,["minItems"]);null!=v&&e(i,["minItems"],v);const E=o(n,["minimum"]);null!=E&&e(i,["minimum"],E);const T=o(n,["nullable"]);null!=T&&e(i,["nullable"],T);const O=o(n,["properties"]);null!=O&&e(i,["properties"],O);const I=o(n,["propertyOrdering"]);null!=I&&e(i,["propertyOrdering"],I);const A=o(n,["required"]);null!=A&&e(i,["required"],A);const _=o(n,["title"]);null!=_&&e(i,["title"],_);const S=o(n,["type"]);return null!=S&&e(i,["type"],S),i}function Vn(t,n){const i={},s=o(n,["dynamicRetrievalConfig"]);return null!=s&&e(i,["dynamicRetrievalConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["dynamicThreshold"]);return null!=r&&e(i,["dynamicThreshold"],r),i}(0,s)),i}function Hn(t,n){const i={},s=o(n,["functionDeclarations"]);null!=s&&(Array.isArray(s)?e(i,["functionDeclarations"],s.map((t=>function(t,n){const i={},s=o(n,["response"]);null!=s&&e(i,["response"],kn(0,s));const r=o(n,["description"]);null!=r&&e(i,["description"],r);const l=o(n,["name"]);null!=l&&e(i,["name"],l);const a=o(n,["parameters"]);return null!=a&&e(i,["parameters"],a),i}(0,t)))):e(i,["functionDeclarations"],s));const r=o(n,["retrieval"]);null!=r&&e(i,["retrieval"],r);null!=o(n,["googleSearch"])&&e(i,["googleSearch"],{});const l=o(n,["googleSearchRetrieval"]);null!=l&&e(i,["googleSearchRetrieval"],Vn(0,l));const a=o(n,["codeExecution"]);return null!=a&&e(i,["codeExecution"],a),i}function Fn(t,n){const i={},s=o(n,["functionCallingConfig"]);return null!=s&&e(i,["functionCallingConfig"],function(t,n){const i={},s=o(n,["mode"]);null!=s&&e(i,["mode"],s);const r=o(n,["allowedFunctionNames"]);return null!=r&&e(i,["allowedFunctionNames"],r),i}(0,s)),i}function jn(t,n){const i={},s=o(n,["prebuiltVoiceConfig"]);return null!=s&&e(i,["prebuiltVoiceConfig"],function(t,n){const i={},s=o(n,["voiceName"]);return null!=s&&e(i,["voiceName"],s),i}(0,s)),i}function Bn(t,n,i){const s={},r=o(n,["systemInstruction"]);void 0!==i&&null!=r&&e(i,["systemInstruction"],Gn(0,p(0,r)));const l=o(n,["temperature"]);null!=l&&e(s,["temperature"],l);const a=o(n,["topP"]);null!=a&&e(s,["topP"],a);const u=o(n,["topK"]);null!=u&&e(s,["topK"],u);const c=o(n,["candidateCount"]);null!=c&&e(s,["candidateCount"],c);const d=o(n,["maxOutputTokens"]);null!=d&&e(s,["maxOutputTokens"],d);const h=o(n,["stopSequences"]);null!=h&&e(s,["stopSequences"],h);const f=o(n,["responseLogprobs"]);null!=f&&e(s,["responseLogprobs"],f);const E=o(n,["logprobs"]);null!=E&&e(s,["logprobs"],E);const T=o(n,["presencePenalty"]);null!=T&&e(s,["presencePenalty"],T);const O=o(n,["frequencyPenalty"]);null!=O&&e(s,["frequencyPenalty"],O);const I=o(n,["seed"]);null!=I&&e(s,["seed"],I);const A=o(n,["responseMimeType"]);null!=A&&e(s,["responseMimeType"],A);const _=o(n,["responseSchema"]);null!=_&&e(s,["responseSchema"],kn(0,m(t,_)));const S=o(n,["routingConfig"]);null!=S&&e(s,["routingConfig"],S);const w=o(n,["modelSelectionConfig"]);null!=w&&e(s,["modelConfig"],function(t,n){const i={},s=o(n,["featureSelectionPreference"]);return null!=s&&e(i,["featureSelectionPreference"],s),i}(0,w));const P=o(n,["safetySettings"]);void 0!==i&&null!=P&&(Array.isArray(P)?e(i,["safetySettings"],P.map((t=>function(t,n){const i={},s=o(n,["method"]);null!=s&&e(i,["method"],s);const r=o(n,["category"]);null!=r&&e(i,["category"],r);const l=o(n,["threshold"]);return null!=l&&e(i,["threshold"],l),i}(0,t)))):e(i,["safetySettings"],P));const R=o(n,["tools"]);void 0!==i&&null!=R&&(Array.isArray(R)?e(i,["tools"],C(0,C(0,R).map((t=>Hn(0,y(0,t)))))):e(i,["tools"],C(0,R)));const N=o(n,["toolConfig"]);void 0!==i&&null!=N&&e(i,["toolConfig"],Fn(0,N));const b=o(n,["labels"]);void 0!==i&&null!=b&&e(i,["labels"],b);const D=o(n,["cachedContent"]);void 0!==i&&null!=D&&e(i,["cachedContent"],v(t,D));const x=o(n,["responseModalities"]);null!=x&&e(s,["responseModalities"],x);const M=o(n,["mediaResolution"]);null!=M&&e(s,["mediaResolution"],M);const U=o(n,["speechConfig"]);null!=U&&e(s,["speechConfig"],function(t,n){const i={},s=o(n,["voiceConfig"]);null!=s&&e(i,["voiceConfig"],jn(0,s));const r=o(n,["languageCode"]);return null!=r&&e(i,["languageCode"],r),i}(0,g(0,U)));const L=o(n,["audioTimestamp"]);null!=L&&e(s,["audioTimestamp"],L);const q=o(n,["thinkingConfig"]);return null!=q&&e(s,["thinkingConfig"],function(t,n){const i={},s=o(n,["includeThoughts"]);null!=s&&e(i,["includeThoughts"],s);const r=o(n,["thinkingBudget"]);return null!=r&&e(i,["thinkingBudget"],r),i}(0,q)),s}function Yn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&(Array.isArray(l)?e(s,["contents"],h(0,h(0,l).map((t=>Gn(0,t))))):e(s,["contents"],h(0,l)));const a=o(n,["config"]);return null!=a&&e(s,["generationConfig"],Bn(t,a,s)),s}function Kn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&e(s,["instances[]","content"],d(t,l));const a=o(n,["config"]);return null!=a&&e(s,["config"],function(t,n,i){const s=o(n,["taskType"]);void 0!==i&&null!=s&&e(i,["instances[]","task_type"],s);const r=o(n,["title"]);void 0!==i&&null!=r&&e(i,["instances[]","title"],r);const l=o(n,["outputDimensionality"]);void 0!==i&&null!=l&&e(i,["parameters","outputDimensionality"],l);const a=o(n,["mimeType"]);void 0!==i&&null!=a&&e(i,["instances[]","mimeType"],a);const u=o(n,["autoTruncate"]);return void 0!==i&&null!=u&&e(i,["parameters","autoTruncate"],u),{}}(0,a,s)),s}function Jn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["prompt"]);null!=l&&e(s,["instances[0]","prompt"],l);const a=o(n,["config"]);return null!=a&&e(s,["config"],function(t,n,i){const s=o(n,["outputGcsUri"]);void 0!==i&&null!=s&&e(i,["parameters","storageUri"],s);const r=o(n,["negativePrompt"]);void 0!==i&&null!=r&&e(i,["parameters","negativePrompt"],r);const l=o(n,["numberOfImages"]);void 0!==i&&null!=l&&e(i,["parameters","sampleCount"],l);const a=o(n,["aspectRatio"]);void 0!==i&&null!=a&&e(i,["parameters","aspectRatio"],a);const u=o(n,["guidanceScale"]);void 0!==i&&null!=u&&e(i,["parameters","guidanceScale"],u);const c=o(n,["seed"]);void 0!==i&&null!=c&&e(i,["parameters","seed"],c);const p=o(n,["safetyFilterLevel"]);void 0!==i&&null!=p&&e(i,["parameters","safetySetting"],p);const d=o(n,["personGeneration"]);void 0!==i&&null!=d&&e(i,["parameters","personGeneration"],d);const h=o(n,["includeSafetyAttributes"]);void 0!==i&&null!=h&&e(i,["parameters","includeSafetyAttributes"],h);const f=o(n,["includeRaiReason"]);void 0!==i&&null!=f&&e(i,["parameters","includeRaiReason"],f);const m=o(n,["language"]);void 0!==i&&null!=m&&e(i,["parameters","language"],m);const g=o(n,["outputMimeType"]);void 0!==i&&null!=g&&e(i,["parameters","outputOptions","mimeType"],g);const y=o(n,["outputCompressionQuality"]);void 0!==i&&null!=y&&e(i,["parameters","outputOptions","compressionQuality"],y);const C=o(n,["addWatermark"]);void 0!==i&&null!=C&&e(i,["parameters","addWatermark"],C);const v=o(n,["enhancePrompt"]);return void 0!==i&&null!=v&&e(i,["parameters","enhancePrompt"],v),{}}(0,a,s)),s}function Wn(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&(Array.isArray(l)?e(s,["contents"],h(0,h(0,l).map((t=>Gn(0,t))))):e(s,["contents"],h(0,l)));const a=o(n,["config"]);return null!=a&&e(s,["config"],function(t,n,i){const s=o(n,["systemInstruction"]);void 0!==i&&null!=s&&e(i,["systemInstruction"],Gn(0,p(0,s)));const r=o(n,["tools"]);void 0!==i&&null!=r&&(Array.isArray(r)?e(i,["tools"],r.map((t=>Hn(0,t)))):e(i,["tools"],r));const l=o(n,["generationConfig"]);return void 0!==i&&null!=l&&e(i,["generationConfig"],l),{}}(0,a,s)),s}function $n(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["prompt"]);null!=l&&e(s,["instances[0]","prompt"],l);const a=o(n,["image"]);null!=a&&e(s,["instances[0]","image"],function(t,n){const i={},s=o(n,["gcsUri"]);null!=s&&e(i,["gcsUri"],s);const r=o(n,["imageBytes"]);null!=r&&e(i,["bytesBase64Encoded"],E(0,r));const l=o(n,["mimeType"]);return null!=l&&e(i,["mimeType"],l),i}(0,a));const u=o(n,["config"]);return null!=u&&e(s,["config"],function(t,n,i){const s=o(n,["numberOfVideos"]);void 0!==i&&null!=s&&e(i,["parameters","sampleCount"],s);const r=o(n,["outputGcsUri"]);void 0!==i&&null!=r&&e(i,["parameters","storageUri"],r);const l=o(n,["fps"]);void 0!==i&&null!=l&&e(i,["parameters","fps"],l);const a=o(n,["durationSeconds"]);void 0!==i&&null!=a&&e(i,["parameters","durationSeconds"],a);const u=o(n,["seed"]);void 0!==i&&null!=u&&e(i,["parameters","seed"],u);const c=o(n,["aspectRatio"]);void 0!==i&&null!=c&&e(i,["parameters","aspectRatio"],c);const p=o(n,["resolution"]);void 0!==i&&null!=p&&e(i,["parameters","resolution"],p);const d=o(n,["personGeneration"]);void 0!==i&&null!=d&&e(i,["parameters","personGeneration"],d);const h=o(n,["pubsubTopic"]);void 0!==i&&null!=h&&e(i,["parameters","pubsubTopic"],h);const f=o(n,["negativePrompt"]);void 0!==i&&null!=f&&e(i,["parameters","negativePrompt"],f);const m=o(n,["enhancePrompt"]);return void 0!==i&&null!=m&&e(i,["parameters","enhancePrompt"],m),{}}(0,u,s)),s}function zn(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["thought"]);null!=s&&e(i,["thought"],s);const r=o(n,["codeExecutionResult"]);null!=r&&e(i,["codeExecutionResult"],r);const l=o(n,["executableCode"]);null!=l&&e(i,["executableCode"],l);const a=o(n,["fileData"]);null!=a&&e(i,["fileData"],a);const u=o(n,["functionCall"]);null!=u&&e(i,["functionCall"],u);const c=o(n,["functionResponse"]);null!=c&&e(i,["functionResponse"],c);const p=o(n,["inlineData"]);null!=p&&e(i,["inlineData"],p);const d=o(n,["text"]);return null!=d&&e(i,["text"],d),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function Xn(t,n){const i={},s=o(n,["content"]);null!=s&&e(i,["content"],zn(0,s));const r=o(n,["citationMetadata"]);null!=r&&e(i,["citationMetadata"],function(t,n){const i={},s=o(n,["citationSources"]);return null!=s&&e(i,["citations"],s),i}(0,r));const l=o(n,["tokenCount"]);null!=l&&e(i,["tokenCount"],l);const a=o(n,["finishReason"]);null!=a&&e(i,["finishReason"],a);const u=o(n,["avgLogprobs"]);null!=u&&e(i,["avgLogprobs"],u);const c=o(n,["groundingMetadata"]);null!=c&&e(i,["groundingMetadata"],c);const p=o(n,["index"]);null!=p&&e(i,["index"],p);const d=o(n,["logprobsResult"]);null!=d&&e(i,["logprobsResult"],d);const h=o(n,["safetyRatings"]);return null!=h&&e(i,["safetyRatings"],h),i}function Qn(t,n){const i={},s=o(n,["candidates"]);null!=s&&(Array.isArray(s)?e(i,["candidates"],s.map((t=>Xn(0,t)))):e(i,["candidates"],s));const r=o(n,["modelVersion"]);null!=r&&e(i,["modelVersion"],r);const l=o(n,["promptFeedback"]);null!=l&&e(i,["promptFeedback"],l);const a=o(n,["usageMetadata"]);return null!=a&&e(i,["usageMetadata"],a),i}function Zn(t,n){const i={},s=o(n,["embeddings"]);null!=s&&(Array.isArray(s)?e(i,["embeddings"],s.map((t=>function(t,n){const i={},s=o(n,["values"]);return null!=s&&e(i,["values"],s),i}(0,t)))):e(i,["embeddings"],s));return null!=o(n,["metadata"])&&e(i,["metadata"],{}),i}function te(t,n){const i={},s=o(n,["safetyAttributes","categories"]);null!=s&&e(i,["categories"],s);const r=o(n,["safetyAttributes","scores"]);null!=r&&e(i,["scores"],r);const l=o(n,["contentType"]);return null!=l&&e(i,["contentType"],l),i}function ne(t,n){const i={},s=o(n,["_self"]);null!=s&&e(i,["image"],function(t,n){const i={},s=o(n,["bytesBase64Encoded"]);null!=s&&e(i,["imageBytes"],E(0,s));const r=o(n,["mimeType"]);return null!=r&&e(i,["mimeType"],r),i}(0,s));const r=o(n,["raiFilteredReason"]);null!=r&&e(i,["raiFilteredReason"],r);const l=o(n,["_self"]);return null!=l&&e(i,["safetyAttributes"],te(0,l)),i}function ee(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["description"]);null!=l&&e(i,["description"],l);const a=o(n,["version"]);null!=a&&e(i,["version"],a);const u=o(n,["_self"]);null!=u&&e(i,["tunedModelInfo"],function(t,n){const i={},s=o(n,["baseModel"]);null!=s&&e(i,["baseModel"],s);const r=o(n,["createTime"]);null!=r&&e(i,["createTime"],r);const l=o(n,["updateTime"]);return null!=l&&e(i,["updateTime"],l),i}(0,u));const c=o(n,["inputTokenLimit"]);null!=c&&e(i,["inputTokenLimit"],c);const p=o(n,["outputTokenLimit"]);null!=p&&e(i,["outputTokenLimit"],p);const d=o(n,["supportedGenerationMethods"]);return null!=d&&e(i,["supportedActions"],d),i}function oe(t,n){const i={},s=o(n,["_self"]);return null!=s&&e(i,["video"],function(t,n){const i={},s=o(n,["video","uri"]);null!=s&&e(i,["uri"],s);const r=o(n,["video","encodedVideo"]);null!=r&&e(i,["videoBytes"],E(0,r));const l=o(n,["encoding"]);return null!=l&&e(i,["mimeType"],l),i}(0,s)),i}function ie(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["metadata"]);null!=r&&e(i,["metadata"],r);const l=o(n,["done"]);null!=l&&e(i,["done"],l);const a=o(n,["error"]);null!=a&&e(i,["error"],a);const u=o(n,["response","generateVideoResponse"]);return null!=u&&e(i,["response"],function(t,n){const i={},s=o(n,["generatedSamples"]);null!=s&&(Array.isArray(s)?e(i,["generatedVideos"],s.map((t=>oe(0,t)))):e(i,["generatedVideos"],s));const r=o(n,["raiMediaFilteredCount"]);null!=r&&e(i,["raiMediaFilteredCount"],r);const l=o(n,["raiMediaFilteredReasons"]);return null!=l&&e(i,["raiMediaFilteredReasons"],l),i}(0,u)),i}function se(t,n){const i={},s=o(n,["parts"]);null!=s&&(Array.isArray(s)?e(i,["parts"],s.map((t=>function(t,n){const i={},s=o(n,["videoMetadata"]);null!=s&&e(i,["videoMetadata"],s);const r=o(n,["thought"]);null!=r&&e(i,["thought"],r);const l=o(n,["codeExecutionResult"]);null!=l&&e(i,["codeExecutionResult"],l);const a=o(n,["executableCode"]);null!=a&&e(i,["executableCode"],a);const u=o(n,["fileData"]);null!=u&&e(i,["fileData"],u);const c=o(n,["functionCall"]);null!=c&&e(i,["functionCall"],c);const p=o(n,["functionResponse"]);null!=p&&e(i,["functionResponse"],p);const d=o(n,["inlineData"]);null!=d&&e(i,["inlineData"],d);const h=o(n,["text"]);return null!=h&&e(i,["text"],h),i}(0,t)))):e(i,["parts"],s));const r=o(n,["role"]);return null!=r&&e(i,["role"],r),i}function re(t,n){const i={},s=o(n,["content"]);null!=s&&e(i,["content"],se(0,s));const r=o(n,["citationMetadata"]);null!=r&&e(i,["citationMetadata"],function(t,n){const i={},s=o(n,["citations"]);return null!=s&&e(i,["citations"],s),i}(0,r));const l=o(n,["finishMessage"]);null!=l&&e(i,["finishMessage"],l);const a=o(n,["finishReason"]);null!=a&&e(i,["finishReason"],a);const u=o(n,["avgLogprobs"]);null!=u&&e(i,["avgLogprobs"],u);const c=o(n,["groundingMetadata"]);null!=c&&e(i,["groundingMetadata"],c);const p=o(n,["index"]);null!=p&&e(i,["index"],p);const d=o(n,["logprobsResult"]);null!=d&&e(i,["logprobsResult"],d);const h=o(n,["safetyRatings"]);return null!=h&&e(i,["safetyRatings"],h),i}function le(t,n){const i={},s=o(n,["candidates"]);null!=s&&(Array.isArray(s)?e(i,["candidates"],s.map((t=>re(0,t)))):e(i,["candidates"],s));const r=o(n,["createTime"]);null!=r&&e(i,["createTime"],r);const l=o(n,["responseId"]);null!=l&&e(i,["responseId"],l);const a=o(n,["modelVersion"]);null!=a&&e(i,["modelVersion"],a);const u=o(n,["promptFeedback"]);null!=u&&e(i,["promptFeedback"],u);const c=o(n,["usageMetadata"]);return null!=c&&e(i,["usageMetadata"],c),i}function ae(t,n){const i={},s=o(n,["values"]);null!=s&&e(i,["values"],s);const r=o(n,["statistics"]);return null!=r&&e(i,["statistics"],function(t,n){const i={},s=o(n,["truncated"]);null!=s&&e(i,["truncated"],s);const r=o(n,["token_count"]);return null!=r&&e(i,["tokenCount"],r),i}(0,r)),i}function ue(t,n){const i={},s=o(n,["predictions[]","embeddings"]);null!=s&&(Array.isArray(s)?e(i,["embeddings"],s.map((t=>ae(0,t)))):e(i,["embeddings"],s));const r=o(n,["metadata"]);return null!=r&&e(i,["metadata"],function(t,n){const i={},s=o(n,["billableCharacterCount"]);return null!=s&&e(i,["billableCharacterCount"],s),i}(0,r)),i}function ce(t,n){const i={},s=o(n,["safetyAttributes","categories"]);null!=s&&e(i,["categories"],s);const r=o(n,["safetyAttributes","scores"]);null!=r&&e(i,["scores"],r);const l=o(n,["contentType"]);return null!=l&&e(i,["contentType"],l),i}function pe(t,n){const i={},s=o(n,["_self"]);null!=s&&e(i,["image"],function(t,n){const i={},s=o(n,["gcsUri"]);null!=s&&e(i,["gcsUri"],s);const r=o(n,["bytesBase64Encoded"]);null!=r&&e(i,["imageBytes"],E(0,r));const l=o(n,["mimeType"]);return null!=l&&e(i,["mimeType"],l),i}(0,s));const r=o(n,["raiFilteredReason"]);null!=r&&e(i,["raiFilteredReason"],r);const l=o(n,["_self"]);null!=l&&e(i,["safetyAttributes"],ce(0,l));const a=o(n,["prompt"]);return null!=a&&e(i,["enhancedPrompt"],a),i}function de(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["displayName"]);null!=r&&e(i,["displayName"],r);const l=o(n,["description"]);null!=l&&e(i,["description"],l);const a=o(n,["versionId"]);null!=a&&e(i,["version"],a);const u=o(n,["deployedModels"]);null!=u&&(Array.isArray(u)?e(i,["endpoints"],u.map((t=>function(t,n){const i={},s=o(n,["endpoint"]);null!=s&&e(i,["name"],s);const r=o(n,["deployedModelId"]);return null!=r&&e(i,["deployedModelId"],r),i}(0,t)))):e(i,["endpoints"],u));const c=o(n,["labels"]);null!=c&&e(i,["labels"],c);const p=o(n,["_self"]);return null!=p&&e(i,["tunedModelInfo"],function(t,n){const i={},s=o(n,["labels","google-vertex-llm-tuning-base-model-id"]);null!=s&&e(i,["baseModel"],s);const r=o(n,["createTime"]);null!=r&&e(i,["createTime"],r);const l=o(n,["updateTime"]);return null!=l&&e(i,["updateTime"],l),i}(0,p)),i}function he(t,n){const i={},s=o(n,["_self"]);return null!=s&&e(i,["video"],function(t,n){const i={},s=o(n,["gcsUri"]);null!=s&&e(i,["uri"],s);const r=o(n,["bytesBase64Encoded"]);null!=r&&e(i,["videoBytes"],E(0,r));const l=o(n,["mimeType"]);return null!=l&&e(i,["mimeType"],l),i}(0,s)),i}function fe(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["metadata"]);null!=r&&e(i,["metadata"],r);const l=o(n,["done"]);null!=l&&e(i,["done"],l);const a=o(n,["error"]);null!=a&&e(i,["error"],a);const u=o(n,["response"]);return null!=u&&e(i,["response"],function(t,n){const i={},s=o(n,["videos"]);null!=s&&(Array.isArray(s)?e(i,["generatedVideos"],s.map((t=>he(0,t)))):e(i,["generatedVideos"],s));const r=o(n,["raiMediaFilteredCount"]);null!=r&&e(i,["raiMediaFilteredCount"],r);const l=o(n,["raiMediaFilteredReasons"]);return null!=l&&e(i,["raiMediaFilteredReasons"],l),i}(0,u)),i}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-class B{constructor(t,e,n={}){this.apiKey=t,this._requestOptions=n,e.model.includes("/")?this.model=e.model:this.model=`models/${e.model}`,this.generationConfig=e.generationConfig||{},this.safetySettings=e.safetySettings||[],this.tools=e.tools,this.toolConfig=e.toolConfig,this.systemInstruction=U(e.systemInstruction),this.cachedContent=e.cachedContent;}async generateContent(t,e={}){var n;const s=P(t),o=Object.assign(Object.assign({},this._requestOptions),e);return H(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:null===(n=this.cachedContent)||void 0===n?void 0:n.name},s),o)}async generateContentStream(t,e={}){var n;const s=P(t),o=Object.assign(Object.assign({},this._requestOptions),e);return x(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:null===(n=this.cachedContent)||void 0===n?void 0:n.name},s),o)}startChat(t){var e;return new K(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:null===(e=this.cachedContent)||void 0===e?void 0:e.name},t),this._requestOptions)}async countTokens(t,e={}){const n=function(t,e){var n;let s={model:null==e?void 0:e.model,generationConfig:null==e?void 0:e.generationConfig,safetySettings:null==e?void 0:e.safetySettings,tools:null==e?void 0:e.tools,toolConfig:null==e?void 0:e.toolConfig,systemInstruction:null==e?void 0:e.systemInstruction,cachedContent:null===(n=null==e?void 0:e.cachedContent)||void 0===n?void 0:n.name,contents:[]};const o=null!=t.generateContentRequest;if(t.contents){if(o)throw new E("CountTokensRequest must have one of contents or generateContentRequest, not both.");s.contents=t.contents;}else if(o)s=Object.assign(Object.assign({},s),t.generateContentRequest);else {const e=F(t);s.contents=[e];}return {generateContentRequest:s}}(t,{model:this.model,generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:this.cachedContent}),s=Object.assign(Object.assign({},this._requestOptions),e);return async function(t,e,n,s){return (await _(e,p.COUNT_TOKENS,t,false,JSON.stringify(n),s)).json()}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */class me{constructor(t,n,e){this.apiClient=t,this.auth=n,this.webSocketFactory=e;}async connect(t){var n,s,r,l;const a=this.apiClient.getWebsocketBaseUrl(),u=this.apiClient.getApiVersion();let c;const p=function(t){const n=new Headers;for(const[e,o]of Object.entries(t))n.append(e,o);return n}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */(this.apiKey,this.model,n,s)}async embedContent(t,e={}){const n=function(t){if("string"==typeof t||Array.isArray(t))return {content:F(t)};return t}(t),s=Object.assign(Object.assign({},this._requestOptions),e);return async function(t,e,n,s){return (await _(e,p.EMBED_CONTENT,t,false,JSON.stringify(n),s)).json()}(this.apiKey,this.model,n,s)}async batchEmbedContents(t,e={}){const n=Object.assign(Object.assign({},this._requestOptions),e);return async function(t,e,n,s){const o=n.requests.map((t=>Object.assign(Object.assign({},t),{model:e})));return (await _(e,p.BATCH_EMBED_CONTENTS,t,false,JSON.stringify({requests:o}),s)).json()}(this.apiKey,this.model,t,n)}}
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */(this.apiClient.getDefaultHeaders());if(this.apiClient.isVertexAI())c=`${a}/ws/google.cloud.aiplatform.${u}.LlmBidiService/BidiGenerateContent`,await this.auth.addAuthHeaders(p);else {c=`${a}/ws/google.ai.generativelanguage.${u}.GenerativeService.BidiGenerateContent?key=${this.apiClient.getApiKey()}`;}let d=()=>{};const h=new Promise((t=>{d=t;})),f=t.callbacks,m=this.apiClient,g={onopen:function(){var t;null===(t=null==f?void 0:f.onopen)||void 0===t||t.call(f),d({});},onmessage:t=>{!async function(t,n,e){let o,i;i=e.data instanceof Blob?JSON.parse(await e.data.text()):JSON.parse(e.data),o=t.isVertexAI()?Sn(0,i):_n(0,i),n(o);}(m,f.onmessage,t);},onerror:null!==(n=null==f?void 0:f.onerror)&&void 0!==n?n:function(t){},onclose:null!==(s=null==f?void 0:f.onclose)&&void 0!==s?s:function(t){}},y=this.webSocketFactory.create(c,function(t){const n={};return t.forEach(((t,e)=>{n[e]=t;})),n}(p),g);y.connect(),await h;let C=i(this.apiClient,t.model);if(this.apiClient.isVertexAI()&&C.startsWith("publishers/")){C=`projects/${this.apiClient.getProject()}/locations/${this.apiClient.getLocation()}/`+C;}let v={};this.apiClient.isVertexAI()&&void 0===(null===(r=t.config)||void 0===r?void 0:r.responseModalities)&&(void 0===t.config?t.config={responseModalities:[X.AUDIO]}:t.config.responseModalities=[X.AUDIO]),(null===(l=t.config)||void 0===l?void 0:l.generationConfig)&&console.warn("Setting `LiveConnectConfig.generation_config` is deprecated, please set the fields on `LiveConnectConfig` directly. This will become an error in a future version (not before Q3 2025).");const E={model:C,config:t.config,callbacks:t.callbacks};return v=this.apiClient.isVertexAI()?function(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["setup","model"],i(t,r));const l=o(n,["config"]);return null!=l&&e(s,["config"],gn(0,l,s)),s}(this.apiClient,E):function(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["setup","model"],i(t,r));const l=o(n,["config"]);return null!=l&&e(s,["config"],mn(0,l,s)),s}(this.apiClient,E),delete v.config,y.send(JSON.stringify(v)),new ye(y,this.apiClient)}}const ge={turnComplete:true};class ye{constructor(t,n){this.conn=t,this.apiClient=n;}tLiveClientContent(t,n){if(null!==n.turns&&void 0!==n.turns){let e=[];try{e=h(0,n.turns),e=t.isVertexAI()?e.map((t=>Gn(0,t))):e.map((t=>wn(0,t)));}catch(t){throw new Error(`Failed to parse client content "turns", type: '${typeof n.turns}'`)}return {clientContent:{turns:e,turnComplete:n.turnComplete}}}return {clientContent:{turnComplete:n.turnComplete}}}tLiveClientRealtimeInput(t,n){let e={};if(!("media"in n)||!n.media)throw new Error(`Failed to convert realtime input "media", type: '${typeof n.media}'`);return e={realtimeInput:{mediaChunks:[n.media],activityStart:n.activityStart,activityEnd:n.activityEnd}},e}tLiveClienttToolResponse(t,n){let e=[];if(null==n.functionResponses)throw new Error("functionResponses is required.");if(e=Array.isArray(n.functionResponses)?n.functionResponses:[n.functionResponses],0===e.length)throw new Error("functionResponses is required.");for(const n of e){if("object"!=typeof n||null===n||!("name"in n)||!("response"in n))throw new Error(`Could not parse function response, type '${typeof n}'.`);if(!t.isVertexAI()&&!("id"in n))throw new Error("FunctionResponse request must have an `id` field from the response of a ToolCall.FunctionalCalls in Google AI.")}return {toolResponse:{functionResponses:e}}}sendClientContent(t){t=Object.assign(Object.assign({},ge),t);const n=this.tLiveClientContent(this.apiClient,t);this.conn.send(JSON.stringify(n));}sendRealtimeInput(t){if(null==t.media)throw new Error("Media is required.");const n=this.tLiveClientRealtimeInput(this.apiClient,t);this.conn.send(JSON.stringify(n));}sendToolResponse(t){if(null==t.functionResponses)throw new Error("Tool response parameters are required.");const n=this.tLiveClienttToolResponse(this.apiClient,t);this.conn.send(JSON.stringify(n));}close(){this.conn.close();}}class Ce extends t{constructor(t){super(),this.apiClient=t,this.generateContent=async t=>await this.generateContentInternal(t),this.generateContentStream=async t=>await this.generateContentStreamInternal(t),this.generateImages=async t=>await this.generateImagesInternal(t).then((t=>{var n;let e;const o=[];if(null==t?void 0:t.generatedImages)for(const i of t.generatedImages)i&&(null==i?void 0:i.safetyAttributes)&&"Positive Prompt"===(null===(n=null==i?void 0:i.safetyAttributes)||void 0===n?void 0:n.contentType)?e=null==i?void 0:i.safetyAttributes:o.push(i);let i;return i=e?{generatedImages:o,positivePromptSafetyAttributes:e}:{generatedImages:o},i}));}async generateContentInternal(t){var e,o;let i,s="",r={};if(this.apiClient.isVertexAI()){const o=Yn(this.apiClient,t);return s=n("{model}:generateContent",o._url),r=o._query,delete o.config,delete o._url,delete o._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(o),httpMethod:"POST",httpOptions:null===(e=t.config)||void 0===e?void 0:e.httpOptions}).then((t=>t.json())),i.then((t=>{const n=le(this.apiClient,t),e=new Nt;return Object.assign(e,n),e}))}{const e=xn(this.apiClient,t);return s=n("{model}:generateContent",e._url),r=e._query,delete e.config,delete e._url,delete e._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(e),httpMethod:"POST",httpOptions:null===(o=t.config)||void 0===o?void 0:o.httpOptions}).then((t=>t.json())),i.then((t=>{const n=Qn(this.apiClient,t),e=new Nt;return Object.assign(e,n),e}))}}async generateContentStreamInternal(t){var e,o;let i,s="",r={};if(this.apiClient.isVertexAI()){const o=Yn(this.apiClient,t);s=n("{model}:streamGenerateContent?alt=sse",o._url),r=o._query,delete o.config,delete o._url,delete o._query;const l=this.apiClient;return i=l.requestStream({path:s,queryParams:r,body:JSON.stringify(o),httpMethod:"POST",httpOptions:null===(e=t.config)||void 0===e?void 0:e.httpOptions}),i.then((function(t){return Wt(this,arguments,(function*(){var n,e,o,i;try{for(var s,r=!0,l=$t(t);!(n=(s=yield Jt(l.next())).done);r=!0){i=s.value,r=!1;const t=i,n=le(0,yield Jt(t.json())),e=new Nt;Object.assign(e,n),yield yield Jt(e);}}catch(t){e={error:t};}finally{try{r||n||!(o=l.return)||(yield Jt(o.call(l)));}finally{if(e)throw e.error}}}))}))}{const e=xn(this.apiClient,t);s=n("{model}:streamGenerateContent?alt=sse",e._url),r=e._query,delete e.config,delete e._url,delete e._query;const l=this.apiClient;return i=l.requestStream({path:s,queryParams:r,body:JSON.stringify(e),httpMethod:"POST",httpOptions:null===(o=t.config)||void 0===o?void 0:o.httpOptions}),i.then((function(t){return Wt(this,arguments,(function*(){var n,e,o,i;try{for(var s,r=!0,l=$t(t);!(n=(s=yield Jt(l.next())).done);r=!0){i=s.value,r=!1;const t=i,n=Qn(0,yield Jt(t.json())),e=new Nt;Object.assign(e,n),yield yield Jt(e);}}catch(t){e={error:t};}finally{try{r||n||!(o=l.return)||(yield Jt(o.call(l)));}finally{if(e)throw e.error}}}))}))}}async embedContent(t){var e,o;let i,s="",r={};if(this.apiClient.isVertexAI()){const o=Kn(this.apiClient,t);return s=n("{model}:predict",o._url),r=o._query,delete o.config,delete o._url,delete o._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(o),httpMethod:"POST",httpOptions:null===(e=t.config)||void 0===e?void 0:e.httpOptions}).then((t=>t.json())),i.then((t=>{const n=ue(this.apiClient,t),e=new bt;return Object.assign(e,n),e}))}{const e=Mn(this.apiClient,t);return s=n("{model}:batchEmbedContents",e._url),r=e._query,delete e.config,delete e._url,delete e._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(e),httpMethod:"POST",httpOptions:null===(o=t.config)||void 0===o?void 0:o.httpOptions}).then((t=>t.json())),i.then((t=>{const n=Zn(this.apiClient,t),e=new bt;return Object.assign(e,n),e}))}}async generateImagesInternal(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=Jn(this.apiClient,t);return l=n("{model}:predict",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"POST",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["predictions"]);null!=s&&(Array.isArray(s)?e(i,["generatedImages"],s.map((t=>pe(0,t)))):e(i,["generatedImages"],s));const r=o(n,["positivePromptSafetyAttributes"]);return null!=r&&e(i,["positivePromptSafetyAttributes"],ce(0,r)),i}(this.apiClient,t),i=new Dt;return Object.assign(i,n),i}))}{const i=Un(this.apiClient,t);return l=n("{model}:predict",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"POST",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["predictions"]);null!=s&&(Array.isArray(s)?e(i,["generatedImages"],s.map((t=>ne(0,t)))):e(i,["generatedImages"],s));const r=o(n,["positivePromptSafetyAttributes"]);return null!=r&&e(i,["positivePromptSafetyAttributes"],te(0,r)),i}(this.apiClient,t),i=new Dt;return Object.assign(i,n),i}))}}async get(t){var s,r;let l,a="",u={};if(this.apiClient.isVertexAI()){const r=function(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","name"],i(t,r));const l=o(n,["config"]);return null!=l&&e(s,["config"],l),s}(this.apiClient,t);return a=n("{name}",r._url),u=r._query,delete r.config,delete r._url,delete r._query,l=this.apiClient.request({path:a,queryParams:u,body:JSON.stringify(r),httpMethod:"GET",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),l.then((t=>de(this.apiClient,t)))}{const s=function(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","name"],i(t,r));const l=o(n,["config"]);return null!=l&&e(s,["config"],l),s}(this.apiClient,t);return a=n("{name}",s._url),u=s._query,delete s.config,delete s._url,delete s._query,l=this.apiClient.request({path:a,queryParams:u,body:JSON.stringify(s),httpMethod:"GET",httpOptions:null===(r=t.config)||void 0===r?void 0:r.httpOptions}).then((t=>t.json())),l.then((t=>ee(this.apiClient,t)))}}async countTokens(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=Wn(this.apiClient,t);return l=n("{model}:countTokens",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"POST",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["totalTokens"]);return null!=s&&e(i,["totalTokens"],s),i}(this.apiClient,t),i=new xt;return Object.assign(i,n),i}))}{const i=Ln(this.apiClient,t);return l=n("{model}:countTokens",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"POST",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["totalTokens"]);null!=s&&e(i,["totalTokens"],s);const r=o(n,["cachedContentTokenCount"]);return null!=r&&e(i,["cachedContentTokenCount"],r),i}(this.apiClient,t),i=new xt;return Object.assign(i,n),i}))}}async computeTokens(t){var s;let r,l="",a={};if(this.apiClient.isVertexAI()){const u=function(t,n){const s={},r=o(n,["model"]);null!=r&&e(s,["_url","model"],i(t,r));const l=o(n,["contents"]);null!=l&&(Array.isArray(l)?e(s,["contents"],h(0,h(0,l).map((t=>Gn(0,t))))):e(s,["contents"],h(0,l)));const a=o(n,["config"]);return null!=a&&e(s,["config"],a),s}(this.apiClient,t);return l=n("{model}:computeTokens",u._url),a=u._query,delete u.config,delete u._url,delete u._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(u),httpMethod:"POST",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>{const n=function(t,n){const i={},s=o(n,["tokensInfo"]);return null!=s&&e(i,["tokensInfo"],s),i}(this.apiClient,t),i=new Mt;return Object.assign(i,n),i}))}throw new Error("This method is only supported by the Vertex AI.")}async generateVideos(t){var e,o;let i,s="",r={};if(this.apiClient.isVertexAI()){const o=$n(this.apiClient,t);return s=n("{model}:predictLongRunning",o._url),r=o._query,delete o.config,delete o._url,delete o._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(o),httpMethod:"POST",httpOptions:null===(e=t.config)||void 0===e?void 0:e.httpOptions}).then((t=>t.json())),i.then((t=>fe(this.apiClient,t)))}{const e=qn(this.apiClient,t);return s=n("{model}:predictLongRunning",e._url),r=e._query,delete e.config,delete e._url,delete e._query,i=this.apiClient.request({path:s,queryParams:r,body:JSON.stringify(e),httpMethod:"POST",httpOptions:null===(o=t.config)||void 0===o?void 0:o.httpOptions}).then((t=>t.json())),i.then((t=>ie(this.apiClient,t)))}}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */class k{constructor(t){this.apiKey=t;}getGenerativeModel(t,e){if(!t.model)throw new h("Must provide a model name. Example: genai.getGenerativeModel({ model: 'my-model-name' })");return new B(this.apiKey,t,e)}getGenerativeModelFromCachedContent(t,e,n){if(!t.name)throw new E("Cached content must contain a `name` field.");if(!t.model)throw new E("Cached content must contain a `model` field.");const s=["model","systemInstruction"];for(const n of s)if((null==e?void 0:e[n])&&t[n]&&(null==e?void 0:e[n])!==t[n]){if("model"===n){if((e.model.startsWith("models/")?e.model.replace("models/",""):e.model)===(t.model.startsWith("models/")?t.model.replace("models/",""):t.model))continue}throw new E(`Different value for "${n}" specified in modelParams (${e[n]}) and cachedContent (${t[n]})`)}const o=Object.assign(Object.assign({},e),{model:t.model,tools:t.tools,toolConfig:t.toolConfig,systemInstruction:t.systemInstruction,cachedContent:t});return new B(this.apiKey,o,n)}}
-
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function ve(t,n){const i={},s=o(n,["_self"]);return null!=s&&e(i,["video"],function(t,n){const i={},s=o(n,["video","uri"]);null!=s&&e(i,["uri"],s);const r=o(n,["video","encodedVideo"]);null!=r&&e(i,["videoBytes"],E(0,r));const l=o(n,["encoding"]);return null!=l&&e(i,["mimeType"],l),i}(0,s)),i}function Ee(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["metadata"]);null!=r&&e(i,["metadata"],r);const l=o(n,["done"]);null!=l&&e(i,["done"],l);const a=o(n,["error"]);null!=a&&e(i,["error"],a);const u=o(n,["response","generateVideoResponse"]);return null!=u&&e(i,["response"],function(t,n){const i={},s=o(n,["generatedSamples"]);null!=s&&(Array.isArray(s)?e(i,["generatedVideos"],s.map((t=>ve(0,t)))):e(i,["generatedVideos"],s));const r=o(n,["raiMediaFilteredCount"]);null!=r&&e(i,["raiMediaFilteredCount"],r);const l=o(n,["raiMediaFilteredReasons"]);return null!=l&&e(i,["raiMediaFilteredReasons"],l),i}(0,u)),i}function Te(t,n){const i={},s=o(n,["_self"]);return null!=s&&e(i,["video"],function(t,n){const i={},s=o(n,["gcsUri"]);null!=s&&e(i,["uri"],s);const r=o(n,["bytesBase64Encoded"]);null!=r&&e(i,["videoBytes"],E(0,r));const l=o(n,["mimeType"]);return null!=l&&e(i,["mimeType"],l),i}(0,s)),i}function Oe(t,n){const i={},s=o(n,["name"]);null!=s&&e(i,["name"],s);const r=o(n,["metadata"]);null!=r&&e(i,["metadata"],r);const l=o(n,["done"]);null!=l&&e(i,["done"],l);const a=o(n,["error"]);null!=a&&e(i,["error"],a);const u=o(n,["response"]);return null!=u&&e(i,["response"],function(t,n){const i={},s=o(n,["videos"]);null!=s&&(Array.isArray(s)?e(i,["generatedVideos"],s.map((t=>Te(0,t)))):e(i,["generatedVideos"],s));const r=o(n,["raiMediaFilteredCount"]);null!=r&&e(i,["raiMediaFilteredCount"],r);const l=o(n,["raiMediaFilteredReasons"]);return null!=l&&e(i,["raiMediaFilteredReasons"],l),i}(0,u)),i}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- * Basic error type for this SDK.
- * @public
- */
-class GoogleGenerativeAIError extends Error {
-    constructor(message) {
-        super(`[GoogleGenerativeAI Error]: ${message}`);
-    }
-}
-/**
- * Error class covering HTTP errors when calling the server. Includes HTTP
- * status, statusText, and optional details, if provided in the server response.
- * @public
- */
-class GoogleGenerativeAIFetchError extends GoogleGenerativeAIError {
-    constructor(message, status, statusText, errorDetails) {
-        super(message);
-        this.status = status;
-        this.statusText = statusText;
-        this.errorDetails = errorDetails;
-    }
-}
-/**
- * Errors in the contents of a request originating from user input.
- * @public
- */
-class GoogleGenerativeAIRequestInputError extends GoogleGenerativeAIError {
-}
-/**
- * Error thrown when a request is aborted, either due to a timeout or
- * intentional cancellation by the user.
- * @public
- */
-class GoogleGenerativeAIAbortError extends GoogleGenerativeAIError {
-}
-
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */class Ie extends t{constructor(t){super(),this.apiClient=t;}async getVideosOperation(t){const n=t.operation,e=t.config;if(void 0===n.name||""===n.name)throw new Error("Operation name is required.");if(this.apiClient.isVertexAI()){const t=n.name.split("/operations/")[0];let o;return e&&"httpOptions"in e&&(o=e.httpOptions),this.fetchPredictVideosOperationInternal({operationName:n.name,resourceName:t,config:{httpOptions:o}})}return this.getVideosOperationInternal({operationName:n.name,config:e})}async getVideosOperationInternal(t){var i,s;let r,l="",a={};if(this.apiClient.isVertexAI()){const s=function(t,n){const i={},s=o(n,["operationName"]);null!=s&&e(i,["_url","operationName"],s);const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{operationName}",s._url),a=s._query,delete s.config,delete s._url,delete s._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(s),httpMethod:"GET",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),r.then((t=>Oe(this.apiClient,t)))}{const i=function(t,n){const i={},s=o(n,["operationName"]);null!=s&&e(i,["_url","operationName"],s);const r=o(n,["config"]);return null!=r&&e(i,["config"],r),i}(this.apiClient,t);return l=n("{operationName}",i._url),a=i._query,delete i.config,delete i._url,delete i._query,r=this.apiClient.request({path:l,queryParams:a,body:JSON.stringify(i),httpMethod:"GET",httpOptions:null===(s=t.config)||void 0===s?void 0:s.httpOptions}).then((t=>t.json())),r.then((t=>Ee(this.apiClient,t)))}}async fetchPredictVideosOperationInternal(t){var i;let s,r="",l={};if(this.apiClient.isVertexAI()){const a=function(t,n){const i={},s=o(n,["operationName"]);null!=s&&e(i,["operationName"],s);const r=o(n,["resourceName"]);null!=r&&e(i,["_url","resourceName"],r);const l=o(n,["config"]);return null!=l&&e(i,["config"],l),i}(this.apiClient,t);return r=n("{resourceName}:fetchPredictOperation",a._url),l=a._query,delete a.config,delete a._url,delete a._query,s=this.apiClient.request({path:r,queryParams:l,body:JSON.stringify(a),httpMethod:"POST",httpOptions:null===(i=t.config)||void 0===i?void 0:i.httpOptions}).then((t=>t.json())),s.then((t=>Oe(this.apiClient,t)))}throw new Error("This method is only supported by the Vertex AI.")}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
-const DEFAULT_API_VERSION = "v1beta";
-/**
- * We can't `require` package.json if this runs on web. We will use rollup to
- * swap in the version number here at build time.
- */
-const PACKAGE_VERSION = "0.24.0";
-const PACKAGE_LOG_HEADER = "genai-js";
-var Task;
-(function (Task) {
-    Task["GENERATE_CONTENT"] = "generateContent";
-    Task["STREAM_GENERATE_CONTENT"] = "streamGenerateContent";
-    Task["COUNT_TOKENS"] = "countTokens";
-    Task["EMBED_CONTENT"] = "embedContent";
-    Task["BATCH_EMBED_CONTENTS"] = "batchEmbedContents";
-})(Task || (Task = {}));
-/**
- * Simple, but may become more complex if we add more versions to log.
- */
-function getClientHeaders(requestOptions) {
-    const clientHeaders = [];
-    if (requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.apiClient) {
-        clientHeaders.push(requestOptions.apiClient);
-    }
-    clientHeaders.push(`${PACKAGE_LOG_HEADER}/${PACKAGE_VERSION}`);
-    return clientHeaders.join(" ");
-}
-async function makeRequest(url, fetchOptions, fetchFn = fetch) {
-    let response;
-    try {
-        response = await fetchFn(url, fetchOptions);
-    }
-    catch (e) {
-        handleResponseError(e, url);
-    }
-    if (!response.ok) {
-        await handleResponseNotOk(response, url);
-    }
-    return response;
-}
-function handleResponseError(e, url) {
-    let err = e;
-    if (err.name === "AbortError") {
-        err = new GoogleGenerativeAIAbortError(`Request aborted when fetching ${url.toString()}: ${e.message}`);
-        err.stack = e.stack;
-    }
-    else if (!(e instanceof GoogleGenerativeAIFetchError ||
-        e instanceof GoogleGenerativeAIRequestInputError)) {
-        err = new GoogleGenerativeAIError(`Error fetching from ${url.toString()}: ${e.message}`);
-        err.stack = e.stack;
-    }
-    throw err;
-}
-async function handleResponseNotOk(response, url) {
-    let message = "";
-    let errorDetails;
-    try {
-        const json = await response.json();
-        message = json.error.message;
-        if (json.error.details) {
-            message += ` ${JSON.stringify(json.error.details)}`;
-            errorDetails = json.error.details;
-        }
-    }
-    catch (e) {
-        // ignored
-    }
-    throw new GoogleGenerativeAIFetchError(`Error fetching from ${url.toString()}: [${response.status} ${response.statusText}] ${message}`, response.status, response.statusText, errorDetails);
-}
-
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */const Ae=/^data: (.*)(?:\n\n|\r\r|\r\n\r\n)/;class _e extends Error{constructor(t,n){super(t,n?{cause:n}:{cause:(new Error).stack}),this.message=t,this.name="ClientError";}}class Se extends Error{constructor(t,n){super(t,n?{cause:n}:{cause:(new Error).stack}),this.message=t,this.name="ServerError";}}class we{constructor(t){var n,e;this.clientOptions=Object.assign(Object.assign({},t),{project:t.project,location:t.location,apiKey:t.apiKey,vertexai:t.vertexai});const o={};this.clientOptions.vertexai?(o.apiVersion=null!==(n=this.clientOptions.apiVersion)&&void 0!==n?n:"v1beta1",this.getProject()||this.getLocation()?(o.baseUrl=`https://${this.clientOptions.location}-aiplatform.googleapis.com/`,this.clientOptions.apiKey=void 0):(o.baseUrl="https://aiplatform.googleapis.com/",this.clientOptions.project=void 0,this.clientOptions.location=void 0)):(o.apiVersion=null!==(e=this.clientOptions.apiVersion)&&void 0!==e?e:"v1beta",o.baseUrl="https://generativelanguage.googleapis.com/"),o.headers=this.getDefaultHeaders(),this.clientOptions.httpOptions=o,t.httpOptions&&(this.clientOptions.httpOptions=this.patchHttpOptions(o,t.httpOptions));}isVertexAI(){var t;return null!==(t=this.clientOptions.vertexai)&&void 0!==t&&t}getProject(){return this.clientOptions.project}getLocation(){return this.clientOptions.location}getApiVersion(){if(this.clientOptions.httpOptions&&void 0!==this.clientOptions.httpOptions.apiVersion)return this.clientOptions.httpOptions.apiVersion;throw new Error("API version is not set.")}getBaseUrl(){if(this.clientOptions.httpOptions&&void 0!==this.clientOptions.httpOptions.baseUrl)return this.clientOptions.httpOptions.baseUrl;throw new Error("Base URL is not set.")}getRequestUrl(){return this.getRequestUrlInternal(this.clientOptions.httpOptions)}getHeaders(){if(this.clientOptions.httpOptions&&void 0!==this.clientOptions.httpOptions.headers)return this.clientOptions.httpOptions.headers;throw new Error("Headers are not set.")}getRequestUrlInternal(t){if(!t||void 0===t.baseUrl||void 0===t.apiVersion)throw new Error("HTTP options are not correctly set.");const n=[t.baseUrl.endsWith("/")?t.baseUrl.slice(0,-1):t.baseUrl];return t.apiVersion&&""!==t.apiVersion&&n.push(t.apiVersion),n.join("/")}getBaseResourcePath(){return `projects/${this.clientOptions.project}/locations/${this.clientOptions.location}`}getApiKey(){return this.clientOptions.apiKey}getWebsocketBaseUrl(){const t=this.getBaseUrl(),n=new URL(t);return n.protocol="wss",n.toString()}setBaseUrl(t){if(!this.clientOptions.httpOptions)throw new Error("HTTP options are not correctly set.");this.clientOptions.httpOptions.baseUrl=t;}constructUrl(t,n,e){const o=[this.getRequestUrlInternal(n)];e&&o.push(this.getBaseResourcePath()),""!==t&&o.push(t);return new URL(`${o.join("/")}`)}shouldPrependVertexProjectPath(t){return !this.clientOptions.apiKey&&(!!this.clientOptions.vertexai&&(!t.path.startsWith("projects/")&&("GET"!==t.httpMethod||!t.path.startsWith("publishers/google/models"))))}async request(t){let n=this.clientOptions.httpOptions;t.httpOptions&&(n=this.patchHttpOptions(this.clientOptions.httpOptions,t.httpOptions));const e=this.shouldPrependVertexProjectPath(t),o=this.constructUrl(t.path,n,e);if(t.queryParams)for(const[n,e]of Object.entries(t.queryParams))o.searchParams.append(n,String(e));let i={};if("GET"===t.httpMethod){if(t.body&&"{}"!==t.body)throw new Error("Request body should be empty for GET request, but got non empty request body")}else i.body=t.body;return i=await this.includeExtraHttpOptionsToRequestInit(i,n),this.unaryApiCall(o,i,t.httpMethod)}patchHttpOptions(t,n){const e=JSON.parse(JSON.stringify(t));for(const[t,o]of Object.entries(n))"object"==typeof o?e[t]=Object.assign(Object.assign({},e[t]),o):void 0!==o&&(e[t]=o);return e}async requestStream(t){let n=this.clientOptions.httpOptions;t.httpOptions&&(n=this.patchHttpOptions(this.clientOptions.httpOptions,t.httpOptions));const e=this.shouldPrependVertexProjectPath(t),o=this.constructUrl(t.path,n,e);o.searchParams.has("alt")&&"sse"===o.searchParams.get("alt")||o.searchParams.set("alt","sse");let i={};return i.body=t.body,i=await this.includeExtraHttpOptionsToRequestInit(i,n),this.streamApiCall(o,i,t.httpMethod)}async includeExtraHttpOptionsToRequestInit(t,n){if(n&&n.timeout&&n.timeout>0){const e=new AbortController,o=e.signal;setTimeout((()=>e.abort()),n.timeout),t.signal=o;}return t.headers=await this.getHeadersInternal(n),t}async unaryApiCall(t,n,e){return this.apiCall(t.toString(),Object.assign(Object.assign({},n),{method:e})).then((async t=>(await Pe(t),new kt(t)))).catch((t=>{throw t instanceof Error?t:new Error(JSON.stringify(t))}))}async streamApiCall(t,n,e){return this.apiCall(t.toString(),Object.assign(Object.assign({},n),{method:e})).then((async t=>(await Pe(t),this.processStreamResponse(t)))).catch((t=>{throw t instanceof Error?t:new Error(JSON.stringify(t))}))}processStreamResponse(t){var n;return Wt(this,arguments,(function*(){const e=null===(n=null==t?void 0:t.body)||void 0===n?void 0:n.getReader(),o=new TextDecoder("utf-8");if(!e)throw new Error("Response body is empty");try{let n="";for(;;){const{done:i,value:s}=yield Jt(e.read());if(i){if(n.trim().length>0)throw new Error("Incomplete JSON segment at the end");break}n+=o.decode(s);let r=n.match(Ae);for(;r;){const e=r[1];try{const o=new Response(e,{headers:null==t?void 0:t.headers,status:null==t?void 0:t.status,statusText:null==t?void 0:t.statusText});yield yield Jt(new kt(o)),n=n.slice(r[0].length),r=n.match(Ae);}catch(t){throw new Error(`exception parsing stream chunk ${e}. ${t}`)}}}}finally{e.releaseLock();}}))}async apiCall(t,n){return fetch(t,n).catch((t=>{throw new Error(`exception ${t} sending request`)}))}getDefaultHeaders(){const t={},n="google-genai-sdk/0.9.0 "+this.clientOptions.userAgentExtra;return t["User-Agent"]=n,t["x-goog-api-client"]=n,t["Content-Type"]="application/json",t}async getHeadersInternal(t){const n=new Headers;if(t&&t.headers){for(const[e,o]of Object.entries(t.headers))n.append(e,o);t.timeout&&t.timeout>0&&n.append("X-Server-Timeout",String(Math.ceil(t.timeout/1e3)));}return await this.clientOptions.auth.addAuthHeaders(n),n}async uploadFile(t,n){var e;const o={};null!=n&&(o.mimeType=n.mimeType,o.name=n.name,o.displayName=n.displayName),o.name&&!o.name.startsWith("files/")&&(o.name=`files/${o.name}`);const i=this.clientOptions.uploader,s=await i.stat(t);o.sizeBytes=String(s.size);const r=null!==(e=null==n?void 0:n.mimeType)&&void 0!==e?e:s.type;if(void 0===r||""===r)throw new Error("Can not determine mimeType. Please provide mimeType in the config.");o.mimeType=r;const l=await this.fetchUploadUrl(o,n);return i.upload(t,l,this)}async fetchUploadUrl(t,e){var o;let i={};i=(null==e?void 0:e.httpOptions)?e.httpOptions:{apiVersion:"",headers:{"Content-Type":"application/json","X-Goog-Upload-Protocol":"resumable","X-Goog-Upload-Command":"start","X-Goog-Upload-Header-Content-Length":`${t.sizeBytes}`,"X-Goog-Upload-Header-Content-Type":`${t.mimeType}`}};const s={file:t},r=await this.request({path:n("upload/v1beta/files",s._url),body:JSON.stringify(s),httpMethod:"POST",httpOptions:i});if(!r||!(null==r?void 0:r.headers))throw new Error("Server did not return an HttpResponse or the returned HttpResponse did not have headers.");const l=null===(o=null==r?void 0:r.headers)||void 0===o?void 0:o["x-goog-upload-url"];if(void 0===l)throw new Error("Failed to get upload url. Server did not return the x-google-upload-url in the headers");return l}}async function Pe(t){var n;if(void 0===t)throw new Se("response is undefined");if(!t.ok){const e=t.status,o=t.statusText;let i;i=(null===(n=t.headers.get("content-type"))||void 0===n?void 0:n.includes("application/json"))?await t.json():{error:{message:"exception parsing response",code:t.status,status:t.statusText}};const s=`got status: ${e} ${o}. ${JSON.stringify(i)}`;if(e>=400&&e<500){throw new _e(s)}if(e>=500&&e<600){throw new Se(s)}throw new Error(s)}}class Re{async upload(t,n,e){if("string"==typeof t)throw new Error("File path is not supported in browser uploader.");return await async function(t,n,e){var o,i;let s=0,r=0,l=new kt(new Response),a="upload";for(s=t.size;r<s;){const i=Math.min(8388608,s-r),u=t.slice(r,r+i);if(r+i>=s&&(a+=", finalize"),l=await e.request({path:"",body:u,httpMethod:"POST",httpOptions:{apiVersion:"",baseUrl:n,headers:{"X-Goog-Upload-Command":a,"X-Goog-Upload-Offset":String(r),"Content-Length":String(i)}}}),r+=i,"active"!==(null===(o=null==l?void 0:l.headers)||void 0===o?void 0:o["x-goog-upload-status"]))break;if(s<=r)throw new Error("All content has been uploaded, but the upload status is not finalized.")}const u=await(null==l?void 0:l.json());if("final"!==(null===(i=null==l?void 0:l.headers)||void 0===i?void 0:i["x-goog-upload-status"]))throw new Error("Failed to upload file: Upload status is not finalized.");return u.file}(t,n,e)}async stat(t){if("string"==typeof t)throw new Error("File path is not supported in browser uploader.");return await async function(t){return {size:t.size,type:t.type}}(t)}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var RpcTask;
-(function (RpcTask) {
-    RpcTask["UPLOAD"] = "upload";
-    RpcTask["LIST"] = "list";
-    RpcTask["GET"] = "get";
-    RpcTask["DELETE"] = "delete";
-    RpcTask["UPDATE"] = "update";
-    RpcTask["CREATE"] = "create";
-})(RpcTask || (RpcTask = {}));
-
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */class Ne{create(t,n,e){return new be(t,n,e)}}class be{constructor(t,n,e){this.url=t,this.headers=n,this.callbacks=e;}connect(){this.ws=new WebSocket(this.url),this.ws.onopen=this.callbacks.onopen,this.ws.onerror=this.callbacks.onerror,this.ws.onclose=this.callbacks.onclose,this.ws.onmessage=this.callbacks.onmessage;}send(t){if(void 0===this.ws)throw new Error("WebSocket is not connected");this.ws.send(t);}close(){if(void 0===this.ws)throw new Error("WebSocket is not connected");this.ws.close();}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-const taskToMethod = {
-    [RpcTask.UPLOAD]: "POST",
-    [RpcTask.LIST]: "GET",
-    [RpcTask.GET]: "GET",
-    [RpcTask.DELETE]: "DELETE",
-    [RpcTask.UPDATE]: "PATCH",
-    [RpcTask.CREATE]: "POST",
-};
-class ServerRequestUrl {
-    constructor(task, apiKey, requestOptions) {
-        this.task = task;
-        this.apiKey = apiKey;
-        this.requestOptions = requestOptions;
-    }
-    appendPath(path) {
-        this._url.pathname = this._url.pathname + `/${path}`;
-    }
-    appendParam(key, value) {
-        this._url.searchParams.append(key, value);
-    }
-    toString() {
-        return this._url.toString();
-    }
-}
-class FilesRequestUrl extends ServerRequestUrl {
-    constructor(task, apiKey, requestOptions) {
-        var _a, _b;
-        super(task, apiKey, requestOptions);
-        this.task = task;
-        this.apiKey = apiKey;
-        this.requestOptions = requestOptions;
-        const apiVersion = ((_a = this.requestOptions) === null || _a === void 0 ? void 0 : _a.apiVersion) || DEFAULT_API_VERSION;
-        const baseUrl = ((_b = this.requestOptions) === null || _b === void 0 ? void 0 : _b.baseUrl) || DEFAULT_BASE_URL;
-        let initialUrl = baseUrl;
-        if (this.task === RpcTask.UPLOAD) {
-            initialUrl += `/upload`;
-        }
-        initialUrl += `/${apiVersion}/files`;
-        this._url = new URL(initialUrl);
-    }
-}
-function getHeaders(url) {
-    var _a;
-    const headers = new Headers();
-    headers.append("x-goog-api-client", getClientHeaders(url.requestOptions));
-    headers.append("x-goog-api-key", url.apiKey);
-    let customHeaders = (_a = url.requestOptions) === null || _a === void 0 ? void 0 : _a.customHeaders;
-    if (customHeaders) {
-        if (!(customHeaders instanceof Headers)) {
-            try {
-                customHeaders = new Headers(customHeaders);
-            }
-            catch (e) {
-                throw new GoogleGenerativeAIRequestInputError(`unable to convert customHeaders value ${JSON.stringify(customHeaders)} to Headers: ${e.message}`);
-            }
-        }
-        for (const [headerName, headerValue] of customHeaders.entries()) {
-            if (headerName === "x-goog-api-key") {
-                throw new GoogleGenerativeAIRequestInputError(`Cannot set reserved header name ${headerName}`);
-            }
-            else if (headerName === "x-goog-api-client") {
-                throw new GoogleGenerativeAIRequestInputError(`Header name ${headerName} can only be set using the apiClient field`);
-            }
-            headers.append(headerName, headerValue);
-        }
-    }
-    return headers;
-}
-async function makeServerRequest(url, headers, body, fetchFn = fetch) {
-    const requestInit = {
-        method: taskToMethod[url.task],
-        headers,
-    };
-    if (body) {
-        requestInit.body = body;
-    }
-    const signal = getSignal(url.requestOptions);
-    if (signal) {
-        requestInit.signal = signal;
-    }
-    return makeRequest(url.toString(), requestInit, fetchFn);
-}
-/**
- * Create an AbortSignal based on the timeout and signal in the
- * RequestOptions.
- */
-function getSignal(requestOptions) {
-    if ((requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.signal) !== undefined || (requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.timeout) >= 0) {
-        const controller = new AbortController();
-        if ((requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.timeout) >= 0) {
-            setTimeout(() => controller.abort(), requestOptions.timeout);
-        }
-        if (requestOptions.signal) {
-            requestOptions.signal.addEventListener("abort", () => {
-                controller.abort();
-            });
-        }
-        return controller.signal;
-    }
-}
-
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */const De="x-goog-api-key";class xe{constructor(t){this.apiKey=t;}async addAuthHeaders(t){null===t.get(De)&&t.append(De,this.apiKey);}}
 /**
  * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- * Class for managing GoogleAI file uploads.
- * @public
- */
-class GoogleAIFileManager {
-    constructor(apiKey, _requestOptions = {}) {
-        this.apiKey = apiKey;
-        this._requestOptions = _requestOptions;
-    }
-    /**
-     * Upload a file.
-     */
-    async uploadFile(fileData, fileMetadata) {
-        const file = fileData instanceof Buffer ? fileData : fs.readFileSync(fileData);
-        const url = new FilesRequestUrl(RpcTask.UPLOAD, this.apiKey, this._requestOptions);
-        const uploadHeaders = getHeaders(url);
-        const boundary = generateBoundary();
-        uploadHeaders.append("X-Goog-Upload-Protocol", "multipart");
-        uploadHeaders.append("Content-Type", `multipart/related; boundary=${boundary}`);
-        const uploadMetadata = getUploadMetadata(fileMetadata);
-        // Multipart formatting code taken from @firebase/storage
-        const metadataString = JSON.stringify({ file: uploadMetadata });
-        const preBlobPart = "--" +
-            boundary +
-            "\r\n" +
-            "Content-Type: application/json; charset=utf-8\r\n\r\n" +
-            metadataString +
-            "\r\n--" +
-            boundary +
-            "\r\n" +
-            "Content-Type: " +
-            fileMetadata.mimeType +
-            "\r\n\r\n";
-        const postBlobPart = "\r\n--" + boundary + "--";
-        const blob = new Blob([preBlobPart, file, postBlobPart]);
-        const response = await makeServerRequest(url, uploadHeaders, blob);
-        return response.json();
-    }
-    /**
-     * List all uploaded files.
-     *
-     * Any fields set in the optional {@link SingleRequestOptions} parameter will take
-     * precedence over the {@link RequestOptions} values provided at the time of the
-     * {@link GoogleAIFileManager} initialization.
-     */
-    async listFiles(listParams, requestOptions = {}) {
-        const filesRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
-        const url = new FilesRequestUrl(RpcTask.LIST, this.apiKey, filesRequestOptions);
-        if (listParams === null || listParams === void 0 ? void 0 : listParams.pageSize) {
-            url.appendParam("pageSize", listParams.pageSize.toString());
-        }
-        if (listParams === null || listParams === void 0 ? void 0 : listParams.pageToken) {
-            url.appendParam("pageToken", listParams.pageToken);
-        }
-        const uploadHeaders = getHeaders(url);
-        const response = await makeServerRequest(url, uploadHeaders);
-        return response.json();
-    }
-    /**
-     * Get metadata for file with given ID.
-     *
-     * Any fields set in the optional {@link SingleRequestOptions} parameter will take
-     * precedence over the {@link RequestOptions} values provided at the time of the
-     * {@link GoogleAIFileManager} initialization.
-     */
-    async getFile(fileId, requestOptions = {}) {
-        const filesRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
-        const url = new FilesRequestUrl(RpcTask.GET, this.apiKey, filesRequestOptions);
-        url.appendPath(parseFileId(fileId));
-        const uploadHeaders = getHeaders(url);
-        const response = await makeServerRequest(url, uploadHeaders);
-        return response.json();
-    }
-    /**
-     * Delete file with given ID.
-     */
-    async deleteFile(fileId) {
-        const url = new FilesRequestUrl(RpcTask.DELETE, this.apiKey, this._requestOptions);
-        url.appendPath(parseFileId(fileId));
-        const uploadHeaders = getHeaders(url);
-        await makeServerRequest(url, uploadHeaders);
-    }
-}
-/**
- * If fileId is prepended with "files/", remove prefix
- */
-function parseFileId(fileId) {
-    if (fileId.startsWith("files/")) {
-        return fileId.split("files/")[1];
-    }
-    if (!fileId) {
-        throw new GoogleGenerativeAIError(`Invalid fileId ${fileId}. ` +
-            `Must be in the format "files/filename" or "filename"`);
-    }
-    return fileId;
-}
-function generateBoundary() {
-    let str = "";
-    for (let i = 0; i < 2; i++) {
-        str = str + Math.random().toString().slice(2);
-    }
-    return str;
-}
-function getUploadMetadata(inputMetadata) {
-    if (!inputMetadata.mimeType) {
-        throw new GoogleGenerativeAIRequestInputError("Must provide a mimeType.");
-    }
-    const uploadMetadata = {
-        mimeType: inputMetadata.mimeType,
-        displayName: inputMetadata.displayName,
-    };
-    if (inputMetadata.name) {
-        uploadMetadata.name = inputMetadata.name.includes("/")
-            ? inputMetadata.name
-            : `files/${inputMetadata.name}`;
-    }
-    return uploadMetadata;
-}
-
-/**
- * Processing state of the `File`.
- * @public
- */
-var FileState;
-(function (FileState) {
-    // The default value. This value is used if the state is omitted.
-    FileState["STATE_UNSPECIFIED"] = "STATE_UNSPECIFIED";
-    // File is being processed and cannot be used for inference yet.
-    FileState["PROCESSING"] = "PROCESSING";
-    // File is processed and available for inference.
-    FileState["ACTIVE"] = "ACTIVE";
-    // File failed processing.
-    FileState["FAILED"] = "FAILED";
-})(FileState || (FileState = {}));
-
-/**
- * Contains the list of OpenAPI data types
- * as defined by https://swagger.io/docs/specification/data-models/data-types/
- * @public
- */
-var SchemaType;
-(function (SchemaType) {
-    /** String type. */
-    SchemaType["STRING"] = "string";
-    /** Number type. */
-    SchemaType["NUMBER"] = "number";
-    /** Integer type. */
-    SchemaType["INTEGER"] = "integer";
-    /** Boolean type. */
-    SchemaType["BOOLEAN"] = "boolean";
-    /** Array type. */
-    SchemaType["ARRAY"] = "array";
-    /** Object type. */
-    SchemaType["OBJECT"] = "object";
-})(SchemaType || (SchemaType = {}));
-
-/**
- * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- * @public
- */
-var ExecutableCodeLanguage;
-(function (ExecutableCodeLanguage) {
-    ExecutableCodeLanguage["LANGUAGE_UNSPECIFIED"] = "language_unspecified";
-    ExecutableCodeLanguage["PYTHON"] = "python";
-})(ExecutableCodeLanguage || (ExecutableCodeLanguage = {}));
-/**
- * Possible outcomes of code execution.
- * @public
- */
-var Outcome;
-(function (Outcome) {
-    /**
-     * Unspecified status. This value should not be used.
-     */
-    Outcome["OUTCOME_UNSPECIFIED"] = "outcome_unspecified";
-    /**
-     * Code execution completed successfully.
-     */
-    Outcome["OUTCOME_OK"] = "outcome_ok";
-    /**
-     * Code execution finished but with a failure. `stderr` should contain the
-     * reason.
-     */
-    Outcome["OUTCOME_FAILED"] = "outcome_failed";
-    /**
-     * Code execution ran for too long, and was cancelled. There may or may not
-     * be a partial output present.
-     */
-    Outcome["OUTCOME_DEADLINE_EXCEEDED"] = "outcome_deadline_exceeded";
-})(Outcome || (Outcome = {}));
-
-/**
- * @license
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- * Possible roles.
- * @public
- */
-/**
- * Harm categories that would cause prompts or candidates to be blocked.
- * @public
- */
-var HarmCategory;
-(function (HarmCategory) {
-    HarmCategory["HARM_CATEGORY_UNSPECIFIED"] = "HARM_CATEGORY_UNSPECIFIED";
-    HarmCategory["HARM_CATEGORY_HATE_SPEECH"] = "HARM_CATEGORY_HATE_SPEECH";
-    HarmCategory["HARM_CATEGORY_SEXUALLY_EXPLICIT"] = "HARM_CATEGORY_SEXUALLY_EXPLICIT";
-    HarmCategory["HARM_CATEGORY_HARASSMENT"] = "HARM_CATEGORY_HARASSMENT";
-    HarmCategory["HARM_CATEGORY_DANGEROUS_CONTENT"] = "HARM_CATEGORY_DANGEROUS_CONTENT";
-    HarmCategory["HARM_CATEGORY_CIVIC_INTEGRITY"] = "HARM_CATEGORY_CIVIC_INTEGRITY";
-})(HarmCategory || (HarmCategory = {}));
-/**
- * Threshold above which a prompt or candidate will be blocked.
- * @public
- */
-var HarmBlockThreshold;
-(function (HarmBlockThreshold) {
-    /** Threshold is unspecified. */
-    HarmBlockThreshold["HARM_BLOCK_THRESHOLD_UNSPECIFIED"] = "HARM_BLOCK_THRESHOLD_UNSPECIFIED";
-    /** Content with NEGLIGIBLE will be allowed. */
-    HarmBlockThreshold["BLOCK_LOW_AND_ABOVE"] = "BLOCK_LOW_AND_ABOVE";
-    /** Content with NEGLIGIBLE and LOW will be allowed. */
-    HarmBlockThreshold["BLOCK_MEDIUM_AND_ABOVE"] = "BLOCK_MEDIUM_AND_ABOVE";
-    /** Content with NEGLIGIBLE, LOW, and MEDIUM will be allowed. */
-    HarmBlockThreshold["BLOCK_ONLY_HIGH"] = "BLOCK_ONLY_HIGH";
-    /** All content will be allowed. */
-    HarmBlockThreshold["BLOCK_NONE"] = "BLOCK_NONE";
-})(HarmBlockThreshold || (HarmBlockThreshold = {}));
-/**
- * Probability that a prompt or candidate matches a harm category.
- * @public
- */
-var HarmProbability;
-(function (HarmProbability) {
-    /** Probability is unspecified. */
-    HarmProbability["HARM_PROBABILITY_UNSPECIFIED"] = "HARM_PROBABILITY_UNSPECIFIED";
-    /** Content has a negligible chance of being unsafe. */
-    HarmProbability["NEGLIGIBLE"] = "NEGLIGIBLE";
-    /** Content has a low chance of being unsafe. */
-    HarmProbability["LOW"] = "LOW";
-    /** Content has a medium chance of being unsafe. */
-    HarmProbability["MEDIUM"] = "MEDIUM";
-    /** Content has a high chance of being unsafe. */
-    HarmProbability["HIGH"] = "HIGH";
-})(HarmProbability || (HarmProbability = {}));
-/**
- * Reason that a prompt was blocked.
- * @public
- */
-var BlockReason;
-(function (BlockReason) {
-    // A blocked reason was not specified.
-    BlockReason["BLOCKED_REASON_UNSPECIFIED"] = "BLOCKED_REASON_UNSPECIFIED";
-    // Content was blocked by safety settings.
-    BlockReason["SAFETY"] = "SAFETY";
-    // Content was blocked, but the reason is uncategorized.
-    BlockReason["OTHER"] = "OTHER";
-})(BlockReason || (BlockReason = {}));
-/**
- * Reason that a candidate finished.
- * @public
- */
-var FinishReason;
-(function (FinishReason) {
-    // Default value. This value is unused.
-    FinishReason["FINISH_REASON_UNSPECIFIED"] = "FINISH_REASON_UNSPECIFIED";
-    // Natural stop point of the model or provided stop sequence.
-    FinishReason["STOP"] = "STOP";
-    // The maximum number of tokens as specified in the request was reached.
-    FinishReason["MAX_TOKENS"] = "MAX_TOKENS";
-    // The candidate content was flagged for safety reasons.
-    FinishReason["SAFETY"] = "SAFETY";
-    // The candidate content was flagged for recitation reasons.
-    FinishReason["RECITATION"] = "RECITATION";
-    // The candidate content was flagged for using an unsupported language.
-    FinishReason["LANGUAGE"] = "LANGUAGE";
-    // Token generation stopped because the content contains forbidden terms.
-    FinishReason["BLOCKLIST"] = "BLOCKLIST";
-    // Token generation stopped for potentially containing prohibited content.
-    FinishReason["PROHIBITED_CONTENT"] = "PROHIBITED_CONTENT";
-    // Token generation stopped because the content potentially contains Sensitive Personally Identifiable Information (SPII).
-    FinishReason["SPII"] = "SPII";
-    // The function call generated by the model is invalid.
-    FinishReason["MALFORMED_FUNCTION_CALL"] = "MALFORMED_FUNCTION_CALL";
-    // Unknown reason.
-    FinishReason["OTHER"] = "OTHER";
-})(FinishReason || (FinishReason = {}));
-/**
- * Task type for embedding content.
- * @public
- */
-var TaskType;
-(function (TaskType) {
-    TaskType["TASK_TYPE_UNSPECIFIED"] = "TASK_TYPE_UNSPECIFIED";
-    TaskType["RETRIEVAL_QUERY"] = "RETRIEVAL_QUERY";
-    TaskType["RETRIEVAL_DOCUMENT"] = "RETRIEVAL_DOCUMENT";
-    TaskType["SEMANTIC_SIMILARITY"] = "SEMANTIC_SIMILARITY";
-    TaskType["CLASSIFICATION"] = "CLASSIFICATION";
-    TaskType["CLUSTERING"] = "CLUSTERING";
-})(TaskType || (TaskType = {}));
-/**
- * @public
- */
-var FunctionCallingMode;
-(function (FunctionCallingMode) {
-    // Unspecified function calling mode. This value should not be used.
-    FunctionCallingMode["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
-    // Default model behavior, model decides to predict either a function call
-    // or a natural language repspose.
-    FunctionCallingMode["AUTO"] = "AUTO";
-    // Model is constrained to always predicting a function call only.
-    // If "allowed_function_names" are set, the predicted function call will be
-    // limited to any one of "allowed_function_names", else the predicted
-    // function call will be any one of the provided "function_declarations".
-    FunctionCallingMode["ANY"] = "ANY";
-    // Model will not predict any function call. Model behavior is same as when
-    // not passing any function declarations.
-    FunctionCallingMode["NONE"] = "NONE";
-})(FunctionCallingMode || (FunctionCallingMode = {}));
-/**
- * The mode of the predictor to be used in dynamic retrieval.
- * @public
- */
-var DynamicRetrievalMode;
-(function (DynamicRetrievalMode) {
-    // Unspecified function calling mode. This value should not be used.
-    DynamicRetrievalMode["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
-    // Run retrieval only when system decides it is necessary.
-    DynamicRetrievalMode["MODE_DYNAMIC"] = "MODE_DYNAMIC";
-})(DynamicRetrievalMode || (DynamicRetrievalMode = {}));
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */class Me{constructor(t){var n;if(null==t.apiKey)throw new Error("An API Key must be set when running in a browser");if(t.project||t.location)throw new Error("Vertex AI project based authentication is not supported on browser runtimes. Please do not provide a project or location.");this.vertexai=null!==(n=t.vertexai)&&void 0!==n&&n,this.apiKey=t.apiKey,this.apiVersion=t.apiVersion;const e=new xe(this.apiKey);this.apiClient=new we({auth:e,apiVersion:this.apiVersion,apiKey:this.apiKey,vertexai:this.vertexai,httpOptions:t.httpOptions,userAgentExtra:"gl-node/web",uploader:new Re}),this.models=new Ce(this.apiClient),this.live=new me(this.apiClient,e,new Ne),this.chats=new Qt(this.models,this.apiClient),this.caches=new Yt(this.apiClient),this.files=new on(this.apiClient),this.operations=new Ie(this.apiClient);}}
 
 function isImageMimeType(mimeType) {
     return imageMimeTypes.includes(mimeType);
@@ -1573,12 +799,11 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
     return mappedMessages;
 }
 
-const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 class GeminiAi {
     _log;
     _genAI;
-    _fileManager;
+    _apiKey;
     get _modelName() {
         const modelName = getSetting(SETTING_AI_MODEL);
         if (!modelName)
@@ -1591,29 +816,34 @@ class GeminiAi {
         if (!apiKey) {
             throw "Google API Key is missing";
         }
-        this._genAI = new k(apiKey);
-        this._fileManager = new GoogleAIFileManager(apiKey);
+        this._apiKey = apiKey;
+        this._genAI = new Me({ apiKey });
     }
     async purgeMedias() {
-        const listResponse = await this._fileManager.listFiles();
-        if (listResponse.files) {
-            await Promise.allSettled(listResponse.files.map((file) => this._fileManager.deleteFile(file.name)));
+        const listResponse = await this._genAI.files.list();
+        const deletingPromises = [];
+        for await (const file of listResponse) {
+            if (file.name) {
+                deletingPromises.push(this._genAI.files.delete({ name: file.name }));
+            }
         }
-        if (listResponse.nextPageToken) {
+        if (deletingPromises.length) {
+            await Promise.allSettled(deletingPromises);
+        }
+        if (listResponse.hasNextPage()) {
             await this.purgeMedias();
         }
     }
     async summarizeMessages(previousMessages = [], unreadMessages) {
         const promptData = await this._getMediasPrompt(unreadMessages);
-        const request = promptData.flatMap((promptItem) => [
-            getTextPromptItem(promptItem.message),
-            ...(promptItem.dataPart || [])
-        ]);
-        const model = this._genAI.getGenerativeModel({
+        const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
+        return this._genAI.models.generateContentStream({
             model: this._modelName,
-            systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+            config: {
+                systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+            },
+            contents: request
         });
-        return await model.generateContentStream(request);
     }
     async isSensitiveContent(messages) {
         const request = await this._getSensitiveContentPrompt(messages);
@@ -1621,25 +851,25 @@ class GeminiAi {
             return undefined;
         }
         const schema = {
-            type: t.OBJECT,
+            type: H.OBJECT,
             properties: {
-                isEmetophobia: { type: t.BOOLEAN },
-                isArachnophobia: { type: t.BOOLEAN },
-                isEpileptic: { type: t.BOOLEAN },
-                isSexual: { type: t.BOOLEAN }
+                isEmetophobia: { type: H.BOOLEAN },
+                isArachnophobia: { type: H.BOOLEAN },
+                isEpileptic: { type: H.BOOLEAN },
+                isSexual: { type: H.BOOLEAN }
             },
             required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
         };
-        const model = this._genAI.getGenerativeModel({
+        const response = await this._genAI.models.generateContent({
             model: this._modelName,
-            generationConfig: {
+            config: {
+                systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n"),
                 responseMimeType: "application/json",
                 responseSchema: schema
             },
-            systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n")
+            contents: request
         });
-        const response = await model.generateContent(request);
-        return JSON.parse(response.response.text());
+        return response.text ? JSON.parse(response.text) : undefined;
     }
     _getSystemInstruction(previousMessages, promptData) {
         const now = new Date();
@@ -1704,12 +934,7 @@ class GeminiAi {
                     convertingMediasToBuffer.push(response.arrayBuffer().then((buffer) => {
                         if (!media.mimeType)
                             throw "Media mimeType is missing";
-                        mediasPrompt.push({
-                            inlineData: {
-                                mimeType: media.mimeType,
-                                data: convertArrayBufferToBase64(buffer)
-                            }
-                        });
+                        mediasPrompt.push(Tt(convertArrayBufferToBase64(buffer), media.mimeType));
                     }));
                 }
                 catch (error) {
@@ -1744,23 +969,23 @@ class GeminiAi {
             }
             messagesFiles.push({ message, files });
         }
-        const timeout = Date.now() + 60_000;
+        const timeout = Date.now() + 30_000;
         const verifiedFiles = new Set();
-        while (messagesFiles.some((messageFiles) => messageFiles.files.some((file) => file.state === FileState.PROCESSING))) {
+        while (messagesFiles.some((messageFiles) => messageFiles.files.some((file) => file.state === st.PROCESSING))) {
             for (const messageFiles of messagesFiles) {
                 for (let i = 0; i < messageFiles.files.length; i++) {
-                    if (!verifiedFiles.has(messageFiles.files[i].name)) {
-                        if (messageFiles.files[i].state === FileState.PROCESSING) {
-                            await new Promise((resolve) => setTimeout(resolve, 100));
+                    const file = messageFiles.files[i];
+                    if (file.name && !verifiedFiles.has(file.name)) {
+                        if (file.state === st.PROCESSING) {
                             try {
-                                messageFiles.files[i] = await this._fileManager.getFile(messageFiles.files[i].name);
+                                messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
                             }
                             catch (error) {
                                 this._log(`Failed to fetch file metadata ${error}`, "warn");
                             }
                         }
                         else {
-                            verifiedFiles.add(messageFiles.files[i].name);
+                            verifiedFiles.add(file.name);
                         }
                     }
                 }
@@ -1772,60 +997,20 @@ class GeminiAi {
         }
         return messagesFiles.map((messageFiles) => ({
             message: messageFiles.message,
-            dataPart: messageFiles.files
-                .filter((file) => file.state === FileState.ACTIVE)
-                .map((file) => ({ fileData: { mimeType: file.mimeType, fileUri: file.uri } }))
+            dataPart: messageFiles.files.filter((file) => file.state === st.ACTIVE && file.uri && file.mimeType).map((file) => yt(file.uri, file.mimeType))
         }));
     }
     async _uploadFileFromUrl(media) {
         if (!media.mimeType)
             throw "Media mimeType is missing";
-        // Step 1: Fetch the remote file
         const fileResponse = await fetch(media.url);
         if (!fileResponse.ok) {
             throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
         }
-        // Get the file data as ArrayBuffer
         const fileData = await fileResponse.arrayBuffer();
-        // Step 2: Get size
-        const numBytes = fileData.byteLength;
-        // Step 3: Start the resumable upload process
-        const initResponse = await fetch(`${BASE_URL}/upload/v1beta/files?key=${this._fileManager.apiKey}`, {
-            method: "POST",
-            headers: {
-                "X-Goog-Upload-Protocol": "resumable",
-                "X-Goog-Upload-Command": "start",
-                "X-Goog-Upload-Header-Content-Length": numBytes.toString(),
-                "X-Goog-Upload-Header-Content-Type": media.mimeType,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                file: {
-                    display_name: media.name
-                }
-            })
+        return this._genAI.files.upload({
+            file: new Blob([fileData], { type: media.mimeType })
         });
-        // Get the upload URL from the response headers
-        const uploadUrl = initResponse.headers.get("x-goog-upload-url");
-        if (!uploadUrl) {
-            throw new Error("Failed to get upload URL");
-        }
-        // Step 4: Upload the file data
-        const uploadResponse = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-                "Content-Length": numBytes.toString(),
-                "X-Goog-Upload-Offset": "0",
-                "X-Goog-Upload-Command": "upload, finalize"
-            },
-            body: fileData
-        });
-        if (!uploadResponse.ok) {
-            throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-        }
-        // Parse the response to get the file URI
-        const fileInfo = await uploadResponse.json();
-        return fileInfo.file;
     }
 }
 function getTextPromptItem(message) {
@@ -2174,11 +1359,13 @@ class BDiscordAI {
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
         const model = new GeminiAi(this._log);
-        const summary = await model.summarizeMessages(previousMessages, unreadMessages);
+        const summaryStream = await model.summarizeMessages(previousMessages, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
-        for await (const chunk of summary.stream) {
-            const chunkText = chunk.text();
+        for await (const chunk of summaryStream) {
+            const chunkText = chunk.text;
+            if (!chunkText?.length)
+                continue;
             if (message) {
                 message.content += chunkText;
                 this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });

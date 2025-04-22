@@ -1,5 +1,16 @@
-import { FileDataPart, GenerateContentStreamResult, GoogleGenerativeAI, InlineDataPart, Part, Schema, SchemaType } from "@google/generative-ai";
-import { FileMetadataResponse, FileState, GoogleAIFileManager, UploadFileResponse } from "@google/generative-ai/server";
+import {
+    createPartFromBase64,
+    createPartFromUri,
+    DeleteFileResponse,
+    File,
+    FileState,
+    GenerateContentResponse,
+    GoogleGenAI,
+    Part,
+    PartUnion,
+    Schema,
+    Type
+} from "@google/genai";
 import { i18n } from "./i18n";
 import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, SETTING_MEDIA_MAX_SIZE } from "./settings";
 import { LogLevel, Media, Message } from "./types";
@@ -8,11 +19,11 @@ import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 
-type PromptItem = { message: Message; dataPart?: Array<InlineDataPart> | Array<FileDataPart> };
+type PromptItem = { message: Message; dataPart?: Array<Part> };
 
 export class GeminiAi {
-    private _genAI: GoogleGenerativeAI;
-    private _fileManager: GoogleAIFileManager;
+    private _genAI: GoogleGenAI;
+    private _apiKey: string;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -27,66 +38,71 @@ export class GeminiAi {
         if (!apiKey) {
             throw "Google API Key is missing";
         }
-        this._genAI = new GoogleGenerativeAI(apiKey);
-        this._fileManager = new GoogleAIFileManager(apiKey);
+        this._apiKey = apiKey;
+        this._genAI = new GoogleGenAI({ apiKey });
     }
 
     async purgeMedias(): Promise<void> {
-        const listResponse = await this._fileManager.listFiles();
+        const listResponse = await this._genAI.files.list();
+        const deletingPromises: Array<Promise<DeleteFileResponse>> = [];
 
-        if (listResponse.files) {
-            await Promise.allSettled(listResponse.files.map((file) => this._fileManager.deleteFile(file.name)));
+        for await (const file of listResponse) {
+            if (file.name) {
+                deletingPromises.push(this._genAI.files.delete({ name: file.name }));
+            }
         }
-        if (listResponse.nextPageToken) {
+        if (deletingPromises.length) {
+            await Promise.allSettled(deletingPromises);
+        }
+        if (listResponse.hasNextPage()) {
             await this.purgeMedias();
         }
     }
 
-    async summarizeMessages(previousMessages: Array<Message> = [], unreadMessages: Array<Message>): Promise<GenerateContentStreamResult> {
+    async summarizeMessages(previousMessages: Array<Message> = [], unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
         const promptData = await this._getMediasPrompt(unreadMessages);
-        const request: Array<string | Part> = promptData.flatMap((promptItem) => [
-            getTextPromptItem(promptItem.message),
-            ...(promptItem.dataPart || [])
-        ]);
+        const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
 
-        const model = this._genAI.getGenerativeModel({
+        return this._genAI.models.generateContentStream({
             model: this._modelName,
-            systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+            config: {
+                systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+            },
+            contents: request
         });
-
-        return await model.generateContentStream(request);
     }
 
     async isSensitiveContent(
         messages: Array<Message>
     ): Promise<{ isEmetophobia: boolean; isArachnophobia: boolean; isEpileptic: boolean; isSexual: boolean } | undefined> {
-        const request: Array<string | Part> = await this._getSensitiveContentPrompt(messages);
+        const request: Array<PartUnion> = await this._getSensitiveContentPrompt(messages);
 
         if (!request.length || request.every((item) => typeof item === "string")) {
             return undefined;
         }
         const schema: Schema = {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-                isEmetophobia: { type: SchemaType.BOOLEAN },
-                isArachnophobia: { type: SchemaType.BOOLEAN },
-                isEpileptic: { type: SchemaType.BOOLEAN },
-                isSexual: { type: SchemaType.BOOLEAN }
+                isEmetophobia: { type: Type.BOOLEAN },
+                isArachnophobia: { type: Type.BOOLEAN },
+                isEpileptic: { type: Type.BOOLEAN },
+                isSexual: { type: Type.BOOLEAN }
             },
             required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
         };
-        const model = this._genAI.getGenerativeModel({
+        const response = await this._genAI.models.generateContent({
             model: this._modelName,
-            generationConfig: {
+            config: {
+                systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join(
+                    "\n"
+                ),
                 responseMimeType: "application/json",
                 responseSchema: schema
             },
-            systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n")
+            contents: request
         });
 
-        const response = await model.generateContent(request);
-
-        return JSON.parse(response.response.text());
+        return response.text ? JSON.parse(response.text) : undefined;
     }
 
     private _getSystemInstruction(previousMessages: Array<Message>, promptData: Array<PromptItem>): string {
@@ -156,7 +172,7 @@ export class GeminiAi {
 
         for (const message of messages) {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
-            const mediasPrompt: Array<InlineDataPart> = [];
+            const mediasPrompt: Array<Part> = [];
             const convertingMediasToBuffer: Array<Promise<unknown>> = [];
 
             for (const media of medias) {
@@ -169,12 +185,7 @@ export class GeminiAi {
                     convertingMediasToBuffer.push(
                         response.arrayBuffer().then((buffer) => {
                             if (!media.mimeType) throw "Media mimeType is missing";
-                            mediasPrompt.push({
-                                inlineData: {
-                                    mimeType: media.mimeType,
-                                    data: convertArrayBufferToBase64(buffer)
-                                }
-                            });
+                            mediasPrompt.push(createPartFromBase64(convertArrayBufferToBase64(buffer), media.mimeType));
                         })
                     );
                 } catch (error) {
@@ -189,12 +200,12 @@ export class GeminiAi {
     }
 
     private async _getMediasFileManager(messages: Array<Message>): Promise<Array<PromptItem>> {
-        const messagesFiles: Array<{ message: Message; files: Array<FileMetadataResponse> }> = [];
-        const uploadedCache: Record<string, FileMetadataResponse> = {};
+        const messagesFiles: Array<{ message: Message; files: Array<File> }> = [];
+        const uploadedCache: Record<string, File> = {};
 
         for (const message of messages) {
             const medias = [message.images, message.videos, message.audios].filter(Boolean).flat() as Array<Media>;
-            const files: Array<FileMetadataResponse> = [];
+            const files: Array<File> = [];
 
             for (const media of medias) {
                 try {
@@ -213,22 +224,22 @@ export class GeminiAi {
             messagesFiles.push({ message, files });
         }
 
-        const timeout = Date.now() + 60_000;
+        const timeout = Date.now() + 30_000;
         const verifiedFiles = new Set<string>();
         while (messagesFiles.some((messageFiles) => messageFiles.files.some((file) => file.state === FileState.PROCESSING))) {
             for (const messageFiles of messagesFiles) {
                 for (let i = 0; i < messageFiles.files.length; i++) {
-                    if (!verifiedFiles.has(messageFiles.files[i].name)) {
-                        if (messageFiles.files[i].state === FileState.PROCESSING) {
-                            await new Promise((resolve) => setTimeout(resolve, 100));
+                    const file = messageFiles.files[i];
 
+                    if (file.name && !verifiedFiles.has(file.name)) {
+                        if (file.state === FileState.PROCESSING) {
                             try {
-                                messageFiles.files[i] = await this._fileManager.getFile(messageFiles.files[i].name);
+                                messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
                             } catch (error) {
                                 this._log(`Failed to fetch file metadata ${error}`, "warn");
                             }
                         } else {
-                            verifiedFiles.add(messageFiles.files[i].name);
+                            verifiedFiles.add(file.name);
                         }
                     }
                 }
@@ -242,67 +253,26 @@ export class GeminiAi {
 
         return messagesFiles.map((messageFiles) => ({
             message: messageFiles.message,
-            dataPart: messageFiles.files
-                .filter((file) => file.state === FileState.ACTIVE)
-                .map((file) => ({ fileData: { mimeType: file.mimeType, fileUri: file.uri } }))
+            dataPart: (
+                messageFiles.files.filter((file) => file.state === FileState.ACTIVE && file.uri && file.mimeType) as Array<
+                    File & Required<Pick<File, "uri" | "mimeType">>
+                >
+            ).map((file) => createPartFromUri(file.uri, file.mimeType))
         }));
     }
 
-    private async _uploadFileFromUrl(media: Media): Promise<FileMetadataResponse> {
+    private async _uploadFileFromUrl(media: Media): Promise<File> {
         if (!media.mimeType) throw "Media mimeType is missing";
-        // Step 1: Fetch the remote file
         const fileResponse = await fetch(media.url);
         if (!fileResponse.ok) {
             throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
         }
 
-        // Get the file data as ArrayBuffer
         const fileData = await fileResponse.arrayBuffer();
 
-        // Step 2: Get size
-        const numBytes = fileData.byteLength;
-
-        // Step 3: Start the resumable upload process
-        const initResponse = await fetch(`${BASE_URL}/upload/v1beta/files?key=${this._fileManager.apiKey}`, {
-            method: "POST",
-            headers: {
-                "X-Goog-Upload-Protocol": "resumable",
-                "X-Goog-Upload-Command": "start",
-                "X-Goog-Upload-Header-Content-Length": numBytes.toString(),
-                "X-Goog-Upload-Header-Content-Type": media.mimeType,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                file: {
-                    display_name: media.name
-                }
-            })
+        return this._genAI.files.upload({
+            file: new Blob([fileData], { type: media.mimeType })
         });
-
-        // Get the upload URL from the response headers
-        const uploadUrl = initResponse.headers.get("x-goog-upload-url");
-        if (!uploadUrl) {
-            throw new Error("Failed to get upload URL");
-        }
-
-        // Step 4: Upload the file data
-        const uploadResponse = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-                "Content-Length": numBytes.toString(),
-                "X-Goog-Upload-Offset": "0",
-                "X-Goog-Upload-Command": "upload, finalize"
-            },
-            body: fileData
-        });
-
-        if (!uploadResponse.ok) {
-            throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-        }
-
-        // Parse the response to get the file URI
-        const fileInfo: UploadFileResponse = await uploadResponse.json();
-        return fileInfo.file;
     }
 }
 

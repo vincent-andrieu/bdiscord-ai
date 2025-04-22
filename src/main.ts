@@ -208,13 +208,14 @@ export default class BDiscordAI {
         }
 
         const model = new GeminiAi(this._log);
-        const summary = await model.summarizeMessages(previousMessages, unreadMessages);
+        const summaryStream = await model.summarizeMessages(previousMessages, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
 
-        for await (const chunk of summary.stream) {
-            const chunkText = chunk.text();
+        for await (const chunk of summaryStream) {
+            const chunkText = chunk.text;
 
+            if (!chunkText?.length) continue;
             if (message) {
                 message.content += chunkText;
                 this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
