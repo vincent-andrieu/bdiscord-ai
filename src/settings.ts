@@ -16,6 +16,7 @@ export const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
 export const SETTING_EPILEPSY_MODE = "epilepsyMode";
 export const SETTING_SEXUALITY_MODE = "sexualityMode";
 export const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
+export const SETTING_CHECK_UPDATES = "checkUpdates";
 
 export function getConfig(): {
     name: string;
@@ -128,6 +129,23 @@ export function getConfig(): {
                         value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
                         defaultValue: false,
                         note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "others",
+                name: i18n.SETTING_CATEGORY_OTHERS,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_CHECK_UPDATES,
+                        name: i18n.SETTING_CHECK_UPDATES,
+                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
+                        value: BdApi.Data.load(name, SETTING_CHECK_UPDATES) ?? true,
+                        defaultValue: true
                     }
                 ]
             }

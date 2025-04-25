@@ -2,6 +2,9 @@ import { getConfig } from "./settings";
 
 export const LOG_PREFIX = `[${getConfig().name}]`;
 export const GEMINI_VIDEOS_LIMIT = 10;
+export const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
+export const GITHUB_BRANCH = "add-check-updates";
+export const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
 export type ImageMimeType = (typeof imageMimeTypes)[number];

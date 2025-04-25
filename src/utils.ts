@@ -2,6 +2,17 @@ import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType, GEMINI_VI
 import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
 import { Audio, DiscordMessage, DiscordMessageComponent, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
 
+export function getRuntimeRequire(packageName: string) {
+    try {
+        const nodeRequire = window.require;
+
+        return nodeRequire(packageName);
+    } catch (error) {
+        console.error(`Failed to require package "${packageName}" at runtime:`, error);
+        return null;
+    }
+}
+
 export function getOldestId(a: string | undefined, b: string): string;
 export function getOldestId(a: string, b?: string): string;
 export function getOldestId(a: string, b: string): string;

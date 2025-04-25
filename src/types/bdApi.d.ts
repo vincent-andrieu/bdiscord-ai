@@ -9,9 +9,11 @@ declare const BdApi: BdApiInstance;
 declare module BdApiModule {
     export const React: React;
     export const ReactDOM: any;
+    export const Plugins: Plugins;
     export const Components: Components;
     export const Data: Data;
     export const DOM: DOM;
+    export const Net: Net;
     export const Patcher: Patcher;
     export const UI: UI;
     export const Utils: Utils;
@@ -28,6 +30,10 @@ type React = {
     createElement(component: string, props?: any, ...children: Array<Node | string | Array<Node | string>>): HTMLElement;
     createElement<T extends Components[keyof Components]>(component: T | string, props?: Parameters<T>[0] | any, ...children: Array<Node | string | Array<Node | string>>): HTMLElement;
 };
+
+type Plugins = {
+    folder: string;
+}
 
 const Looks = Object.freeze({
     FILLED: "bd-button-filled",
@@ -99,6 +105,20 @@ type DOM = {
     parseHTML(html: string, fragment: false = false): HTMLElement;
     parseHTML(html: string, fragment: true): DocumentFragment;
     parseHTML(html: string, fragment = false): HTMLElement | DocumentFragment;
+};
+
+type FetchOptions = {
+    method?: 'GET' | 'PUT' | 'POST' | 'DELETE';
+    headers?: Record<string, string>;
+    redirect?: 'manual' | 'follow';
+    maxRedirects?: number;
+    signal?: AbortSignal;
+    timeout?: number;
+    body?: Uint8Array | string;
+}
+
+type Net = {
+    fetch(url: string, options?: FetchOptions = { method: 'GET', redirect: 'follow', maxRedirects: 20, timeout: 3000 }): Promise<Response>;
 };
 
 type Patcher = {
