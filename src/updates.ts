@@ -57,13 +57,11 @@ export class UpdateManager {
 
     private async _getLocalPlugin(): Promise<string> {
         try {
-            const currentPluginBuffer = await new Promise<Buffer<ArrayBufferLike>>((resolve, reject) => {
-                this._fs.readFile(this._localPluginFilePath, "utf8", (error: Error, data: Buffer<ArrayBufferLike>) =>
-                    error ? reject(error) : resolve(data)
-                );
+            const currentPluginBuffer = await new Promise<string>((resolve, reject) => {
+                this._fs.readFile(this._localPluginFilePath, "utf8", (error: Error, data: string) => (error ? reject(error) : resolve(data)));
             });
 
-            return currentPluginBuffer.toString();
+            return currentPluginBuffer;
         } catch (error) {
             this._log("Failed to read current plugin", "error");
             throw error;
