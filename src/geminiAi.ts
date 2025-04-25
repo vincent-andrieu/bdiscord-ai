@@ -16,7 +16,7 @@ import {
 import { i18n } from "./i18n";
 import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, SETTING_MEDIA_MAX_SIZE } from "./settings";
 import { LogLevel, Media, Message } from "./types";
-import { convertArrayBufferToBase64, convertBase64ToArrayBuffer, convertTimestampToUnix } from "./utils";
+import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 
@@ -70,20 +70,6 @@ export class GeminiAi {
             }
         });
         return this._chat.sendMessageStream({ message: request, config: { responseModalities: [Modality.TEXT] } });
-    }
-
-    async generateSummaryImage(): Promise<ArrayBuffer> {
-        if (!this._chat) {
-            throw "Chat is not initialized";
-        }
-
-        const response = await this._chat.sendMessage({ message: i18n.SUMMARY_IMAGE_REQUEST, config: { responseModalities: [Modality.IMAGE] } });
-        const imageData = response.candidates?.[0]?.content?.parts?.[0].inlineData?.data;
-
-        if (!imageData) {
-            throw "Image data not found";
-        }
-        return convertBase64ToArrayBuffer(imageData);
     }
 
     async isSensitiveContent(

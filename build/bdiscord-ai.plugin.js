@@ -691,14 +691,6 @@ function convertArrayBufferToBase64(buffer) {
     }
     return btoa(binary);
 }
-function convertBase64ToArrayBuffer(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
 function generateMessageId(previousMessageId) {
     return (BigInt(previousMessageId) + BigInt(1)).toString();
 }
@@ -899,17 +891,6 @@ class GeminiAi {
             }
         });
         return this._chat.sendMessageStream({ message: request, config: { responseModalities: [et.TEXT] } });
-    }
-    async generateSummaryImage() {
-        if (!this._chat) {
-            throw "Chat is not initialized";
-        }
-        const response = await this._chat.sendMessage({ message: i18n.SUMMARY_IMAGE_REQUEST, config: { responseModalities: [et.IMAGE] } });
-        const imageData = response.candidates?.[0]?.content?.parts?.[0].inlineData?.data;
-        if (!imageData) {
-            throw "Image data not found";
-        }
-        return convertBase64ToArrayBuffer(imageData);
     }
     async isSensitiveContent(messages) {
         const request = await this._getSensitiveContentPrompt(messages);
@@ -1551,7 +1532,6 @@ class BDiscordAI {
                 }
             }
         }
-        await model.generateSummaryImage();
     }
     async _checkSensitiveContent(discordMessage) {
         const panicMode = getSetting(SETTING_SENSITIVE_PANIC_MODE);
