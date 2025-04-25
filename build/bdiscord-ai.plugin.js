@@ -5,7 +5,7 @@
  * @version 1.0.0
  * @authorId 292388871381975040
  * @source https://github.com/vincent-andrieu/bdiscord-ai
- * @updateUrl https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/add-check-updates/build/bdiscord-ai.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/main/build/bdiscord-ai.plugin.js
  */
 'use strict';
 
@@ -307,7 +307,7 @@ function getSetting(id, settingsList = getConfig().settings) {
 const LOG_PREFIX = `[${getConfig().name}]`;
 const GEMINI_VIDEOS_LIMIT = 10;
 const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
-const GITHUB_BRANCH = "add-check-updates";
+const GITHUB_BRANCH = "main";
 const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
 const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
 const videoMimeTypes = [
