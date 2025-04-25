@@ -1,4 +1,5 @@
 import {
+    Chat,
     createPartFromBase64,
     createPartFromUri,
     DeleteFileResponse,
@@ -6,6 +7,7 @@ import {
     FileState,
     GenerateContentResponse,
     GoogleGenAI,
+    Modality,
     Part,
     PartUnion,
     Schema,
@@ -14,7 +16,7 @@ import {
 import { i18n } from "./i18n";
 import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, SETTING_MEDIA_MAX_SIZE } from "./settings";
 import { LogLevel, Media, Message } from "./types";
-import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
+import { convertArrayBufferToBase64, convertBase64ToArrayBuffer, convertTimestampToUnix } from "./utils";
 
 const MAX_INLINE_DATA_SIZE = 20_000_000;
 
@@ -22,6 +24,7 @@ type PromptItem = { message: Message; dataPart?: Array<Part> };
 
 export class GeminiAi {
     private _genAI: GoogleGenAI;
+    private _chat: Chat | undefined;
 
     private get _modelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL);
@@ -60,13 +63,27 @@ export class GeminiAi {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
 
-        return this._genAI.models.generateContentStream({
+        this._chat = this._genAI.chats.create({
             model: this._modelName,
             config: {
                 systemInstruction: this._getSystemInstruction(previousMessages, promptData)
-            },
-            contents: request
+            }
         });
+        return this._chat.sendMessageStream({ message: request, config: { responseModalities: [Modality.TEXT] } });
+    }
+
+    async generateSummaryImage(): Promise<ArrayBuffer> {
+        if (!this._chat) {
+            throw "Chat is not initialized";
+        }
+
+        const response = await this._chat.sendMessage({ message: i18n.SUMMARY_IMAGE_REQUEST, config: { responseModalities: [Modality.IMAGE] } });
+        const imageData = response.candidates?.[0]?.content?.parts?.[0].inlineData?.data;
+
+        if (!imageData) {
+            throw "Image data not found";
+        }
+        return convertBase64ToArrayBuffer(imageData);
     }
 
     async isSensitiveContent(

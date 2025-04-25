@@ -52,5 +52,6 @@ export const en = {
             `- Relative date/time: <t:${params.timestamp}:R> => just now`,
             "Context of previous messages:"
         ]
-    }
+    },
+    SUMMARY_IMAGE_REQUEST: "Generate an image to illustrate the summary"
 };

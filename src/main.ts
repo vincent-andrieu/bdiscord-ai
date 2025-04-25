@@ -238,6 +238,8 @@ export default class BDiscordAI {
                 }
             }
         }
+
+        const imageBuffer = await model.generateSummaryImage();
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
