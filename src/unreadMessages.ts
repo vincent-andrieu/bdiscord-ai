@@ -40,7 +40,12 @@ export class UnreadMessage {
                 if (getOldestId(message.id, channelReadState.oldestUnreadMessageId || undefined) === channelReadState.oldestUnreadMessageId) {
                     nChar += message.content.length;
 
-                    return !summaryMinLength || nChar >= summaryMinLength;
+                    return (
+                        !!message.attachments?.length ||
+                        message.embeds?.some((embed) => embed.image || embed.video) ||
+                        !summaryMinLength ||
+                        nChar >= summaryMinLength
+                    );
                 }
                 return false;
             });
