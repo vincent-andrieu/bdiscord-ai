@@ -1,6 +1,7 @@
 import { GEMINI_VIDEOS_LIMIT } from "./constants";
 import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
+    ChannelReadState,
     DiscordChannelMessages,
     DiscordMessage,
     GuildMemberStore,
@@ -29,9 +30,9 @@ export class UnreadMessage {
 
     public hasUnreadMessages(channelId: string | undefined = this.channelId): boolean {
         if (!channelId) return false;
-        const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState: ChannelReadState | undefined = this._readStateStore.getReadStatesByChannel()[channelId];
 
-        if (channelReadState.oldestUnreadMessageId) {
+        if (channelReadState?.oldestUnreadMessageId) {
             const messages = this._messageStore.getMessages(channelId);
             const summaryMinLength = getSetting<number>(SETTING_SUMMARY_MIN_LENGTH);
             let nChar = 0;
@@ -57,9 +58,9 @@ export class UnreadMessage {
         channelId: string | undefined = this.channelId
     ): Promise<{ referenceMessage: string; previousMessages: Array<Message>; unreadMessages: Array<Message> }> {
         if (!channelId) throw "No channel selected";
-        const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState: ChannelReadState | undefined = this._readStateStore.getReadStatesByChannel()[channelId];
 
-        if (channelReadState.oldestUnreadMessageId) {
+        if (channelReadState?.oldestUnreadMessageId) {
             const oldestMessageId =
                 getOldestId(channelReadState.oldestUnreadMessageId, channelReadState.ackMessageId) === channelReadState.oldestUnreadMessageId ||
                 this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
