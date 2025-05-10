@@ -73,7 +73,8 @@ export class SummaryButton {
         node.style.margin = "0 8px";
 
         toolbar.insertBefore(node, toolbar.firstChild);
-        BdApi.ReactDOM.render(button, node);
+        const root = BdApi.ReactDOM.createRoot(node);
+        root.render(button);
 
         BdApi.DOM.onRemoved(node, this._add.bind(this));
     }
@@ -82,7 +83,6 @@ export class SummaryButton {
         const element = document.getElementById(this._id);
 
         if (element) {
-            BdApi.ReactDOM.unmountComponentAtNode(element);
             element.remove();
         }
     }

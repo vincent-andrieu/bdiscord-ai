@@ -136,7 +136,7 @@ export type ChannelReadState = {
 };
 
 export type ReadStateStore = {
-    getReadStatesByChannel(): Record<string, ChannelReadState>;
+    getReadStatesByChannel(): Map<string, ChannelReadState>;
 };
 
 export type MessageStore = {

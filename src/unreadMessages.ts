@@ -1,7 +1,6 @@
 import { GEMINI_VIDEOS_LIMIT } from "./constants";
 import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
-    ChannelReadState,
     DiscordChannelMessages,
     DiscordMessage,
     GuildMemberStore,
@@ -30,7 +29,7 @@ export class UnreadMessage {
 
     public hasUnreadMessages(channelId: string | undefined = this.channelId): boolean {
         if (!channelId) return false;
-        const channelReadState: ChannelReadState | undefined = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState = this._readStateStore.getReadStatesByChannel().get(channelId);
 
         if (channelReadState?.oldestUnreadMessageId) {
             const messages = this._messageStore.getMessages(channelId);
@@ -58,7 +57,7 @@ export class UnreadMessage {
         channelId: string | undefined = this.channelId
     ): Promise<{ referenceMessage: string; previousMessages: Array<Message>; unreadMessages: Array<Message> }> {
         if (!channelId) throw "No channel selected";
-        const channelReadState: ChannelReadState | undefined = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState = this._readStateStore.getReadStatesByChannel().get(channelId);
 
         if (channelReadState?.oldestUnreadMessageId) {
             const oldestMessageId =

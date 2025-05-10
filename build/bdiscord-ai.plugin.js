@@ -1164,13 +1164,13 @@ class SummaryButton {
         node.id = this._id;
         node.style.margin = "0 8px";
         toolbar.insertBefore(node, toolbar.firstChild);
-        BdApi.ReactDOM.render(button, node);
+        const root = BdApi.ReactDOM.createRoot(node);
+        root.render(button);
         BdApi.DOM.onRemoved(node, this._add.bind(this));
     }
     _remove() {
         const element = document.getElementById(this._id);
         if (element) {
-            BdApi.ReactDOM.unmountComponentAtNode(element);
             element.remove();
         }
     }
@@ -1201,7 +1201,7 @@ class UnreadMessage {
     hasUnreadMessages(channelId = this.channelId) {
         if (!channelId)
             return false;
-        const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState = this._readStateStore.getReadStatesByChannel().get(channelId);
         if (channelReadState?.oldestUnreadMessageId) {
             const messages = this._messageStore.getMessages(channelId);
             const summaryMinLength = getSetting(SETTING_SUMMARY_MIN_LENGTH);
@@ -1222,7 +1222,7 @@ class UnreadMessage {
     async getUnreadMessages(channelId = this.channelId) {
         if (!channelId)
             throw "No channel selected";
-        const channelReadState = this._readStateStore.getReadStatesByChannel()[channelId];
+        const channelReadState = this._readStateStore.getReadStatesByChannel().get(channelId);
         if (channelReadState?.oldestUnreadMessageId) {
             const oldestMessageId = getOldestId(channelReadState.oldestUnreadMessageId, channelReadState.ackMessageId) === channelReadState.oldestUnreadMessageId ||
                 this._messageStore.getMessages(channelId).some((message) => message.id === channelReadState.ackMessageId)
