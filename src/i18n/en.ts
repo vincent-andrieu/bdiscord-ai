@@ -59,4 +59,4 @@ export const en = {
         ]
     },
     SUMMARY_IMAGE_REQUEST: "Generate an image to illustrate the summary"
-};
+} as const;

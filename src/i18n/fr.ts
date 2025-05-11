@@ -60,4 +60,4 @@ export const fr = {
         ]
     },
     SUMMARY_IMAGE_REQUEST: "Génère une image pour illustrer le résumé"
-};
+} as const;

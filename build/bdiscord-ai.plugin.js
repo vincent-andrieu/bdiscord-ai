@@ -904,10 +904,11 @@ class GeminiAi {
         this._chat = this._genAI.chats.create({
             model: this._modelName,
             config: {
-                systemInstruction: this._getSystemInstruction(previousMessages, promptData)
+                systemInstruction: this._getSystemInstruction(previousMessages, promptData),
+                responseModalities: [st.TEXT]
             }
         });
-        return this._chat.sendMessageStream({ message: request, config: { responseModalities: [st.TEXT] } });
+        return this._chat.sendMessageStream({ message: request });
     }
     async isSensitiveContent(messages) {
         const request = await this._getSensitiveContentPrompt(messages);
