@@ -48,6 +48,7 @@ export function getConfig(): {
                         value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
                         defaultValue: DEFAULT_AI_MODEL,
                         options: [
+                            { label: "Gemini 2.5 Pro (Preview)", value: "gemini-2.5-pro-exp-03-25" },
                             { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
                             { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" },
                             { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
