@@ -12,7 +12,10 @@ export default {
     },
     external: [],
     plugins: [
-        resolve(), // Allows Rollup to resolve modules
+        resolve({
+            preferBuiltins: true,
+            browser: true
+        }), // Allows Rollup to resolve modules
         commonjs(), // Converts CommonJS modules to ES6
         typescript({
             tsconfig: "tsconfig.json"
@@ -20,7 +23,8 @@ export default {
         httpResolve({
             resolveIdFallback: (specifier, importer) => {
                 if (specifier === "@google/genai") {
-                    return `https://esm.run/${specifier}`;
+                    // Use a specific version to ensure compatibility
+                    return `https://esm.run/@google/genai@0.14.1`;
                 }
             }
         }),
