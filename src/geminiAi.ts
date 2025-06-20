@@ -14,7 +14,14 @@ import {
     Type
 } from "@google/genai";
 import { i18n } from "./i18n";
-import { getSetting, MAX_MEDIA_SIZE, SETTING_AI_MODEL, SETTING_GOOGLE_API_KEY, SETTING_MEDIA_MAX_SIZE } from "./settings";
+import {
+    getSetting,
+    MAX_MEDIA_SIZE,
+    SETTING_AI_MODEL_SENSITIVE_CONTENT,
+    SETTING_AI_MODEL_SUMMARY,
+    SETTING_GOOGLE_API_KEY,
+    SETTING_MEDIA_MAX_SIZE
+} from "./settings";
 import { LogLevel, Media, Message } from "./types";
 import { convertArrayBufferToBase64, convertTimestampToUnix } from "./utils";
 
@@ -26,8 +33,15 @@ export class GeminiAi {
     private _genAI: GoogleGenAI;
     private _chat: Chat | undefined;
 
-    private get _modelName(): string {
-        const modelName = getSetting<string>(SETTING_AI_MODEL);
+    private get _summaryModelName(): string {
+        const modelName = getSetting<string>(SETTING_AI_MODEL_SUMMARY);
+
+        if (!modelName) throw "AI model is missing";
+        return modelName;
+    }
+
+    private get _sensitiveModelName(): string {
+        const modelName = getSetting<string>(SETTING_AI_MODEL_SENSITIVE_CONTENT);
 
         if (!modelName) throw "AI model is missing";
         return modelName;
@@ -64,7 +78,7 @@ export class GeminiAi {
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
 
         this._chat = this._genAI.chats.create({
-            model: this._modelName,
+            model: this._summaryModelName,
             config: {
                 systemInstruction: this._getSystemInstruction(previousMessages, promptData),
                 responseModalities: [Modality.TEXT]
@@ -92,7 +106,7 @@ export class GeminiAi {
             required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
         };
         const response = await this._genAI.models.generateContent({
-            model: this._modelName,
+            model: this._sensitiveModelName,
             config: {
                 systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join(
                     "\n"

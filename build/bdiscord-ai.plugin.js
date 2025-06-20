@@ -19,8 +19,10 @@ const en$1 = {
     SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
     SETTING_GOOGLE_API_KEY: "Google API Key",
     SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL: "Model",
-    SETTING_AI_MODEL_NOTE: "Select the Gemini model to use",
+    SETTING_AI_MODEL_SUMMARY: "Model for summaries",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Select the Gemini model to use for summaries",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Model for sensitive contents",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Select the Gemini model to use for sensitive contents",
     SETTING_MEDIA_MAX_SIZE: "Maximum media size",
     SETTING_MEDIA_MAX_SIZE_NOTE: "Maximum size of media to download (in Mo)",
     SETTING_JUMP_TO_MESSAGE: "Auto scroll",
@@ -75,8 +77,10 @@ const fr = {
     SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
     SETTING_GOOGLE_API_KEY: "Google API Key",
     SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL: "Modèle",
-    SETTING_AI_MODEL_NOTE: "Sélectionne le modèle Gemini à utiliser",
+    SETTING_AI_MODEL_SUMMARY: "Modèle pour les résumés",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Sélectionne le modèle Gemini à utiliser pour les résumés",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Modèle pour les contenus sensibles",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Sélectionne le modèle Gemini à utiliser pour les contenus sensibles",
     SETTING_MEDIA_MAX_SIZE: "Taille maximale des médias",
     SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
     SETTING_JUMP_TO_MESSAGE: "Scroll auto",
@@ -142,11 +146,18 @@ function getDiscordLocale() {
 }
 
 const name = "BDiscordAI";
-const DEFAULT_AI_MODEL = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash";
 const MAX_MEDIA_SIZE = 50;
 const DEFAULT_SUMMARY_MIN_LENGTH = 300;
+const AI_MODELS = [
+    { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
+    { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
+    { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" }
+];
 const SETTING_GOOGLE_API_KEY = "googleApiKey";
-const SETTING_AI_MODEL = "aiModel";
+const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
+const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
 const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
 const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
 const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
@@ -177,16 +188,21 @@ function getConfig() {
                     },
                     {
                         type: "dropdown",
-                        id: SETTING_AI_MODEL,
-                        name: i18n.SETTING_AI_MODEL,
-                        note: i18n.SETTING_AI_MODEL_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
-                        defaultValue: DEFAULT_AI_MODEL,
-                        options: [
-                            { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
-                            { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
-                            { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" }
-                        ]
+                        id: SETTING_AI_MODEL_SUMMARY,
+                        name: i18n.SETTING_AI_MODEL_SUMMARY,
+                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SUMMARY) || DEFAULT_AI_MODEL_SUMMARY,
+                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SENSITIVE_CONTENT) || DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        options: AI_MODELS
                     },
                     {
                         type: "number",
@@ -864,8 +880,14 @@ class GeminiAi {
     _log;
     _genAI;
     _chat;
-    get _modelName() {
-        const modelName = getSetting(SETTING_AI_MODEL);
+    get _summaryModelName() {
+        const modelName = getSetting(SETTING_AI_MODEL_SUMMARY);
+        if (!modelName)
+            throw "AI model is missing";
+        return modelName;
+    }
+    get _sensitiveModelName() {
+        const modelName = getSetting(SETTING_AI_MODEL_SENSITIVE_CONTENT);
         if (!modelName)
             throw "AI model is missing";
         return modelName;
@@ -897,7 +919,7 @@ class GeminiAi {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         this._chat = this._genAI.chats.create({
-            model: this._modelName,
+            model: this._summaryModelName,
             config: {
                 systemInstruction: this._getSystemInstruction(previousMessages, promptData),
                 responseModalities: [ut.TEXT]
@@ -921,7 +943,7 @@ class GeminiAi {
             required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
         };
         const response = await this._genAI.models.generateContent({
-            model: this._modelName,
+            model: this._sensitiveModelName,
             config: {
                 systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n"),
                 responseMimeType: "application/json",

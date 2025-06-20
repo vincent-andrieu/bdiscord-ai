@@ -1,13 +1,21 @@
 import { i18n } from "./i18n";
-import { SettingConfigElement } from "./types";
+import { DropdownSetting, SettingConfigElement } from "./types";
 
 const name = "BDiscordAI";
-const DEFAULT_AI_MODEL = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash";
 export const MAX_MEDIA_SIZE = 50;
 const DEFAULT_SUMMARY_MIN_LENGTH = 300;
 
+const AI_MODELS: DropdownSetting<string>["options"] = [
+    { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
+    { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
+    { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" }
+];
+
 export const SETTING_GOOGLE_API_KEY = "googleApiKey";
-export const SETTING_AI_MODEL = "aiModel";
+export const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
+export const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
 export const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
 export const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
 export const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
@@ -42,16 +50,21 @@ export function getConfig(): {
                     },
                     {
                         type: "dropdown",
-                        id: SETTING_AI_MODEL,
-                        name: i18n.SETTING_AI_MODEL,
-                        note: i18n.SETTING_AI_MODEL_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL) || DEFAULT_AI_MODEL,
-                        defaultValue: DEFAULT_AI_MODEL,
-                        options: [
-                            { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
-                            { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
-                            { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" }
-                        ]
+                        id: SETTING_AI_MODEL_SUMMARY,
+                        name: i18n.SETTING_AI_MODEL_SUMMARY,
+                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SUMMARY) || DEFAULT_AI_MODEL_SUMMARY,
+                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SENSITIVE_CONTENT) || DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        options: AI_MODELS
                     },
                     {
                         type: "number",
