@@ -86,7 +86,8 @@ export class GeminiAi {
             model: modelName,
             config: {
                 systemInstruction: this._getSystemInstruction(previousMessages, promptData),
-                responseModalities: [Modality.TEXT]
+                responseModalities: [Modality.TEXT],
+                tools: [{ urlContext: {} }]
             }
         });
         return this._chat.sendMessageStream({ message: request });
