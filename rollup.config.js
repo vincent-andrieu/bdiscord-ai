@@ -1,8 +1,8 @@
 import typescript from "rollup-plugin-typescript2";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
-import { httpResolve } from "rollup-plugin-http-resolve";
 import banner from "rollup-plugin-banner2";
+import nodePolyfills from 'rollup-plugin-node-polyfills';
 
 export default {
     input: "src/main.ts", // The entry point of your application
@@ -10,23 +10,25 @@ export default {
         file: "build/bdiscord-ai.plugin.js", // The output bundled file
         format: "commonjs" // The output format ('module', 'commonjs', 'iife', 'umd', 'amd', 'system')
     },
-    external: [],
+    external: ['ws', 'node:fs', 'node:path', 'node:url', 'fs', 'path', 'url', 'crypto', 'http', 'https', 'stream'],
     plugins: [
-        resolve({
-            preferBuiltins: true,
-            browser: true
-        }), // Allows Rollup to resolve modules
-        commonjs(), // Converts CommonJS modules to ES6
-        typescript({
-            tsconfig: "tsconfig.json"
+        nodePolyfills({
+            include: ['buffer', 'process', 'util', 'stream', 'events'],
+            exclude: ['src/**/*.ts'] // Exclude TypeScript source files
         }),
-        httpResolve({
-            resolveIdFallback: (specifier, importer) => {
-                if (specifier === "@google/genai") {
-                    // Use a specific version to ensure compatibility
-                    return `https://esm.run/@google/genai@0.14.1`;
-                }
-            }
+        resolve({
+            preferBuiltins: false,
+            browser: true,
+            exportConditions: ['browser'],
+            skip: ['ws', 'crypto', 'fs', 'path', 'url', 'http', 'https', 'stream']
+        }), // Allows Rollup to resolve modules
+        commonjs({
+            include: ['node_modules/**'],
+            transformMixedEsModules: true
+        }), // Converts CommonJS modules to ES6
+        typescript({
+            tsconfig: "tsconfig.json",
+            clean: true
         }),
         banner(() => [
             "/**",
