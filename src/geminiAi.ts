@@ -76,9 +76,14 @@ export class GeminiAi {
     async summarizeMessages(previousMessages: Array<Message> = [], unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
+        let modelName = this._summaryModelName;
 
+        // 2.5 models do not support videos, so we fallback to 2.0 Flash
+        if (["gemini-2.5-pro", "gemini-2.5-flash"].includes(modelName) && unreadMessages.some((message) => message.videos?.length)) {
+            modelName = "gemini-2.0-flash";
+        }
         this._chat = this._genAI.chats.create({
-            model: this._summaryModelName,
+            model: modelName,
             config: {
                 systemInstruction: this._getSystemInstruction(previousMessages, promptData),
                 responseModalities: [Modality.TEXT]
