@@ -146,8 +146,8 @@ function getDiscordLocale() {
 }
 
 const name = "BDiscordAI";
-const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.0-flash";
-const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.5-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash-lite";
 const MAX_MEDIA_SIZE = 50;
 const DEFAULT_SUMMARY_MIN_LENGTH = 300;
 const AI_MODELS = [
@@ -22133,7 +22133,7 @@ class GeminiAi {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
-        // 2.5 Flash model does not support videos, so we fallback to 2.0 Flash
+        // 2.5 models do not support videos, so we fallback to 2.0 Flash
         if (["gemini-2.5-pro", "gemini-2.5-flash"].includes(modelName) && unreadMessages.some((message) => message.videos?.length)) {
             modelName = "gemini-2.0-flash";
         }
