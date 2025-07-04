@@ -34,7 +34,7 @@ export const en = {
     SUMMARY_BUTTON: "Summarize",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:
-            "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging. Your response is in markdown format.",
+            "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
         MEDIAS: "Images, videos and audios have been sent in messages.",
         CONTENT: (params: {
             timestamp: number;

@@ -35,7 +35,7 @@ export const fr = {
     SUMMARY_BUTTON: "Résumer",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:
-            "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord. Ta réponse est au format markdown.",
+            "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
         MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
         CONTENT: (params: {
             timestamp: number;
