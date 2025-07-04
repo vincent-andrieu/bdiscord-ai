@@ -2,8 +2,8 @@ import { i18n } from "./i18n";
 import { DropdownSetting, SettingConfigElement } from "./types";
 
 const name = "BDiscordAI";
-const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.0-flash";
-const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.5-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash-lite";
 export const MAX_MEDIA_SIZE = 50;
 const DEFAULT_SUMMARY_MIN_LENGTH = 300;
 
