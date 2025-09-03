@@ -58,8 +58,7 @@ const en = {
             `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
             `- Use for dates older than 2 days: <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
             `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Relative date/time: <t:${params.timestamp}:R> => just now`,
-            "Context of previous messages:"
+            `- Relative date/time: <t:${params.timestamp}:R> => just now`
         ]
     },
     SUMMARY_IMAGE_REQUEST: "Generate an image to illustrate the summary"
@@ -116,8 +115,7 @@ const fr = {
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
             `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
             `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`,
-            "Contexte des messages précédents :"
+            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
         ]
     },
     SUMMARY_IMAGE_REQUEST: "Génère une image pour illustrer le résumé"
@@ -22129,7 +22127,7 @@ class GeminiAi {
             await this.purgeMedias();
         }
     }
-    async summarizeMessages(previousMessages = [], unreadMessages) {
+    async summarizeMessages(unreadMessages) {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
@@ -22140,7 +22138,7 @@ class GeminiAi {
         this._chat = this._genAI.chats.create({
             model: modelName,
             config: {
-                systemInstruction: this._getSystemInstruction(previousMessages, promptData),
+                systemInstruction: this._getSystemInstruction(promptData),
                 responseModalities: [Modality.TEXT],
                 tools: [{ urlContext: {} }]
             }
@@ -22173,7 +22171,7 @@ class GeminiAi {
         });
         return response.text ? JSON.parse(response.text) : undefined;
     }
-    _getSystemInstruction(previousMessages, promptData) {
+    _getSystemInstruction(promptData) {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -22184,7 +22182,6 @@ class GeminiAi {
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
             ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime }),
-            ...previousMessages.map((message) => `- ${getTextPromptItem(message)}`)
         ]
             .filter(Boolean)
             .join("\n");
@@ -22468,21 +22465,16 @@ class UnreadMessage {
                 ? channelReadState.oldestUnreadMessageId
                 : channelReadState.ackMessageId;
             const messages = await this._fetchAllMessages(channelId, oldestMessageId, channelReadState.lastMessageId);
-            const { previousMessages, unreadMessages } = messages.reduce((acc, message) => {
+            const { unreadMessages } = messages.reduce((acc, message) => {
                 if (getOldestId(message.id, oldestMessageId) === oldestMessageId) {
                     acc.unreadMessages.push(message);
                 }
-                else {
-                    acc.previousMessages.push(message);
-                }
                 return acc;
-            }, { previousMessages: [], unreadMessages: [] });
+            }, { unreadMessages: [] });
             const mapMessagesStores = { selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore };
             const mappedUnreadMessages = mapMessages(mapMessagesStores, unreadMessages);
-            const unreadVideos = mappedUnreadMessages.reduce((acc, message) => acc + (message.videos?.length || 0), 0);
             return {
                 referenceMessage: oldestMessageId,
-                previousMessages: mapMessages(mapMessagesStores, previousMessages, GEMINI_VIDEOS_LIMIT - unreadVideos),
                 unreadMessages: mappedUnreadMessages
             };
         }
@@ -22752,7 +22744,7 @@ class BDiscordAI {
             throw "Fail to get stores";
         const guildId = this._selectedGuildStore.getGuildId();
         const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
-        const { referenceMessage, previousMessages, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
+        const { referenceMessage, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
         const user = this._userStore.getCurrentUser();
         if (!channelId)
             throw "Fail to get metadata";
@@ -22762,7 +22754,7 @@ class BDiscordAI {
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
         const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(previousMessages, unreadMessages);
+        const summaryStream = await model.summarizeMessages(unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
         for await (const chunk of summaryStream) {

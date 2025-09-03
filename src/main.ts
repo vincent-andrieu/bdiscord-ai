@@ -211,7 +211,7 @@ export default class BDiscordAI {
             throw "Fail to get stores";
         const guildId = this._selectedGuildStore.getGuildId();
         const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
-        const { referenceMessage, previousMessages, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
+        const { referenceMessage, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
         const user = this._userStore.getCurrentUser();
 
         if (!channelId) throw "Fail to get metadata";
@@ -222,7 +222,7 @@ export default class BDiscordAI {
         }
 
         const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(previousMessages, unreadMessages);
+        const summaryStream = await model.summarizeMessages(unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
 

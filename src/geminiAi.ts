@@ -73,7 +73,7 @@ export class GeminiAi {
         }
     }
 
-    async summarizeMessages(previousMessages: Array<Message> = [], unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
+    async summarizeMessages(unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
@@ -85,7 +85,7 @@ export class GeminiAi {
         this._chat = this._genAI.chats.create({
             model: modelName,
             config: {
-                systemInstruction: this._getSystemInstruction(previousMessages, promptData),
+                systemInstruction: this._getSystemInstruction(promptData),
                 responseModalities: [Modality.TEXT],
                 tools: [{ urlContext: {} }]
             }
@@ -126,7 +126,7 @@ export class GeminiAi {
         return response.text ? JSON.parse(response.text) : undefined;
     }
 
-    private _getSystemInstruction(previousMessages: Array<Message>, promptData: Array<PromptItem>): string {
+    private _getSystemInstruction(promptData: Array<PromptItem>): string {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -139,7 +139,6 @@ export class GeminiAi {
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
             ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime }),
-            ...previousMessages.map((message) => `- ${getTextPromptItem(message)}`)
         ]
             .filter(Boolean)
             .join("\n");

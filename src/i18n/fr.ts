@@ -57,8 +57,7 @@ export const fr = {
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
             `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
             `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`,
-            "Contexte des messages précédents :"
+            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
         ]
     },
     SUMMARY_IMAGE_REQUEST: "Génère une image pour illustrer le résumé"

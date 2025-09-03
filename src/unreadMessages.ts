@@ -1,4 +1,3 @@
-import { GEMINI_VIDEOS_LIMIT } from "./constants";
 import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
     DiscordChannelMessages,
@@ -55,7 +54,7 @@ export class UnreadMessage {
 
     public async getUnreadMessages(
         channelId: string | undefined = this.channelId
-    ): Promise<{ referenceMessage: string; previousMessages: Array<Message>; unreadMessages: Array<Message> }> {
+    ): Promise<{ referenceMessage: string; unreadMessages: Array<Message> }> {
         if (!channelId) throw "No channel selected";
         const channelReadState = this._readStateStore.getReadStatesByChannel().get(channelId);
 
@@ -66,24 +65,20 @@ export class UnreadMessage {
                     ? channelReadState.oldestUnreadMessageId
                     : channelReadState.ackMessageId;
             const messages = await this._fetchAllMessages(channelId, oldestMessageId, channelReadState.lastMessageId);
-            const { previousMessages, unreadMessages } = messages.reduce(
-                (acc: { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> }, message) => {
+            const { unreadMessages } = messages.reduce(
+                (acc: { unreadMessages: Array<DiscordMessage> }, message) => {
                     if (getOldestId(message.id, oldestMessageId) === oldestMessageId) {
                         acc.unreadMessages.push(message);
-                    } else {
-                        acc.previousMessages.push(message);
                     }
                     return acc;
                 },
-                { previousMessages: [], unreadMessages: [] }
-            ) as { previousMessages: Array<DiscordMessage>; unreadMessages: Array<DiscordMessage> };
+                { unreadMessages: [] }
+            ) as { unreadMessages: Array<DiscordMessage> };
             const mapMessagesStores = { selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore };
             const mappedUnreadMessages = mapMessages(mapMessagesStores, unreadMessages);
-            const unreadVideos = mappedUnreadMessages.reduce((acc, message) => acc + (message.videos?.length || 0), 0);
 
             return {
                 referenceMessage: oldestMessageId,
-                previousMessages: mapMessages(mapMessagesStores, previousMessages, GEMINI_VIDEOS_LIMIT - unreadVideos),
                 unreadMessages: mappedUnreadMessages
             };
         }
