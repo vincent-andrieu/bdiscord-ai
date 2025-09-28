@@ -495,3852 +495,6 @@ function resolveElement(node) {
     }
 }
 
-var util;
-(function (util) {
-    util.assertEqual = (_) => { };
-    function assertIs(_arg) { }
-    util.assertIs = assertIs;
-    function assertNever(_x) {
-        throw new Error();
-    }
-    util.assertNever = assertNever;
-    util.arrayToEnum = (items) => {
-        const obj = {};
-        for (const item of items) {
-            obj[item] = item;
-        }
-        return obj;
-    };
-    util.getValidEnumValues = (obj) => {
-        const validKeys = util.objectKeys(obj).filter((k) => typeof obj[obj[k]] !== "number");
-        const filtered = {};
-        for (const k of validKeys) {
-            filtered[k] = obj[k];
-        }
-        return util.objectValues(filtered);
-    };
-    util.objectValues = (obj) => {
-        return util.objectKeys(obj).map(function (e) {
-            return obj[e];
-        });
-    };
-    util.objectKeys = typeof Object.keys === "function" // eslint-disable-line ban/ban
-        ? (obj) => Object.keys(obj) // eslint-disable-line ban/ban
-        : (object) => {
-            const keys = [];
-            for (const key in object) {
-                if (Object.prototype.hasOwnProperty.call(object, key)) {
-                    keys.push(key);
-                }
-            }
-            return keys;
-        };
-    util.find = (arr, checker) => {
-        for (const item of arr) {
-            if (checker(item))
-                return item;
-        }
-        return undefined;
-    };
-    util.isInteger = typeof Number.isInteger === "function"
-        ? (val) => Number.isInteger(val) // eslint-disable-line ban/ban
-        : (val) => typeof val === "number" && Number.isFinite(val) && Math.floor(val) === val;
-    function joinValues(array, separator = " | ") {
-        return array.map((val) => (typeof val === "string" ? `'${val}'` : val)).join(separator);
-    }
-    util.joinValues = joinValues;
-    util.jsonStringifyReplacer = (_, value) => {
-        if (typeof value === "bigint") {
-            return value.toString();
-        }
-        return value;
-    };
-})(util || (util = {}));
-var objectUtil;
-(function (objectUtil) {
-    objectUtil.mergeShapes = (first, second) => {
-        return {
-            ...first,
-            ...second, // second overwrites first
-        };
-    };
-})(objectUtil || (objectUtil = {}));
-const ZodParsedType = util.arrayToEnum([
-    "string",
-    "nan",
-    "number",
-    "integer",
-    "float",
-    "boolean",
-    "date",
-    "bigint",
-    "symbol",
-    "function",
-    "undefined",
-    "null",
-    "array",
-    "object",
-    "unknown",
-    "promise",
-    "void",
-    "never",
-    "map",
-    "set",
-]);
-const getParsedType = (data) => {
-    const t = typeof data;
-    switch (t) {
-        case "undefined":
-            return ZodParsedType.undefined;
-        case "string":
-            return ZodParsedType.string;
-        case "number":
-            return Number.isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
-        case "boolean":
-            return ZodParsedType.boolean;
-        case "function":
-            return ZodParsedType.function;
-        case "bigint":
-            return ZodParsedType.bigint;
-        case "symbol":
-            return ZodParsedType.symbol;
-        case "object":
-            if (Array.isArray(data)) {
-                return ZodParsedType.array;
-            }
-            if (data === null) {
-                return ZodParsedType.null;
-            }
-            if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
-                return ZodParsedType.promise;
-            }
-            if (typeof Map !== "undefined" && data instanceof Map) {
-                return ZodParsedType.map;
-            }
-            if (typeof Set !== "undefined" && data instanceof Set) {
-                return ZodParsedType.set;
-            }
-            if (typeof Date !== "undefined" && data instanceof Date) {
-                return ZodParsedType.date;
-            }
-            return ZodParsedType.object;
-        default:
-            return ZodParsedType.unknown;
-    }
-};
-
-const ZodIssueCode = util.arrayToEnum([
-    "invalid_type",
-    "invalid_literal",
-    "custom",
-    "invalid_union",
-    "invalid_union_discriminator",
-    "invalid_enum_value",
-    "unrecognized_keys",
-    "invalid_arguments",
-    "invalid_return_type",
-    "invalid_date",
-    "invalid_string",
-    "too_small",
-    "too_big",
-    "invalid_intersection_types",
-    "not_multiple_of",
-    "not_finite",
-]);
-class ZodError extends Error {
-    get errors() {
-        return this.issues;
-    }
-    constructor(issues) {
-        super();
-        this.issues = [];
-        this.addIssue = (sub) => {
-            this.issues = [...this.issues, sub];
-        };
-        this.addIssues = (subs = []) => {
-            this.issues = [...this.issues, ...subs];
-        };
-        const actualProto = new.target.prototype;
-        if (Object.setPrototypeOf) {
-            // eslint-disable-next-line ban/ban
-            Object.setPrototypeOf(this, actualProto);
-        }
-        else {
-            this.__proto__ = actualProto;
-        }
-        this.name = "ZodError";
-        this.issues = issues;
-    }
-    format(_mapper) {
-        const mapper = _mapper ||
-            function (issue) {
-                return issue.message;
-            };
-        const fieldErrors = { _errors: [] };
-        const processError = (error) => {
-            for (const issue of error.issues) {
-                if (issue.code === "invalid_union") {
-                    issue.unionErrors.map(processError);
-                }
-                else if (issue.code === "invalid_return_type") {
-                    processError(issue.returnTypeError);
-                }
-                else if (issue.code === "invalid_arguments") {
-                    processError(issue.argumentsError);
-                }
-                else if (issue.path.length === 0) {
-                    fieldErrors._errors.push(mapper(issue));
-                }
-                else {
-                    let curr = fieldErrors;
-                    let i = 0;
-                    while (i < issue.path.length) {
-                        const el = issue.path[i];
-                        const terminal = i === issue.path.length - 1;
-                        if (!terminal) {
-                            curr[el] = curr[el] || { _errors: [] };
-                            // if (typeof el === "string") {
-                            //   curr[el] = curr[el] || { _errors: [] };
-                            // } else if (typeof el === "number") {
-                            //   const errorArray: any = [];
-                            //   errorArray._errors = [];
-                            //   curr[el] = curr[el] || errorArray;
-                            // }
-                        }
-                        else {
-                            curr[el] = curr[el] || { _errors: [] };
-                            curr[el]._errors.push(mapper(issue));
-                        }
-                        curr = curr[el];
-                        i++;
-                    }
-                }
-            }
-        };
-        processError(this);
-        return fieldErrors;
-    }
-    static assert(value) {
-        if (!(value instanceof ZodError)) {
-            throw new Error(`Not a ZodError: ${value}`);
-        }
-    }
-    toString() {
-        return this.message;
-    }
-    get message() {
-        return JSON.stringify(this.issues, util.jsonStringifyReplacer, 2);
-    }
-    get isEmpty() {
-        return this.issues.length === 0;
-    }
-    flatten(mapper = (issue) => issue.message) {
-        const fieldErrors = {};
-        const formErrors = [];
-        for (const sub of this.issues) {
-            if (sub.path.length > 0) {
-                fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
-                fieldErrors[sub.path[0]].push(mapper(sub));
-            }
-            else {
-                formErrors.push(mapper(sub));
-            }
-        }
-        return { formErrors, fieldErrors };
-    }
-    get formErrors() {
-        return this.flatten();
-    }
-}
-ZodError.create = (issues) => {
-    const error = new ZodError(issues);
-    return error;
-};
-
-const errorMap = (issue, _ctx) => {
-    let message;
-    switch (issue.code) {
-        case ZodIssueCode.invalid_type:
-            if (issue.received === ZodParsedType.undefined) {
-                message = "Required";
-            }
-            else {
-                message = `Expected ${issue.expected}, received ${issue.received}`;
-            }
-            break;
-        case ZodIssueCode.invalid_literal:
-            message = `Invalid literal value, expected ${JSON.stringify(issue.expected, util.jsonStringifyReplacer)}`;
-            break;
-        case ZodIssueCode.unrecognized_keys:
-            message = `Unrecognized key(s) in object: ${util.joinValues(issue.keys, ", ")}`;
-            break;
-        case ZodIssueCode.invalid_union:
-            message = `Invalid input`;
-            break;
-        case ZodIssueCode.invalid_union_discriminator:
-            message = `Invalid discriminator value. Expected ${util.joinValues(issue.options)}`;
-            break;
-        case ZodIssueCode.invalid_enum_value:
-            message = `Invalid enum value. Expected ${util.joinValues(issue.options)}, received '${issue.received}'`;
-            break;
-        case ZodIssueCode.invalid_arguments:
-            message = `Invalid function arguments`;
-            break;
-        case ZodIssueCode.invalid_return_type:
-            message = `Invalid function return type`;
-            break;
-        case ZodIssueCode.invalid_date:
-            message = `Invalid date`;
-            break;
-        case ZodIssueCode.invalid_string:
-            if (typeof issue.validation === "object") {
-                if ("includes" in issue.validation) {
-                    message = `Invalid input: must include "${issue.validation.includes}"`;
-                    if (typeof issue.validation.position === "number") {
-                        message = `${message} at one or more positions greater than or equal to ${issue.validation.position}`;
-                    }
-                }
-                else if ("startsWith" in issue.validation) {
-                    message = `Invalid input: must start with "${issue.validation.startsWith}"`;
-                }
-                else if ("endsWith" in issue.validation) {
-                    message = `Invalid input: must end with "${issue.validation.endsWith}"`;
-                }
-                else {
-                    util.assertNever(issue.validation);
-                }
-            }
-            else if (issue.validation !== "regex") {
-                message = `Invalid ${issue.validation}`;
-            }
-            else {
-                message = "Invalid";
-            }
-            break;
-        case ZodIssueCode.too_small:
-            if (issue.type === "array")
-                message = `Array must contain ${issue.exact ? "exactly" : issue.inclusive ? `at least` : `more than`} ${issue.minimum} element(s)`;
-            else if (issue.type === "string")
-                message = `String must contain ${issue.exact ? "exactly" : issue.inclusive ? `at least` : `over`} ${issue.minimum} character(s)`;
-            else if (issue.type === "number")
-                message = `Number must be ${issue.exact ? `exactly equal to ` : issue.inclusive ? `greater than or equal to ` : `greater than `}${issue.minimum}`;
-            else if (issue.type === "date")
-                message = `Date must be ${issue.exact ? `exactly equal to ` : issue.inclusive ? `greater than or equal to ` : `greater than `}${new Date(Number(issue.minimum))}`;
-            else
-                message = "Invalid input";
-            break;
-        case ZodIssueCode.too_big:
-            if (issue.type === "array")
-                message = `Array must contain ${issue.exact ? `exactly` : issue.inclusive ? `at most` : `less than`} ${issue.maximum} element(s)`;
-            else if (issue.type === "string")
-                message = `String must contain ${issue.exact ? `exactly` : issue.inclusive ? `at most` : `under`} ${issue.maximum} character(s)`;
-            else if (issue.type === "number")
-                message = `Number must be ${issue.exact ? `exactly` : issue.inclusive ? `less than or equal to` : `less than`} ${issue.maximum}`;
-            else if (issue.type === "bigint")
-                message = `BigInt must be ${issue.exact ? `exactly` : issue.inclusive ? `less than or equal to` : `less than`} ${issue.maximum}`;
-            else if (issue.type === "date")
-                message = `Date must be ${issue.exact ? `exactly` : issue.inclusive ? `smaller than or equal to` : `smaller than`} ${new Date(Number(issue.maximum))}`;
-            else
-                message = "Invalid input";
-            break;
-        case ZodIssueCode.custom:
-            message = `Invalid input`;
-            break;
-        case ZodIssueCode.invalid_intersection_types:
-            message = `Intersection results could not be merged`;
-            break;
-        case ZodIssueCode.not_multiple_of:
-            message = `Number must be a multiple of ${issue.multipleOf}`;
-            break;
-        case ZodIssueCode.not_finite:
-            message = "Number must be finite";
-            break;
-        default:
-            message = _ctx.defaultError;
-            util.assertNever(issue);
-    }
-    return { message };
-};
-
-let overrideErrorMap = errorMap;
-function getErrorMap() {
-    return overrideErrorMap;
-}
-
-const makeIssue = (params) => {
-    const { data, path, errorMaps, issueData } = params;
-    const fullPath = [...path, ...(issueData.path || [])];
-    const fullIssue = {
-        ...issueData,
-        path: fullPath,
-    };
-    if (issueData.message !== undefined) {
-        return {
-            ...issueData,
-            path: fullPath,
-            message: issueData.message,
-        };
-    }
-    let errorMessage = "";
-    const maps = errorMaps
-        .filter((m) => !!m)
-        .slice()
-        .reverse();
-    for (const map of maps) {
-        errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
-    }
-    return {
-        ...issueData,
-        path: fullPath,
-        message: errorMessage,
-    };
-};
-function addIssueToContext(ctx, issueData) {
-    const overrideMap = getErrorMap();
-    const issue = makeIssue({
-        issueData: issueData,
-        data: ctx.data,
-        path: ctx.path,
-        errorMaps: [
-            ctx.common.contextualErrorMap, // contextual error map is first priority
-            ctx.schemaErrorMap, // then schema-bound map if available
-            overrideMap, // then global override map
-            overrideMap === errorMap ? undefined : errorMap, // then global default map
-        ].filter((x) => !!x),
-    });
-    ctx.common.issues.push(issue);
-}
-class ParseStatus {
-    constructor() {
-        this.value = "valid";
-    }
-    dirty() {
-        if (this.value === "valid")
-            this.value = "dirty";
-    }
-    abort() {
-        if (this.value !== "aborted")
-            this.value = "aborted";
-    }
-    static mergeArray(status, results) {
-        const arrayValue = [];
-        for (const s of results) {
-            if (s.status === "aborted")
-                return INVALID;
-            if (s.status === "dirty")
-                status.dirty();
-            arrayValue.push(s.value);
-        }
-        return { status: status.value, value: arrayValue };
-    }
-    static async mergeObjectAsync(status, pairs) {
-        const syncPairs = [];
-        for (const pair of pairs) {
-            const key = await pair.key;
-            const value = await pair.value;
-            syncPairs.push({
-                key,
-                value,
-            });
-        }
-        return ParseStatus.mergeObjectSync(status, syncPairs);
-    }
-    static mergeObjectSync(status, pairs) {
-        const finalObject = {};
-        for (const pair of pairs) {
-            const { key, value } = pair;
-            if (key.status === "aborted")
-                return INVALID;
-            if (value.status === "aborted")
-                return INVALID;
-            if (key.status === "dirty")
-                status.dirty();
-            if (value.status === "dirty")
-                status.dirty();
-            if (key.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
-                finalObject[key.value] = value.value;
-            }
-        }
-        return { status: status.value, value: finalObject };
-    }
-}
-const INVALID = Object.freeze({
-    status: "aborted",
-});
-const DIRTY = (value) => ({ status: "dirty", value });
-const OK = (value) => ({ status: "valid", value });
-const isAborted = (x) => x.status === "aborted";
-const isDirty = (x) => x.status === "dirty";
-const isValid = (x) => x.status === "valid";
-const isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
-
-var errorUtil;
-(function (errorUtil) {
-    errorUtil.errToObj = (message) => typeof message === "string" ? { message } : message || {};
-    // biome-ignore lint:
-    errorUtil.toString = (message) => typeof message === "string" ? message : message?.message;
-})(errorUtil || (errorUtil = {}));
-
-class ParseInputLazyPath {
-    constructor(parent, value, path, key) {
-        this._cachedPath = [];
-        this.parent = parent;
-        this.data = value;
-        this._path = path;
-        this._key = key;
-    }
-    get path() {
-        if (!this._cachedPath.length) {
-            if (Array.isArray(this._key)) {
-                this._cachedPath.push(...this._path, ...this._key);
-            }
-            else {
-                this._cachedPath.push(...this._path, this._key);
-            }
-        }
-        return this._cachedPath;
-    }
-}
-const handleResult = (ctx, result) => {
-    if (isValid(result)) {
-        return { success: true, data: result.value };
-    }
-    else {
-        if (!ctx.common.issues.length) {
-            throw new Error("Validation failed but no issues detected.");
-        }
-        return {
-            success: false,
-            get error() {
-                if (this._error)
-                    return this._error;
-                const error = new ZodError(ctx.common.issues);
-                this._error = error;
-                return this._error;
-            },
-        };
-    }
-};
-function processCreateParams(params) {
-    if (!params)
-        return {};
-    const { errorMap, invalid_type_error, required_error, description } = params;
-    if (errorMap && (invalid_type_error || required_error)) {
-        throw new Error(`Can't use "invalid_type_error" or "required_error" in conjunction with custom error map.`);
-    }
-    if (errorMap)
-        return { errorMap: errorMap, description };
-    const customMap = (iss, ctx) => {
-        const { message } = params;
-        if (iss.code === "invalid_enum_value") {
-            return { message: message ?? ctx.defaultError };
-        }
-        if (typeof ctx.data === "undefined") {
-            return { message: message ?? required_error ?? ctx.defaultError };
-        }
-        if (iss.code !== "invalid_type")
-            return { message: ctx.defaultError };
-        return { message: message ?? invalid_type_error ?? ctx.defaultError };
-    };
-    return { errorMap: customMap, description };
-}
-class ZodType {
-    get description() {
-        return this._def.description;
-    }
-    _getType(input) {
-        return getParsedType(input.data);
-    }
-    _getOrReturnCtx(input, ctx) {
-        return (ctx || {
-            common: input.parent.common,
-            data: input.data,
-            parsedType: getParsedType(input.data),
-            schemaErrorMap: this._def.errorMap,
-            path: input.path,
-            parent: input.parent,
-        });
-    }
-    _processInputParams(input) {
-        return {
-            status: new ParseStatus(),
-            ctx: {
-                common: input.parent.common,
-                data: input.data,
-                parsedType: getParsedType(input.data),
-                schemaErrorMap: this._def.errorMap,
-                path: input.path,
-                parent: input.parent,
-            },
-        };
-    }
-    _parseSync(input) {
-        const result = this._parse(input);
-        if (isAsync(result)) {
-            throw new Error("Synchronous parse encountered promise.");
-        }
-        return result;
-    }
-    _parseAsync(input) {
-        const result = this._parse(input);
-        return Promise.resolve(result);
-    }
-    parse(data, params) {
-        const result = this.safeParse(data, params);
-        if (result.success)
-            return result.data;
-        throw result.error;
-    }
-    safeParse(data, params) {
-        const ctx = {
-            common: {
-                issues: [],
-                async: params?.async ?? false,
-                contextualErrorMap: params?.errorMap,
-            },
-            path: params?.path || [],
-            schemaErrorMap: this._def.errorMap,
-            parent: null,
-            data,
-            parsedType: getParsedType(data),
-        };
-        const result = this._parseSync({ data, path: ctx.path, parent: ctx });
-        return handleResult(ctx, result);
-    }
-    "~validate"(data) {
-        const ctx = {
-            common: {
-                issues: [],
-                async: !!this["~standard"].async,
-            },
-            path: [],
-            schemaErrorMap: this._def.errorMap,
-            parent: null,
-            data,
-            parsedType: getParsedType(data),
-        };
-        if (!this["~standard"].async) {
-            try {
-                const result = this._parseSync({ data, path: [], parent: ctx });
-                return isValid(result)
-                    ? {
-                        value: result.value,
-                    }
-                    : {
-                        issues: ctx.common.issues,
-                    };
-            }
-            catch (err) {
-                if (err?.message?.toLowerCase()?.includes("encountered")) {
-                    this["~standard"].async = true;
-                }
-                ctx.common = {
-                    issues: [],
-                    async: true,
-                };
-            }
-        }
-        return this._parseAsync({ data, path: [], parent: ctx }).then((result) => isValid(result)
-            ? {
-                value: result.value,
-            }
-            : {
-                issues: ctx.common.issues,
-            });
-    }
-    async parseAsync(data, params) {
-        const result = await this.safeParseAsync(data, params);
-        if (result.success)
-            return result.data;
-        throw result.error;
-    }
-    async safeParseAsync(data, params) {
-        const ctx = {
-            common: {
-                issues: [],
-                contextualErrorMap: params?.errorMap,
-                async: true,
-            },
-            path: params?.path || [],
-            schemaErrorMap: this._def.errorMap,
-            parent: null,
-            data,
-            parsedType: getParsedType(data),
-        };
-        const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
-        const result = await (isAsync(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
-        return handleResult(ctx, result);
-    }
-    refine(check, message) {
-        const getIssueProperties = (val) => {
-            if (typeof message === "string" || typeof message === "undefined") {
-                return { message };
-            }
-            else if (typeof message === "function") {
-                return message(val);
-            }
-            else {
-                return message;
-            }
-        };
-        return this._refinement((val, ctx) => {
-            const result = check(val);
-            const setError = () => ctx.addIssue({
-                code: ZodIssueCode.custom,
-                ...getIssueProperties(val),
-            });
-            if (typeof Promise !== "undefined" && result instanceof Promise) {
-                return result.then((data) => {
-                    if (!data) {
-                        setError();
-                        return false;
-                    }
-                    else {
-                        return true;
-                    }
-                });
-            }
-            if (!result) {
-                setError();
-                return false;
-            }
-            else {
-                return true;
-            }
-        });
-    }
-    refinement(check, refinementData) {
-        return this._refinement((val, ctx) => {
-            if (!check(val)) {
-                ctx.addIssue(typeof refinementData === "function" ? refinementData(val, ctx) : refinementData);
-                return false;
-            }
-            else {
-                return true;
-            }
-        });
-    }
-    _refinement(refinement) {
-        return new ZodEffects({
-            schema: this,
-            typeName: ZodFirstPartyTypeKind.ZodEffects,
-            effect: { type: "refinement", refinement },
-        });
-    }
-    superRefine(refinement) {
-        return this._refinement(refinement);
-    }
-    constructor(def) {
-        /** Alias of safeParseAsync */
-        this.spa = this.safeParseAsync;
-        this._def = def;
-        this.parse = this.parse.bind(this);
-        this.safeParse = this.safeParse.bind(this);
-        this.parseAsync = this.parseAsync.bind(this);
-        this.safeParseAsync = this.safeParseAsync.bind(this);
-        this.spa = this.spa.bind(this);
-        this.refine = this.refine.bind(this);
-        this.refinement = this.refinement.bind(this);
-        this.superRefine = this.superRefine.bind(this);
-        this.optional = this.optional.bind(this);
-        this.nullable = this.nullable.bind(this);
-        this.nullish = this.nullish.bind(this);
-        this.array = this.array.bind(this);
-        this.promise = this.promise.bind(this);
-        this.or = this.or.bind(this);
-        this.and = this.and.bind(this);
-        this.transform = this.transform.bind(this);
-        this.brand = this.brand.bind(this);
-        this.default = this.default.bind(this);
-        this.catch = this.catch.bind(this);
-        this.describe = this.describe.bind(this);
-        this.pipe = this.pipe.bind(this);
-        this.readonly = this.readonly.bind(this);
-        this.isNullable = this.isNullable.bind(this);
-        this.isOptional = this.isOptional.bind(this);
-        this["~standard"] = {
-            version: 1,
-            vendor: "zod",
-            validate: (data) => this["~validate"](data),
-        };
-    }
-    optional() {
-        return ZodOptional.create(this, this._def);
-    }
-    nullable() {
-        return ZodNullable.create(this, this._def);
-    }
-    nullish() {
-        return this.nullable().optional();
-    }
-    array() {
-        return ZodArray.create(this);
-    }
-    promise() {
-        return ZodPromise.create(this, this._def);
-    }
-    or(option) {
-        return ZodUnion.create([this, option], this._def);
-    }
-    and(incoming) {
-        return ZodIntersection.create(this, incoming, this._def);
-    }
-    transform(transform) {
-        return new ZodEffects({
-            ...processCreateParams(this._def),
-            schema: this,
-            typeName: ZodFirstPartyTypeKind.ZodEffects,
-            effect: { type: "transform", transform },
-        });
-    }
-    default(def) {
-        const defaultValueFunc = typeof def === "function" ? def : () => def;
-        return new ZodDefault({
-            ...processCreateParams(this._def),
-            innerType: this,
-            defaultValue: defaultValueFunc,
-            typeName: ZodFirstPartyTypeKind.ZodDefault,
-        });
-    }
-    brand() {
-        return new ZodBranded({
-            typeName: ZodFirstPartyTypeKind.ZodBranded,
-            type: this,
-            ...processCreateParams(this._def),
-        });
-    }
-    catch(def) {
-        const catchValueFunc = typeof def === "function" ? def : () => def;
-        return new ZodCatch({
-            ...processCreateParams(this._def),
-            innerType: this,
-            catchValue: catchValueFunc,
-            typeName: ZodFirstPartyTypeKind.ZodCatch,
-        });
-    }
-    describe(description) {
-        const This = this.constructor;
-        return new This({
-            ...this._def,
-            description,
-        });
-    }
-    pipe(target) {
-        return ZodPipeline.create(this, target);
-    }
-    readonly() {
-        return ZodReadonly.create(this);
-    }
-    isOptional() {
-        return this.safeParse(undefined).success;
-    }
-    isNullable() {
-        return this.safeParse(null).success;
-    }
-}
-const cuidRegex = /^c[^\s-]{8,}$/i;
-const cuid2Regex = /^[0-9a-z]+$/;
-const ulidRegex = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
-// const uuidRegex =
-//   /^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i;
-const uuidRegex = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i;
-const nanoidRegex = /^[a-z0-9_-]{21}$/i;
-const jwtRegex = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/;
-const durationRegex = /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/;
-// from https://stackoverflow.com/a/46181/1550155
-// old version: too slow, didn't support unicode
-// const emailRegex = /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))$/i;
-//old email regex
-// const emailRegex = /^(([^<>()[\].,;:\s@"]+(\.[^<>()[\].,;:\s@"]+)*)|(".+"))@((?!-)([^<>()[\].,;:\s@"]+\.)+[^<>()[\].,;:\s@"]{1,})[^-<>()[\].,;:\s@"]$/i;
-// eslint-disable-next-line
-// const emailRegex =
-//   /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/;
-// const emailRegex =
-//   /^[a-zA-Z0-9\.\!\#\$\%\&\'\*\+\/\=\?\^\_\`\{\|\}\~\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-// const emailRegex =
-//   /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
-const emailRegex = /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i;
-// const emailRegex =
-//   /^[a-z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9\-]+)*$/i;
-// from https://thekevinscott.com/emojis-in-javascript/#writing-a-regular-expression
-const _emojiRegex = `^(\\p{Extended_Pictographic}|\\p{Emoji_Component})+$`;
-let emojiRegex;
-// faster, simpler, safer
-const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
-const ipv4CidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(3[0-2]|[12]?[0-9])$/;
-// const ipv6Regex =
-// /^(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))$/;
-const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-const ipv6CidrRegex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
-// https://stackoverflow.com/questions/7860392/determine-if-string-is-in-base64-using-javascript
-const base64Regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
-// https://base64.guru/standards/base64url
-const base64urlRegex = /^([0-9a-zA-Z-_]{4})*(([0-9a-zA-Z-_]{2}(==)?)|([0-9a-zA-Z-_]{3}(=)?))?$/;
-// simple
-// const dateRegexSource = `\\d{4}-\\d{2}-\\d{2}`;
-// no leap year validation
-// const dateRegexSource = `\\d{4}-((0[13578]|10|12)-31|(0[13-9]|1[0-2])-30|(0[1-9]|1[0-2])-(0[1-9]|1\\d|2\\d))`;
-// with leap year validation
-const dateRegexSource = `((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))`;
-const dateRegex = new RegExp(`^${dateRegexSource}$`);
-function timeRegexSource(args) {
-    let secondsRegexSource = `[0-5]\\d`;
-    if (args.precision) {
-        secondsRegexSource = `${secondsRegexSource}\\.\\d{${args.precision}}`;
-    }
-    else if (args.precision == null) {
-        secondsRegexSource = `${secondsRegexSource}(\\.\\d+)?`;
-    }
-    const secondsQuantifier = args.precision ? "+" : "?"; // require seconds if precision is nonzero
-    return `([01]\\d|2[0-3]):[0-5]\\d(:${secondsRegexSource})${secondsQuantifier}`;
-}
-function timeRegex(args) {
-    return new RegExp(`^${timeRegexSource(args)}$`);
-}
-// Adapted from https://stackoverflow.com/a/3143231
-function datetimeRegex(args) {
-    let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
-    const opts = [];
-    opts.push(args.local ? `Z?` : `Z`);
-    if (args.offset)
-        opts.push(`([+-]\\d{2}:?\\d{2})`);
-    regex = `${regex}(${opts.join("|")})`;
-    return new RegExp(`^${regex}$`);
-}
-function isValidIP(ip, version) {
-    if ((version === "v4" || !version) && ipv4Regex.test(ip)) {
-        return true;
-    }
-    if ((version === "v6" || !version) && ipv6Regex.test(ip)) {
-        return true;
-    }
-    return false;
-}
-function isValidJWT(jwt, alg) {
-    if (!jwtRegex.test(jwt))
-        return false;
-    try {
-        const [header] = jwt.split(".");
-        // Convert base64url to base64
-        const base64 = header
-            .replace(/-/g, "+")
-            .replace(/_/g, "/")
-            .padEnd(header.length + ((4 - (header.length % 4)) % 4), "=");
-        const decoded = JSON.parse(atob(base64));
-        if (typeof decoded !== "object" || decoded === null)
-            return false;
-        if ("typ" in decoded && decoded?.typ !== "JWT")
-            return false;
-        if (!decoded.alg)
-            return false;
-        if (alg && decoded.alg !== alg)
-            return false;
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
-function isValidCidr(ip, version) {
-    if ((version === "v4" || !version) && ipv4CidrRegex.test(ip)) {
-        return true;
-    }
-    if ((version === "v6" || !version) && ipv6CidrRegex.test(ip)) {
-        return true;
-    }
-    return false;
-}
-class ZodString extends ZodType {
-    _parse(input) {
-        if (this._def.coerce) {
-            input.data = String(input.data);
-        }
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.string) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.string,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const status = new ParseStatus();
-        let ctx = undefined;
-        for (const check of this._def.checks) {
-            if (check.kind === "min") {
-                if (input.data.length < check.value) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_small,
-                        minimum: check.value,
-                        type: "string",
-                        inclusive: true,
-                        exact: false,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "max") {
-                if (input.data.length > check.value) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_big,
-                        maximum: check.value,
-                        type: "string",
-                        inclusive: true,
-                        exact: false,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "length") {
-                const tooBig = input.data.length > check.value;
-                const tooSmall = input.data.length < check.value;
-                if (tooBig || tooSmall) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    if (tooBig) {
-                        addIssueToContext(ctx, {
-                            code: ZodIssueCode.too_big,
-                            maximum: check.value,
-                            type: "string",
-                            inclusive: true,
-                            exact: true,
-                            message: check.message,
-                        });
-                    }
-                    else if (tooSmall) {
-                        addIssueToContext(ctx, {
-                            code: ZodIssueCode.too_small,
-                            minimum: check.value,
-                            type: "string",
-                            inclusive: true,
-                            exact: true,
-                            message: check.message,
-                        });
-                    }
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "email") {
-                if (!emailRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "email",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "emoji") {
-                if (!emojiRegex) {
-                    emojiRegex = new RegExp(_emojiRegex, "u");
-                }
-                if (!emojiRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "emoji",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "uuid") {
-                if (!uuidRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "uuid",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "nanoid") {
-                if (!nanoidRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "nanoid",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "cuid") {
-                if (!cuidRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "cuid",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "cuid2") {
-                if (!cuid2Regex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "cuid2",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "ulid") {
-                if (!ulidRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "ulid",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "url") {
-                try {
-                    new URL(input.data);
-                }
-                catch {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "url",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "regex") {
-                check.regex.lastIndex = 0;
-                const testResult = check.regex.test(input.data);
-                if (!testResult) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "regex",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "trim") {
-                input.data = input.data.trim();
-            }
-            else if (check.kind === "includes") {
-                if (!input.data.includes(check.value, check.position)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: { includes: check.value, position: check.position },
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "toLowerCase") {
-                input.data = input.data.toLowerCase();
-            }
-            else if (check.kind === "toUpperCase") {
-                input.data = input.data.toUpperCase();
-            }
-            else if (check.kind === "startsWith") {
-                if (!input.data.startsWith(check.value)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: { startsWith: check.value },
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "endsWith") {
-                if (!input.data.endsWith(check.value)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: { endsWith: check.value },
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "datetime") {
-                const regex = datetimeRegex(check);
-                if (!regex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: "datetime",
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "date") {
-                const regex = dateRegex;
-                if (!regex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: "date",
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "time") {
-                const regex = timeRegex(check);
-                if (!regex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_string,
-                        validation: "time",
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "duration") {
-                if (!durationRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "duration",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "ip") {
-                if (!isValidIP(input.data, check.version)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "ip",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "jwt") {
-                if (!isValidJWT(input.data, check.alg)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "jwt",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "cidr") {
-                if (!isValidCidr(input.data, check.version)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "cidr",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "base64") {
-                if (!base64Regex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "base64",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "base64url") {
-                if (!base64urlRegex.test(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        validation: "base64url",
-                        code: ZodIssueCode.invalid_string,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else {
-                util.assertNever(check);
-            }
-        }
-        return { status: status.value, value: input.data };
-    }
-    _regex(regex, validation, message) {
-        return this.refinement((data) => regex.test(data), {
-            validation,
-            code: ZodIssueCode.invalid_string,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    _addCheck(check) {
-        return new ZodString({
-            ...this._def,
-            checks: [...this._def.checks, check],
-        });
-    }
-    email(message) {
-        return this._addCheck({ kind: "email", ...errorUtil.errToObj(message) });
-    }
-    url(message) {
-        return this._addCheck({ kind: "url", ...errorUtil.errToObj(message) });
-    }
-    emoji(message) {
-        return this._addCheck({ kind: "emoji", ...errorUtil.errToObj(message) });
-    }
-    uuid(message) {
-        return this._addCheck({ kind: "uuid", ...errorUtil.errToObj(message) });
-    }
-    nanoid(message) {
-        return this._addCheck({ kind: "nanoid", ...errorUtil.errToObj(message) });
-    }
-    cuid(message) {
-        return this._addCheck({ kind: "cuid", ...errorUtil.errToObj(message) });
-    }
-    cuid2(message) {
-        return this._addCheck({ kind: "cuid2", ...errorUtil.errToObj(message) });
-    }
-    ulid(message) {
-        return this._addCheck({ kind: "ulid", ...errorUtil.errToObj(message) });
-    }
-    base64(message) {
-        return this._addCheck({ kind: "base64", ...errorUtil.errToObj(message) });
-    }
-    base64url(message) {
-        // base64url encoding is a modification of base64 that can safely be used in URLs and filenames
-        return this._addCheck({
-            kind: "base64url",
-            ...errorUtil.errToObj(message),
-        });
-    }
-    jwt(options) {
-        return this._addCheck({ kind: "jwt", ...errorUtil.errToObj(options) });
-    }
-    ip(options) {
-        return this._addCheck({ kind: "ip", ...errorUtil.errToObj(options) });
-    }
-    cidr(options) {
-        return this._addCheck({ kind: "cidr", ...errorUtil.errToObj(options) });
-    }
-    datetime(options) {
-        if (typeof options === "string") {
-            return this._addCheck({
-                kind: "datetime",
-                precision: null,
-                offset: false,
-                local: false,
-                message: options,
-            });
-        }
-        return this._addCheck({
-            kind: "datetime",
-            precision: typeof options?.precision === "undefined" ? null : options?.precision,
-            offset: options?.offset ?? false,
-            local: options?.local ?? false,
-            ...errorUtil.errToObj(options?.message),
-        });
-    }
-    date(message) {
-        return this._addCheck({ kind: "date", message });
-    }
-    time(options) {
-        if (typeof options === "string") {
-            return this._addCheck({
-                kind: "time",
-                precision: null,
-                message: options,
-            });
-        }
-        return this._addCheck({
-            kind: "time",
-            precision: typeof options?.precision === "undefined" ? null : options?.precision,
-            ...errorUtil.errToObj(options?.message),
-        });
-    }
-    duration(message) {
-        return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message) });
-    }
-    regex(regex, message) {
-        return this._addCheck({
-            kind: "regex",
-            regex: regex,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    includes(value, options) {
-        return this._addCheck({
-            kind: "includes",
-            value: value,
-            position: options?.position,
-            ...errorUtil.errToObj(options?.message),
-        });
-    }
-    startsWith(value, message) {
-        return this._addCheck({
-            kind: "startsWith",
-            value: value,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    endsWith(value, message) {
-        return this._addCheck({
-            kind: "endsWith",
-            value: value,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    min(minLength, message) {
-        return this._addCheck({
-            kind: "min",
-            value: minLength,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    max(maxLength, message) {
-        return this._addCheck({
-            kind: "max",
-            value: maxLength,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    length(len, message) {
-        return this._addCheck({
-            kind: "length",
-            value: len,
-            ...errorUtil.errToObj(message),
-        });
-    }
-    /**
-     * Equivalent to `.min(1)`
-     */
-    nonempty(message) {
-        return this.min(1, errorUtil.errToObj(message));
-    }
-    trim() {
-        return new ZodString({
-            ...this._def,
-            checks: [...this._def.checks, { kind: "trim" }],
-        });
-    }
-    toLowerCase() {
-        return new ZodString({
-            ...this._def,
-            checks: [...this._def.checks, { kind: "toLowerCase" }],
-        });
-    }
-    toUpperCase() {
-        return new ZodString({
-            ...this._def,
-            checks: [...this._def.checks, { kind: "toUpperCase" }],
-        });
-    }
-    get isDatetime() {
-        return !!this._def.checks.find((ch) => ch.kind === "datetime");
-    }
-    get isDate() {
-        return !!this._def.checks.find((ch) => ch.kind === "date");
-    }
-    get isTime() {
-        return !!this._def.checks.find((ch) => ch.kind === "time");
-    }
-    get isDuration() {
-        return !!this._def.checks.find((ch) => ch.kind === "duration");
-    }
-    get isEmail() {
-        return !!this._def.checks.find((ch) => ch.kind === "email");
-    }
-    get isURL() {
-        return !!this._def.checks.find((ch) => ch.kind === "url");
-    }
-    get isEmoji() {
-        return !!this._def.checks.find((ch) => ch.kind === "emoji");
-    }
-    get isUUID() {
-        return !!this._def.checks.find((ch) => ch.kind === "uuid");
-    }
-    get isNANOID() {
-        return !!this._def.checks.find((ch) => ch.kind === "nanoid");
-    }
-    get isCUID() {
-        return !!this._def.checks.find((ch) => ch.kind === "cuid");
-    }
-    get isCUID2() {
-        return !!this._def.checks.find((ch) => ch.kind === "cuid2");
-    }
-    get isULID() {
-        return !!this._def.checks.find((ch) => ch.kind === "ulid");
-    }
-    get isIP() {
-        return !!this._def.checks.find((ch) => ch.kind === "ip");
-    }
-    get isCIDR() {
-        return !!this._def.checks.find((ch) => ch.kind === "cidr");
-    }
-    get isBase64() {
-        return !!this._def.checks.find((ch) => ch.kind === "base64");
-    }
-    get isBase64url() {
-        // base64url encoding is a modification of base64 that can safely be used in URLs and filenames
-        return !!this._def.checks.find((ch) => ch.kind === "base64url");
-    }
-    get minLength() {
-        let min = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "min") {
-                if (min === null || ch.value > min)
-                    min = ch.value;
-            }
-        }
-        return min;
-    }
-    get maxLength() {
-        let max = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "max") {
-                if (max === null || ch.value < max)
-                    max = ch.value;
-            }
-        }
-        return max;
-    }
-}
-ZodString.create = (params) => {
-    return new ZodString({
-        checks: [],
-        typeName: ZodFirstPartyTypeKind.ZodString,
-        coerce: params?.coerce ?? false,
-        ...processCreateParams(params),
-    });
-};
-// https://stackoverflow.com/questions/3966484/why-does-modulus-operator-return-fractional-number-in-javascript/31711034#31711034
-function floatSafeRemainder(val, step) {
-    const valDecCount = (val.toString().split(".")[1] || "").length;
-    const stepDecCount = (step.toString().split(".")[1] || "").length;
-    const decCount = valDecCount > stepDecCount ? valDecCount : stepDecCount;
-    const valInt = Number.parseInt(val.toFixed(decCount).replace(".", ""));
-    const stepInt = Number.parseInt(step.toFixed(decCount).replace(".", ""));
-    return (valInt % stepInt) / 10 ** decCount;
-}
-class ZodNumber extends ZodType {
-    constructor() {
-        super(...arguments);
-        this.min = this.gte;
-        this.max = this.lte;
-        this.step = this.multipleOf;
-    }
-    _parse(input) {
-        if (this._def.coerce) {
-            input.data = Number(input.data);
-        }
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.number) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.number,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        let ctx = undefined;
-        const status = new ParseStatus();
-        for (const check of this._def.checks) {
-            if (check.kind === "int") {
-                if (!util.isInteger(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.invalid_type,
-                        expected: "integer",
-                        received: "float",
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "min") {
-                const tooSmall = check.inclusive ? input.data < check.value : input.data <= check.value;
-                if (tooSmall) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_small,
-                        minimum: check.value,
-                        type: "number",
-                        inclusive: check.inclusive,
-                        exact: false,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "max") {
-                const tooBig = check.inclusive ? input.data > check.value : input.data >= check.value;
-                if (tooBig) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_big,
-                        maximum: check.value,
-                        type: "number",
-                        inclusive: check.inclusive,
-                        exact: false,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "multipleOf") {
-                if (floatSafeRemainder(input.data, check.value) !== 0) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.not_multiple_of,
-                        multipleOf: check.value,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "finite") {
-                if (!Number.isFinite(input.data)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.not_finite,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else {
-                util.assertNever(check);
-            }
-        }
-        return { status: status.value, value: input.data };
-    }
-    gte(value, message) {
-        return this.setLimit("min", value, true, errorUtil.toString(message));
-    }
-    gt(value, message) {
-        return this.setLimit("min", value, false, errorUtil.toString(message));
-    }
-    lte(value, message) {
-        return this.setLimit("max", value, true, errorUtil.toString(message));
-    }
-    lt(value, message) {
-        return this.setLimit("max", value, false, errorUtil.toString(message));
-    }
-    setLimit(kind, value, inclusive, message) {
-        return new ZodNumber({
-            ...this._def,
-            checks: [
-                ...this._def.checks,
-                {
-                    kind,
-                    value,
-                    inclusive,
-                    message: errorUtil.toString(message),
-                },
-            ],
-        });
-    }
-    _addCheck(check) {
-        return new ZodNumber({
-            ...this._def,
-            checks: [...this._def.checks, check],
-        });
-    }
-    int(message) {
-        return this._addCheck({
-            kind: "int",
-            message: errorUtil.toString(message),
-        });
-    }
-    positive(message) {
-        return this._addCheck({
-            kind: "min",
-            value: 0,
-            inclusive: false,
-            message: errorUtil.toString(message),
-        });
-    }
-    negative(message) {
-        return this._addCheck({
-            kind: "max",
-            value: 0,
-            inclusive: false,
-            message: errorUtil.toString(message),
-        });
-    }
-    nonpositive(message) {
-        return this._addCheck({
-            kind: "max",
-            value: 0,
-            inclusive: true,
-            message: errorUtil.toString(message),
-        });
-    }
-    nonnegative(message) {
-        return this._addCheck({
-            kind: "min",
-            value: 0,
-            inclusive: true,
-            message: errorUtil.toString(message),
-        });
-    }
-    multipleOf(value, message) {
-        return this._addCheck({
-            kind: "multipleOf",
-            value: value,
-            message: errorUtil.toString(message),
-        });
-    }
-    finite(message) {
-        return this._addCheck({
-            kind: "finite",
-            message: errorUtil.toString(message),
-        });
-    }
-    safe(message) {
-        return this._addCheck({
-            kind: "min",
-            inclusive: true,
-            value: Number.MIN_SAFE_INTEGER,
-            message: errorUtil.toString(message),
-        })._addCheck({
-            kind: "max",
-            inclusive: true,
-            value: Number.MAX_SAFE_INTEGER,
-            message: errorUtil.toString(message),
-        });
-    }
-    get minValue() {
-        let min = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "min") {
-                if (min === null || ch.value > min)
-                    min = ch.value;
-            }
-        }
-        return min;
-    }
-    get maxValue() {
-        let max = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "max") {
-                if (max === null || ch.value < max)
-                    max = ch.value;
-            }
-        }
-        return max;
-    }
-    get isInt() {
-        return !!this._def.checks.find((ch) => ch.kind === "int" || (ch.kind === "multipleOf" && util.isInteger(ch.value)));
-    }
-    get isFinite() {
-        let max = null;
-        let min = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "finite" || ch.kind === "int" || ch.kind === "multipleOf") {
-                return true;
-            }
-            else if (ch.kind === "min") {
-                if (min === null || ch.value > min)
-                    min = ch.value;
-            }
-            else if (ch.kind === "max") {
-                if (max === null || ch.value < max)
-                    max = ch.value;
-            }
-        }
-        return Number.isFinite(min) && Number.isFinite(max);
-    }
-}
-ZodNumber.create = (params) => {
-    return new ZodNumber({
-        checks: [],
-        typeName: ZodFirstPartyTypeKind.ZodNumber,
-        coerce: params?.coerce || false,
-        ...processCreateParams(params),
-    });
-};
-class ZodBigInt extends ZodType {
-    constructor() {
-        super(...arguments);
-        this.min = this.gte;
-        this.max = this.lte;
-    }
-    _parse(input) {
-        if (this._def.coerce) {
-            try {
-                input.data = BigInt(input.data);
-            }
-            catch {
-                return this._getInvalidInput(input);
-            }
-        }
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.bigint) {
-            return this._getInvalidInput(input);
-        }
-        let ctx = undefined;
-        const status = new ParseStatus();
-        for (const check of this._def.checks) {
-            if (check.kind === "min") {
-                const tooSmall = check.inclusive ? input.data < check.value : input.data <= check.value;
-                if (tooSmall) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_small,
-                        type: "bigint",
-                        minimum: check.value,
-                        inclusive: check.inclusive,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "max") {
-                const tooBig = check.inclusive ? input.data > check.value : input.data >= check.value;
-                if (tooBig) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_big,
-                        type: "bigint",
-                        maximum: check.value,
-                        inclusive: check.inclusive,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "multipleOf") {
-                if (input.data % check.value !== BigInt(0)) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.not_multiple_of,
-                        multipleOf: check.value,
-                        message: check.message,
-                    });
-                    status.dirty();
-                }
-            }
-            else {
-                util.assertNever(check);
-            }
-        }
-        return { status: status.value, value: input.data };
-    }
-    _getInvalidInput(input) {
-        const ctx = this._getOrReturnCtx(input);
-        addIssueToContext(ctx, {
-            code: ZodIssueCode.invalid_type,
-            expected: ZodParsedType.bigint,
-            received: ctx.parsedType,
-        });
-        return INVALID;
-    }
-    gte(value, message) {
-        return this.setLimit("min", value, true, errorUtil.toString(message));
-    }
-    gt(value, message) {
-        return this.setLimit("min", value, false, errorUtil.toString(message));
-    }
-    lte(value, message) {
-        return this.setLimit("max", value, true, errorUtil.toString(message));
-    }
-    lt(value, message) {
-        return this.setLimit("max", value, false, errorUtil.toString(message));
-    }
-    setLimit(kind, value, inclusive, message) {
-        return new ZodBigInt({
-            ...this._def,
-            checks: [
-                ...this._def.checks,
-                {
-                    kind,
-                    value,
-                    inclusive,
-                    message: errorUtil.toString(message),
-                },
-            ],
-        });
-    }
-    _addCheck(check) {
-        return new ZodBigInt({
-            ...this._def,
-            checks: [...this._def.checks, check],
-        });
-    }
-    positive(message) {
-        return this._addCheck({
-            kind: "min",
-            value: BigInt(0),
-            inclusive: false,
-            message: errorUtil.toString(message),
-        });
-    }
-    negative(message) {
-        return this._addCheck({
-            kind: "max",
-            value: BigInt(0),
-            inclusive: false,
-            message: errorUtil.toString(message),
-        });
-    }
-    nonpositive(message) {
-        return this._addCheck({
-            kind: "max",
-            value: BigInt(0),
-            inclusive: true,
-            message: errorUtil.toString(message),
-        });
-    }
-    nonnegative(message) {
-        return this._addCheck({
-            kind: "min",
-            value: BigInt(0),
-            inclusive: true,
-            message: errorUtil.toString(message),
-        });
-    }
-    multipleOf(value, message) {
-        return this._addCheck({
-            kind: "multipleOf",
-            value,
-            message: errorUtil.toString(message),
-        });
-    }
-    get minValue() {
-        let min = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "min") {
-                if (min === null || ch.value > min)
-                    min = ch.value;
-            }
-        }
-        return min;
-    }
-    get maxValue() {
-        let max = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "max") {
-                if (max === null || ch.value < max)
-                    max = ch.value;
-            }
-        }
-        return max;
-    }
-}
-ZodBigInt.create = (params) => {
-    return new ZodBigInt({
-        checks: [],
-        typeName: ZodFirstPartyTypeKind.ZodBigInt,
-        coerce: params?.coerce ?? false,
-        ...processCreateParams(params),
-    });
-};
-class ZodBoolean extends ZodType {
-    _parse(input) {
-        if (this._def.coerce) {
-            input.data = Boolean(input.data);
-        }
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.boolean) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.boolean,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-}
-ZodBoolean.create = (params) => {
-    return new ZodBoolean({
-        typeName: ZodFirstPartyTypeKind.ZodBoolean,
-        coerce: params?.coerce || false,
-        ...processCreateParams(params),
-    });
-};
-class ZodDate extends ZodType {
-    _parse(input) {
-        if (this._def.coerce) {
-            input.data = new Date(input.data);
-        }
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.date) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.date,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        if (Number.isNaN(input.data.getTime())) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_date,
-            });
-            return INVALID;
-        }
-        const status = new ParseStatus();
-        let ctx = undefined;
-        for (const check of this._def.checks) {
-            if (check.kind === "min") {
-                if (input.data.getTime() < check.value) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_small,
-                        message: check.message,
-                        inclusive: true,
-                        exact: false,
-                        minimum: check.value,
-                        type: "date",
-                    });
-                    status.dirty();
-                }
-            }
-            else if (check.kind === "max") {
-                if (input.data.getTime() > check.value) {
-                    ctx = this._getOrReturnCtx(input, ctx);
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.too_big,
-                        message: check.message,
-                        inclusive: true,
-                        exact: false,
-                        maximum: check.value,
-                        type: "date",
-                    });
-                    status.dirty();
-                }
-            }
-            else {
-                util.assertNever(check);
-            }
-        }
-        return {
-            status: status.value,
-            value: new Date(input.data.getTime()),
-        };
-    }
-    _addCheck(check) {
-        return new ZodDate({
-            ...this._def,
-            checks: [...this._def.checks, check],
-        });
-    }
-    min(minDate, message) {
-        return this._addCheck({
-            kind: "min",
-            value: minDate.getTime(),
-            message: errorUtil.toString(message),
-        });
-    }
-    max(maxDate, message) {
-        return this._addCheck({
-            kind: "max",
-            value: maxDate.getTime(),
-            message: errorUtil.toString(message),
-        });
-    }
-    get minDate() {
-        let min = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "min") {
-                if (min === null || ch.value > min)
-                    min = ch.value;
-            }
-        }
-        return min != null ? new Date(min) : null;
-    }
-    get maxDate() {
-        let max = null;
-        for (const ch of this._def.checks) {
-            if (ch.kind === "max") {
-                if (max === null || ch.value < max)
-                    max = ch.value;
-            }
-        }
-        return max != null ? new Date(max) : null;
-    }
-}
-ZodDate.create = (params) => {
-    return new ZodDate({
-        checks: [],
-        coerce: params?.coerce || false,
-        typeName: ZodFirstPartyTypeKind.ZodDate,
-        ...processCreateParams(params),
-    });
-};
-class ZodSymbol extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.symbol) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.symbol,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-}
-ZodSymbol.create = (params) => {
-    return new ZodSymbol({
-        typeName: ZodFirstPartyTypeKind.ZodSymbol,
-        ...processCreateParams(params),
-    });
-};
-class ZodUndefined extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.undefined) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.undefined,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-}
-ZodUndefined.create = (params) => {
-    return new ZodUndefined({
-        typeName: ZodFirstPartyTypeKind.ZodUndefined,
-        ...processCreateParams(params),
-    });
-};
-class ZodNull extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.null) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.null,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-}
-ZodNull.create = (params) => {
-    return new ZodNull({
-        typeName: ZodFirstPartyTypeKind.ZodNull,
-        ...processCreateParams(params),
-    });
-};
-class ZodAny extends ZodType {
-    constructor() {
-        super(...arguments);
-        // to prevent instances of other classes from extending ZodAny. this causes issues with catchall in ZodObject.
-        this._any = true;
-    }
-    _parse(input) {
-        return OK(input.data);
-    }
-}
-ZodAny.create = (params) => {
-    return new ZodAny({
-        typeName: ZodFirstPartyTypeKind.ZodAny,
-        ...processCreateParams(params),
-    });
-};
-class ZodUnknown extends ZodType {
-    constructor() {
-        super(...arguments);
-        // required
-        this._unknown = true;
-    }
-    _parse(input) {
-        return OK(input.data);
-    }
-}
-ZodUnknown.create = (params) => {
-    return new ZodUnknown({
-        typeName: ZodFirstPartyTypeKind.ZodUnknown,
-        ...processCreateParams(params),
-    });
-};
-class ZodNever extends ZodType {
-    _parse(input) {
-        const ctx = this._getOrReturnCtx(input);
-        addIssueToContext(ctx, {
-            code: ZodIssueCode.invalid_type,
-            expected: ZodParsedType.never,
-            received: ctx.parsedType,
-        });
-        return INVALID;
-    }
-}
-ZodNever.create = (params) => {
-    return new ZodNever({
-        typeName: ZodFirstPartyTypeKind.ZodNever,
-        ...processCreateParams(params),
-    });
-};
-class ZodVoid extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.undefined) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.void,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-}
-ZodVoid.create = (params) => {
-    return new ZodVoid({
-        typeName: ZodFirstPartyTypeKind.ZodVoid,
-        ...processCreateParams(params),
-    });
-};
-class ZodArray extends ZodType {
-    _parse(input) {
-        const { ctx, status } = this._processInputParams(input);
-        const def = this._def;
-        if (ctx.parsedType !== ZodParsedType.array) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.array,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        if (def.exactLength !== null) {
-            const tooBig = ctx.data.length > def.exactLength.value;
-            const tooSmall = ctx.data.length < def.exactLength.value;
-            if (tooBig || tooSmall) {
-                addIssueToContext(ctx, {
-                    code: tooBig ? ZodIssueCode.too_big : ZodIssueCode.too_small,
-                    minimum: (tooSmall ? def.exactLength.value : undefined),
-                    maximum: (tooBig ? def.exactLength.value : undefined),
-                    type: "array",
-                    inclusive: true,
-                    exact: true,
-                    message: def.exactLength.message,
-                });
-                status.dirty();
-            }
-        }
-        if (def.minLength !== null) {
-            if (ctx.data.length < def.minLength.value) {
-                addIssueToContext(ctx, {
-                    code: ZodIssueCode.too_small,
-                    minimum: def.minLength.value,
-                    type: "array",
-                    inclusive: true,
-                    exact: false,
-                    message: def.minLength.message,
-                });
-                status.dirty();
-            }
-        }
-        if (def.maxLength !== null) {
-            if (ctx.data.length > def.maxLength.value) {
-                addIssueToContext(ctx, {
-                    code: ZodIssueCode.too_big,
-                    maximum: def.maxLength.value,
-                    type: "array",
-                    inclusive: true,
-                    exact: false,
-                    message: def.maxLength.message,
-                });
-                status.dirty();
-            }
-        }
-        if (ctx.common.async) {
-            return Promise.all([...ctx.data].map((item, i) => {
-                return def.type._parseAsync(new ParseInputLazyPath(ctx, item, ctx.path, i));
-            })).then((result) => {
-                return ParseStatus.mergeArray(status, result);
-            });
-        }
-        const result = [...ctx.data].map((item, i) => {
-            return def.type._parseSync(new ParseInputLazyPath(ctx, item, ctx.path, i));
-        });
-        return ParseStatus.mergeArray(status, result);
-    }
-    get element() {
-        return this._def.type;
-    }
-    min(minLength, message) {
-        return new ZodArray({
-            ...this._def,
-            minLength: { value: minLength, message: errorUtil.toString(message) },
-        });
-    }
-    max(maxLength, message) {
-        return new ZodArray({
-            ...this._def,
-            maxLength: { value: maxLength, message: errorUtil.toString(message) },
-        });
-    }
-    length(len, message) {
-        return new ZodArray({
-            ...this._def,
-            exactLength: { value: len, message: errorUtil.toString(message) },
-        });
-    }
-    nonempty(message) {
-        return this.min(1, message);
-    }
-}
-ZodArray.create = (schema, params) => {
-    return new ZodArray({
-        type: schema,
-        minLength: null,
-        maxLength: null,
-        exactLength: null,
-        typeName: ZodFirstPartyTypeKind.ZodArray,
-        ...processCreateParams(params),
-    });
-};
-function deepPartialify(schema) {
-    if (schema instanceof ZodObject) {
-        const newShape = {};
-        for (const key in schema.shape) {
-            const fieldSchema = schema.shape[key];
-            newShape[key] = ZodOptional.create(deepPartialify(fieldSchema));
-        }
-        return new ZodObject({
-            ...schema._def,
-            shape: () => newShape,
-        });
-    }
-    else if (schema instanceof ZodArray) {
-        return new ZodArray({
-            ...schema._def,
-            type: deepPartialify(schema.element),
-        });
-    }
-    else if (schema instanceof ZodOptional) {
-        return ZodOptional.create(deepPartialify(schema.unwrap()));
-    }
-    else if (schema instanceof ZodNullable) {
-        return ZodNullable.create(deepPartialify(schema.unwrap()));
-    }
-    else if (schema instanceof ZodTuple) {
-        return ZodTuple.create(schema.items.map((item) => deepPartialify(item)));
-    }
-    else {
-        return schema;
-    }
-}
-class ZodObject extends ZodType {
-    constructor() {
-        super(...arguments);
-        this._cached = null;
-        /**
-         * @deprecated In most cases, this is no longer needed - unknown properties are now silently stripped.
-         * If you want to pass through unknown properties, use `.passthrough()` instead.
-         */
-        this.nonstrict = this.passthrough;
-        // extend<
-        //   Augmentation extends ZodRawShape,
-        //   NewOutput extends util.flatten<{
-        //     [k in keyof Augmentation | keyof Output]: k extends keyof Augmentation
-        //       ? Augmentation[k]["_output"]
-        //       : k extends keyof Output
-        //       ? Output[k]
-        //       : never;
-        //   }>,
-        //   NewInput extends util.flatten<{
-        //     [k in keyof Augmentation | keyof Input]: k extends keyof Augmentation
-        //       ? Augmentation[k]["_input"]
-        //       : k extends keyof Input
-        //       ? Input[k]
-        //       : never;
-        //   }>
-        // >(
-        //   augmentation: Augmentation
-        // ): ZodObject<
-        //   extendShape<T, Augmentation>,
-        //   UnknownKeys,
-        //   Catchall,
-        //   NewOutput,
-        //   NewInput
-        // > {
-        //   return new ZodObject({
-        //     ...this._def,
-        //     shape: () => ({
-        //       ...this._def.shape(),
-        //       ...augmentation,
-        //     }),
-        //   }) as any;
-        // }
-        /**
-         * @deprecated Use `.extend` instead
-         *  */
-        this.augment = this.extend;
-    }
-    _getCached() {
-        if (this._cached !== null)
-            return this._cached;
-        const shape = this._def.shape();
-        const keys = util.objectKeys(shape);
-        this._cached = { shape, keys };
-        return this._cached;
-    }
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.object) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.object,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const { status, ctx } = this._processInputParams(input);
-        const { shape, keys: shapeKeys } = this._getCached();
-        const extraKeys = [];
-        if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
-            for (const key in ctx.data) {
-                if (!shapeKeys.includes(key)) {
-                    extraKeys.push(key);
-                }
-            }
-        }
-        const pairs = [];
-        for (const key of shapeKeys) {
-            const keyValidator = shape[key];
-            const value = ctx.data[key];
-            pairs.push({
-                key: { status: "valid", value: key },
-                value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key)),
-                alwaysSet: key in ctx.data,
-            });
-        }
-        if (this._def.catchall instanceof ZodNever) {
-            const unknownKeys = this._def.unknownKeys;
-            if (unknownKeys === "passthrough") {
-                for (const key of extraKeys) {
-                    pairs.push({
-                        key: { status: "valid", value: key },
-                        value: { status: "valid", value: ctx.data[key] },
-                    });
-                }
-            }
-            else if (unknownKeys === "strict") {
-                if (extraKeys.length > 0) {
-                    addIssueToContext(ctx, {
-                        code: ZodIssueCode.unrecognized_keys,
-                        keys: extraKeys,
-                    });
-                    status.dirty();
-                }
-            }
-            else if (unknownKeys === "strip") ;
-            else {
-                throw new Error(`Internal ZodObject error: invalid unknownKeys value.`);
-            }
-        }
-        else {
-            // run catchall validation
-            const catchall = this._def.catchall;
-            for (const key of extraKeys) {
-                const value = ctx.data[key];
-                pairs.push({
-                    key: { status: "valid", value: key },
-                    value: catchall._parse(new ParseInputLazyPath(ctx, value, ctx.path, key) //, ctx.child(key), value, getParsedType(value)
-                    ),
-                    alwaysSet: key in ctx.data,
-                });
-            }
-        }
-        if (ctx.common.async) {
-            return Promise.resolve()
-                .then(async () => {
-                const syncPairs = [];
-                for (const pair of pairs) {
-                    const key = await pair.key;
-                    const value = await pair.value;
-                    syncPairs.push({
-                        key,
-                        value,
-                        alwaysSet: pair.alwaysSet,
-                    });
-                }
-                return syncPairs;
-            })
-                .then((syncPairs) => {
-                return ParseStatus.mergeObjectSync(status, syncPairs);
-            });
-        }
-        else {
-            return ParseStatus.mergeObjectSync(status, pairs);
-        }
-    }
-    get shape() {
-        return this._def.shape();
-    }
-    strict(message) {
-        errorUtil.errToObj;
-        return new ZodObject({
-            ...this._def,
-            unknownKeys: "strict",
-            ...(message !== undefined
-                ? {
-                    errorMap: (issue, ctx) => {
-                        const defaultError = this._def.errorMap?.(issue, ctx).message ?? ctx.defaultError;
-                        if (issue.code === "unrecognized_keys")
-                            return {
-                                message: errorUtil.errToObj(message).message ?? defaultError,
-                            };
-                        return {
-                            message: defaultError,
-                        };
-                    },
-                }
-                : {}),
-        });
-    }
-    strip() {
-        return new ZodObject({
-            ...this._def,
-            unknownKeys: "strip",
-        });
-    }
-    passthrough() {
-        return new ZodObject({
-            ...this._def,
-            unknownKeys: "passthrough",
-        });
-    }
-    // const AugmentFactory =
-    //   <Def extends ZodObjectDef>(def: Def) =>
-    //   <Augmentation extends ZodRawShape>(
-    //     augmentation: Augmentation
-    //   ): ZodObject<
-    //     extendShape<ReturnType<Def["shape"]>, Augmentation>,
-    //     Def["unknownKeys"],
-    //     Def["catchall"]
-    //   > => {
-    //     return new ZodObject({
-    //       ...def,
-    //       shape: () => ({
-    //         ...def.shape(),
-    //         ...augmentation,
-    //       }),
-    //     }) as any;
-    //   };
-    extend(augmentation) {
-        return new ZodObject({
-            ...this._def,
-            shape: () => ({
-                ...this._def.shape(),
-                ...augmentation,
-            }),
-        });
-    }
-    /**
-     * Prior to zod@1.0.12 there was a bug in the
-     * inferred type of merged objects. Please
-     * upgrade if you are experiencing issues.
-     */
-    merge(merging) {
-        const merged = new ZodObject({
-            unknownKeys: merging._def.unknownKeys,
-            catchall: merging._def.catchall,
-            shape: () => ({
-                ...this._def.shape(),
-                ...merging._def.shape(),
-            }),
-            typeName: ZodFirstPartyTypeKind.ZodObject,
-        });
-        return merged;
-    }
-    // merge<
-    //   Incoming extends AnyZodObject,
-    //   Augmentation extends Incoming["shape"],
-    //   NewOutput extends {
-    //     [k in keyof Augmentation | keyof Output]: k extends keyof Augmentation
-    //       ? Augmentation[k]["_output"]
-    //       : k extends keyof Output
-    //       ? Output[k]
-    //       : never;
-    //   },
-    //   NewInput extends {
-    //     [k in keyof Augmentation | keyof Input]: k extends keyof Augmentation
-    //       ? Augmentation[k]["_input"]
-    //       : k extends keyof Input
-    //       ? Input[k]
-    //       : never;
-    //   }
-    // >(
-    //   merging: Incoming
-    // ): ZodObject<
-    //   extendShape<T, ReturnType<Incoming["_def"]["shape"]>>,
-    //   Incoming["_def"]["unknownKeys"],
-    //   Incoming["_def"]["catchall"],
-    //   NewOutput,
-    //   NewInput
-    // > {
-    //   const merged: any = new ZodObject({
-    //     unknownKeys: merging._def.unknownKeys,
-    //     catchall: merging._def.catchall,
-    //     shape: () =>
-    //       objectUtil.mergeShapes(this._def.shape(), merging._def.shape()),
-    //     typeName: ZodFirstPartyTypeKind.ZodObject,
-    //   }) as any;
-    //   return merged;
-    // }
-    setKey(key, schema) {
-        return this.augment({ [key]: schema });
-    }
-    // merge<Incoming extends AnyZodObject>(
-    //   merging: Incoming
-    // ): //ZodObject<T & Incoming["_shape"], UnknownKeys, Catchall> = (merging) => {
-    // ZodObject<
-    //   extendShape<T, ReturnType<Incoming["_def"]["shape"]>>,
-    //   Incoming["_def"]["unknownKeys"],
-    //   Incoming["_def"]["catchall"]
-    // > {
-    //   // const mergedShape = objectUtil.mergeShapes(
-    //   //   this._def.shape(),
-    //   //   merging._def.shape()
-    //   // );
-    //   const merged: any = new ZodObject({
-    //     unknownKeys: merging._def.unknownKeys,
-    //     catchall: merging._def.catchall,
-    //     shape: () =>
-    //       objectUtil.mergeShapes(this._def.shape(), merging._def.shape()),
-    //     typeName: ZodFirstPartyTypeKind.ZodObject,
-    //   }) as any;
-    //   return merged;
-    // }
-    catchall(index) {
-        return new ZodObject({
-            ...this._def,
-            catchall: index,
-        });
-    }
-    pick(mask) {
-        const shape = {};
-        for (const key of util.objectKeys(mask)) {
-            if (mask[key] && this.shape[key]) {
-                shape[key] = this.shape[key];
-            }
-        }
-        return new ZodObject({
-            ...this._def,
-            shape: () => shape,
-        });
-    }
-    omit(mask) {
-        const shape = {};
-        for (const key of util.objectKeys(this.shape)) {
-            if (!mask[key]) {
-                shape[key] = this.shape[key];
-            }
-        }
-        return new ZodObject({
-            ...this._def,
-            shape: () => shape,
-        });
-    }
-    /**
-     * @deprecated
-     */
-    deepPartial() {
-        return deepPartialify(this);
-    }
-    partial(mask) {
-        const newShape = {};
-        for (const key of util.objectKeys(this.shape)) {
-            const fieldSchema = this.shape[key];
-            if (mask && !mask[key]) {
-                newShape[key] = fieldSchema;
-            }
-            else {
-                newShape[key] = fieldSchema.optional();
-            }
-        }
-        return new ZodObject({
-            ...this._def,
-            shape: () => newShape,
-        });
-    }
-    required(mask) {
-        const newShape = {};
-        for (const key of util.objectKeys(this.shape)) {
-            if (mask && !mask[key]) {
-                newShape[key] = this.shape[key];
-            }
-            else {
-                const fieldSchema = this.shape[key];
-                let newField = fieldSchema;
-                while (newField instanceof ZodOptional) {
-                    newField = newField._def.innerType;
-                }
-                newShape[key] = newField;
-            }
-        }
-        return new ZodObject({
-            ...this._def,
-            shape: () => newShape,
-        });
-    }
-    keyof() {
-        return createZodEnum(util.objectKeys(this.shape));
-    }
-}
-ZodObject.create = (shape, params) => {
-    return new ZodObject({
-        shape: () => shape,
-        unknownKeys: "strip",
-        catchall: ZodNever.create(),
-        typeName: ZodFirstPartyTypeKind.ZodObject,
-        ...processCreateParams(params),
-    });
-};
-ZodObject.strictCreate = (shape, params) => {
-    return new ZodObject({
-        shape: () => shape,
-        unknownKeys: "strict",
-        catchall: ZodNever.create(),
-        typeName: ZodFirstPartyTypeKind.ZodObject,
-        ...processCreateParams(params),
-    });
-};
-ZodObject.lazycreate = (shape, params) => {
-    return new ZodObject({
-        shape,
-        unknownKeys: "strip",
-        catchall: ZodNever.create(),
-        typeName: ZodFirstPartyTypeKind.ZodObject,
-        ...processCreateParams(params),
-    });
-};
-class ZodUnion extends ZodType {
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        const options = this._def.options;
-        function handleResults(results) {
-            // return first issue-free validation if it exists
-            for (const result of results) {
-                if (result.result.status === "valid") {
-                    return result.result;
-                }
-            }
-            for (const result of results) {
-                if (result.result.status === "dirty") {
-                    // add issues from dirty option
-                    ctx.common.issues.push(...result.ctx.common.issues);
-                    return result.result;
-                }
-            }
-            // return invalid
-            const unionErrors = results.map((result) => new ZodError(result.ctx.common.issues));
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_union,
-                unionErrors,
-            });
-            return INVALID;
-        }
-        if (ctx.common.async) {
-            return Promise.all(options.map(async (option) => {
-                const childCtx = {
-                    ...ctx,
-                    common: {
-                        ...ctx.common,
-                        issues: [],
-                    },
-                    parent: null,
-                };
-                return {
-                    result: await option._parseAsync({
-                        data: ctx.data,
-                        path: ctx.path,
-                        parent: childCtx,
-                    }),
-                    ctx: childCtx,
-                };
-            })).then(handleResults);
-        }
-        else {
-            let dirty = undefined;
-            const issues = [];
-            for (const option of options) {
-                const childCtx = {
-                    ...ctx,
-                    common: {
-                        ...ctx.common,
-                        issues: [],
-                    },
-                    parent: null,
-                };
-                const result = option._parseSync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: childCtx,
-                });
-                if (result.status === "valid") {
-                    return result;
-                }
-                else if (result.status === "dirty" && !dirty) {
-                    dirty = { result, ctx: childCtx };
-                }
-                if (childCtx.common.issues.length) {
-                    issues.push(childCtx.common.issues);
-                }
-            }
-            if (dirty) {
-                ctx.common.issues.push(...dirty.ctx.common.issues);
-                return dirty.result;
-            }
-            const unionErrors = issues.map((issues) => new ZodError(issues));
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_union,
-                unionErrors,
-            });
-            return INVALID;
-        }
-    }
-    get options() {
-        return this._def.options;
-    }
-}
-ZodUnion.create = (types, params) => {
-    return new ZodUnion({
-        options: types,
-        typeName: ZodFirstPartyTypeKind.ZodUnion,
-        ...processCreateParams(params),
-    });
-};
-function mergeValues(a, b) {
-    const aType = getParsedType(a);
-    const bType = getParsedType(b);
-    if (a === b) {
-        return { valid: true, data: a };
-    }
-    else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
-        const bKeys = util.objectKeys(b);
-        const sharedKeys = util.objectKeys(a).filter((key) => bKeys.indexOf(key) !== -1);
-        const newObj = { ...a, ...b };
-        for (const key of sharedKeys) {
-            const sharedValue = mergeValues(a[key], b[key]);
-            if (!sharedValue.valid) {
-                return { valid: false };
-            }
-            newObj[key] = sharedValue.data;
-        }
-        return { valid: true, data: newObj };
-    }
-    else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
-        if (a.length !== b.length) {
-            return { valid: false };
-        }
-        const newArray = [];
-        for (let index = 0; index < a.length; index++) {
-            const itemA = a[index];
-            const itemB = b[index];
-            const sharedValue = mergeValues(itemA, itemB);
-            if (!sharedValue.valid) {
-                return { valid: false };
-            }
-            newArray.push(sharedValue.data);
-        }
-        return { valid: true, data: newArray };
-    }
-    else if (aType === ZodParsedType.date && bType === ZodParsedType.date && +a === +b) {
-        return { valid: true, data: a };
-    }
-    else {
-        return { valid: false };
-    }
-}
-class ZodIntersection extends ZodType {
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        const handleParsed = (parsedLeft, parsedRight) => {
-            if (isAborted(parsedLeft) || isAborted(parsedRight)) {
-                return INVALID;
-            }
-            const merged = mergeValues(parsedLeft.value, parsedRight.value);
-            if (!merged.valid) {
-                addIssueToContext(ctx, {
-                    code: ZodIssueCode.invalid_intersection_types,
-                });
-                return INVALID;
-            }
-            if (isDirty(parsedLeft) || isDirty(parsedRight)) {
-                status.dirty();
-            }
-            return { status: status.value, value: merged.data };
-        };
-        if (ctx.common.async) {
-            return Promise.all([
-                this._def.left._parseAsync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: ctx,
-                }),
-                this._def.right._parseAsync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: ctx,
-                }),
-            ]).then(([left, right]) => handleParsed(left, right));
-        }
-        else {
-            return handleParsed(this._def.left._parseSync({
-                data: ctx.data,
-                path: ctx.path,
-                parent: ctx,
-            }), this._def.right._parseSync({
-                data: ctx.data,
-                path: ctx.path,
-                parent: ctx,
-            }));
-        }
-    }
-}
-ZodIntersection.create = (left, right, params) => {
-    return new ZodIntersection({
-        left: left,
-        right: right,
-        typeName: ZodFirstPartyTypeKind.ZodIntersection,
-        ...processCreateParams(params),
-    });
-};
-// type ZodTupleItems = [ZodTypeAny, ...ZodTypeAny[]];
-class ZodTuple extends ZodType {
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        if (ctx.parsedType !== ZodParsedType.array) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.array,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        if (ctx.data.length < this._def.items.length) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.too_small,
-                minimum: this._def.items.length,
-                inclusive: true,
-                exact: false,
-                type: "array",
-            });
-            return INVALID;
-        }
-        const rest = this._def.rest;
-        if (!rest && ctx.data.length > this._def.items.length) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.too_big,
-                maximum: this._def.items.length,
-                inclusive: true,
-                exact: false,
-                type: "array",
-            });
-            status.dirty();
-        }
-        const items = [...ctx.data]
-            .map((item, itemIndex) => {
-            const schema = this._def.items[itemIndex] || this._def.rest;
-            if (!schema)
-                return null;
-            return schema._parse(new ParseInputLazyPath(ctx, item, ctx.path, itemIndex));
-        })
-            .filter((x) => !!x); // filter nulls
-        if (ctx.common.async) {
-            return Promise.all(items).then((results) => {
-                return ParseStatus.mergeArray(status, results);
-            });
-        }
-        else {
-            return ParseStatus.mergeArray(status, items);
-        }
-    }
-    get items() {
-        return this._def.items;
-    }
-    rest(rest) {
-        return new ZodTuple({
-            ...this._def,
-            rest,
-        });
-    }
-}
-ZodTuple.create = (schemas, params) => {
-    if (!Array.isArray(schemas)) {
-        throw new Error("You must pass an array of schemas to z.tuple([ ... ])");
-    }
-    return new ZodTuple({
-        items: schemas,
-        typeName: ZodFirstPartyTypeKind.ZodTuple,
-        rest: null,
-        ...processCreateParams(params),
-    });
-};
-class ZodRecord extends ZodType {
-    get keySchema() {
-        return this._def.keyType;
-    }
-    get valueSchema() {
-        return this._def.valueType;
-    }
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        if (ctx.parsedType !== ZodParsedType.object) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.object,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const pairs = [];
-        const keyType = this._def.keyType;
-        const valueType = this._def.valueType;
-        for (const key in ctx.data) {
-            pairs.push({
-                key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, key)),
-                value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key], ctx.path, key)),
-                alwaysSet: key in ctx.data,
-            });
-        }
-        if (ctx.common.async) {
-            return ParseStatus.mergeObjectAsync(status, pairs);
-        }
-        else {
-            return ParseStatus.mergeObjectSync(status, pairs);
-        }
-    }
-    get element() {
-        return this._def.valueType;
-    }
-    static create(first, second, third) {
-        if (second instanceof ZodType) {
-            return new ZodRecord({
-                keyType: first,
-                valueType: second,
-                typeName: ZodFirstPartyTypeKind.ZodRecord,
-                ...processCreateParams(third),
-            });
-        }
-        return new ZodRecord({
-            keyType: ZodString.create(),
-            valueType: first,
-            typeName: ZodFirstPartyTypeKind.ZodRecord,
-            ...processCreateParams(second),
-        });
-    }
-}
-class ZodMap extends ZodType {
-    get keySchema() {
-        return this._def.keyType;
-    }
-    get valueSchema() {
-        return this._def.valueType;
-    }
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        if (ctx.parsedType !== ZodParsedType.map) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.map,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const keyType = this._def.keyType;
-        const valueType = this._def.valueType;
-        const pairs = [...ctx.data.entries()].map(([key, value], index) => {
-            return {
-                key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, [index, "key"])),
-                value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index, "value"])),
-            };
-        });
-        if (ctx.common.async) {
-            const finalMap = new Map();
-            return Promise.resolve().then(async () => {
-                for (const pair of pairs) {
-                    const key = await pair.key;
-                    const value = await pair.value;
-                    if (key.status === "aborted" || value.status === "aborted") {
-                        return INVALID;
-                    }
-                    if (key.status === "dirty" || value.status === "dirty") {
-                        status.dirty();
-                    }
-                    finalMap.set(key.value, value.value);
-                }
-                return { status: status.value, value: finalMap };
-            });
-        }
-        else {
-            const finalMap = new Map();
-            for (const pair of pairs) {
-                const key = pair.key;
-                const value = pair.value;
-                if (key.status === "aborted" || value.status === "aborted") {
-                    return INVALID;
-                }
-                if (key.status === "dirty" || value.status === "dirty") {
-                    status.dirty();
-                }
-                finalMap.set(key.value, value.value);
-            }
-            return { status: status.value, value: finalMap };
-        }
-    }
-}
-ZodMap.create = (keyType, valueType, params) => {
-    return new ZodMap({
-        valueType,
-        keyType,
-        typeName: ZodFirstPartyTypeKind.ZodMap,
-        ...processCreateParams(params),
-    });
-};
-class ZodSet extends ZodType {
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        if (ctx.parsedType !== ZodParsedType.set) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.set,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const def = this._def;
-        if (def.minSize !== null) {
-            if (ctx.data.size < def.minSize.value) {
-                addIssueToContext(ctx, {
-                    code: ZodIssueCode.too_small,
-                    minimum: def.minSize.value,
-                    type: "set",
-                    inclusive: true,
-                    exact: false,
-                    message: def.minSize.message,
-                });
-                status.dirty();
-            }
-        }
-        if (def.maxSize !== null) {
-            if (ctx.data.size > def.maxSize.value) {
-                addIssueToContext(ctx, {
-                    code: ZodIssueCode.too_big,
-                    maximum: def.maxSize.value,
-                    type: "set",
-                    inclusive: true,
-                    exact: false,
-                    message: def.maxSize.message,
-                });
-                status.dirty();
-            }
-        }
-        const valueType = this._def.valueType;
-        function finalizeSet(elements) {
-            const parsedSet = new Set();
-            for (const element of elements) {
-                if (element.status === "aborted")
-                    return INVALID;
-                if (element.status === "dirty")
-                    status.dirty();
-                parsedSet.add(element.value);
-            }
-            return { status: status.value, value: parsedSet };
-        }
-        const elements = [...ctx.data.values()].map((item, i) => valueType._parse(new ParseInputLazyPath(ctx, item, ctx.path, i)));
-        if (ctx.common.async) {
-            return Promise.all(elements).then((elements) => finalizeSet(elements));
-        }
-        else {
-            return finalizeSet(elements);
-        }
-    }
-    min(minSize, message) {
-        return new ZodSet({
-            ...this._def,
-            minSize: { value: minSize, message: errorUtil.toString(message) },
-        });
-    }
-    max(maxSize, message) {
-        return new ZodSet({
-            ...this._def,
-            maxSize: { value: maxSize, message: errorUtil.toString(message) },
-        });
-    }
-    size(size, message) {
-        return this.min(size, message).max(size, message);
-    }
-    nonempty(message) {
-        return this.min(1, message);
-    }
-}
-ZodSet.create = (valueType, params) => {
-    return new ZodSet({
-        valueType,
-        minSize: null,
-        maxSize: null,
-        typeName: ZodFirstPartyTypeKind.ZodSet,
-        ...processCreateParams(params),
-    });
-};
-class ZodLazy extends ZodType {
-    get schema() {
-        return this._def.getter();
-    }
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        const lazySchema = this._def.getter();
-        return lazySchema._parse({ data: ctx.data, path: ctx.path, parent: ctx });
-    }
-}
-ZodLazy.create = (getter, params) => {
-    return new ZodLazy({
-        getter: getter,
-        typeName: ZodFirstPartyTypeKind.ZodLazy,
-        ...processCreateParams(params),
-    });
-};
-class ZodLiteral extends ZodType {
-    _parse(input) {
-        if (input.data !== this._def.value) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                received: ctx.data,
-                code: ZodIssueCode.invalid_literal,
-                expected: this._def.value,
-            });
-            return INVALID;
-        }
-        return { status: "valid", value: input.data };
-    }
-    get value() {
-        return this._def.value;
-    }
-}
-ZodLiteral.create = (value, params) => {
-    return new ZodLiteral({
-        value: value,
-        typeName: ZodFirstPartyTypeKind.ZodLiteral,
-        ...processCreateParams(params),
-    });
-};
-function createZodEnum(values, params) {
-    return new ZodEnum({
-        values,
-        typeName: ZodFirstPartyTypeKind.ZodEnum,
-        ...processCreateParams(params),
-    });
-}
-class ZodEnum extends ZodType {
-    _parse(input) {
-        if (typeof input.data !== "string") {
-            const ctx = this._getOrReturnCtx(input);
-            const expectedValues = this._def.values;
-            addIssueToContext(ctx, {
-                expected: util.joinValues(expectedValues),
-                received: ctx.parsedType,
-                code: ZodIssueCode.invalid_type,
-            });
-            return INVALID;
-        }
-        if (!this._cache) {
-            this._cache = new Set(this._def.values);
-        }
-        if (!this._cache.has(input.data)) {
-            const ctx = this._getOrReturnCtx(input);
-            const expectedValues = this._def.values;
-            addIssueToContext(ctx, {
-                received: ctx.data,
-                code: ZodIssueCode.invalid_enum_value,
-                options: expectedValues,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-    get options() {
-        return this._def.values;
-    }
-    get enum() {
-        const enumValues = {};
-        for (const val of this._def.values) {
-            enumValues[val] = val;
-        }
-        return enumValues;
-    }
-    get Values() {
-        const enumValues = {};
-        for (const val of this._def.values) {
-            enumValues[val] = val;
-        }
-        return enumValues;
-    }
-    get Enum() {
-        const enumValues = {};
-        for (const val of this._def.values) {
-            enumValues[val] = val;
-        }
-        return enumValues;
-    }
-    extract(values, newDef = this._def) {
-        return ZodEnum.create(values, {
-            ...this._def,
-            ...newDef,
-        });
-    }
-    exclude(values, newDef = this._def) {
-        return ZodEnum.create(this.options.filter((opt) => !values.includes(opt)), {
-            ...this._def,
-            ...newDef,
-        });
-    }
-}
-ZodEnum.create = createZodEnum;
-class ZodNativeEnum extends ZodType {
-    _parse(input) {
-        const nativeEnumValues = util.getValidEnumValues(this._def.values);
-        const ctx = this._getOrReturnCtx(input);
-        if (ctx.parsedType !== ZodParsedType.string && ctx.parsedType !== ZodParsedType.number) {
-            const expectedValues = util.objectValues(nativeEnumValues);
-            addIssueToContext(ctx, {
-                expected: util.joinValues(expectedValues),
-                received: ctx.parsedType,
-                code: ZodIssueCode.invalid_type,
-            });
-            return INVALID;
-        }
-        if (!this._cache) {
-            this._cache = new Set(util.getValidEnumValues(this._def.values));
-        }
-        if (!this._cache.has(input.data)) {
-            const expectedValues = util.objectValues(nativeEnumValues);
-            addIssueToContext(ctx, {
-                received: ctx.data,
-                code: ZodIssueCode.invalid_enum_value,
-                options: expectedValues,
-            });
-            return INVALID;
-        }
-        return OK(input.data);
-    }
-    get enum() {
-        return this._def.values;
-    }
-}
-ZodNativeEnum.create = (values, params) => {
-    return new ZodNativeEnum({
-        values: values,
-        typeName: ZodFirstPartyTypeKind.ZodNativeEnum,
-        ...processCreateParams(params),
-    });
-};
-class ZodPromise extends ZodType {
-    unwrap() {
-        return this._def.type;
-    }
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        if (ctx.parsedType !== ZodParsedType.promise && ctx.common.async === false) {
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.promise,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        const promisified = ctx.parsedType === ZodParsedType.promise ? ctx.data : Promise.resolve(ctx.data);
-        return OK(promisified.then((data) => {
-            return this._def.type.parseAsync(data, {
-                path: ctx.path,
-                errorMap: ctx.common.contextualErrorMap,
-            });
-        }));
-    }
-}
-ZodPromise.create = (schema, params) => {
-    return new ZodPromise({
-        type: schema,
-        typeName: ZodFirstPartyTypeKind.ZodPromise,
-        ...processCreateParams(params),
-    });
-};
-class ZodEffects extends ZodType {
-    innerType() {
-        return this._def.schema;
-    }
-    sourceType() {
-        return this._def.schema._def.typeName === ZodFirstPartyTypeKind.ZodEffects
-            ? this._def.schema.sourceType()
-            : this._def.schema;
-    }
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        const effect = this._def.effect || null;
-        const checkCtx = {
-            addIssue: (arg) => {
-                addIssueToContext(ctx, arg);
-                if (arg.fatal) {
-                    status.abort();
-                }
-                else {
-                    status.dirty();
-                }
-            },
-            get path() {
-                return ctx.path;
-            },
-        };
-        checkCtx.addIssue = checkCtx.addIssue.bind(checkCtx);
-        if (effect.type === "preprocess") {
-            const processed = effect.transform(ctx.data, checkCtx);
-            if (ctx.common.async) {
-                return Promise.resolve(processed).then(async (processed) => {
-                    if (status.value === "aborted")
-                        return INVALID;
-                    const result = await this._def.schema._parseAsync({
-                        data: processed,
-                        path: ctx.path,
-                        parent: ctx,
-                    });
-                    if (result.status === "aborted")
-                        return INVALID;
-                    if (result.status === "dirty")
-                        return DIRTY(result.value);
-                    if (status.value === "dirty")
-                        return DIRTY(result.value);
-                    return result;
-                });
-            }
-            else {
-                if (status.value === "aborted")
-                    return INVALID;
-                const result = this._def.schema._parseSync({
-                    data: processed,
-                    path: ctx.path,
-                    parent: ctx,
-                });
-                if (result.status === "aborted")
-                    return INVALID;
-                if (result.status === "dirty")
-                    return DIRTY(result.value);
-                if (status.value === "dirty")
-                    return DIRTY(result.value);
-                return result;
-            }
-        }
-        if (effect.type === "refinement") {
-            const executeRefinement = (acc) => {
-                const result = effect.refinement(acc, checkCtx);
-                if (ctx.common.async) {
-                    return Promise.resolve(result);
-                }
-                if (result instanceof Promise) {
-                    throw new Error("Async refinement encountered during synchronous parse operation. Use .parseAsync instead.");
-                }
-                return acc;
-            };
-            if (ctx.common.async === false) {
-                const inner = this._def.schema._parseSync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: ctx,
-                });
-                if (inner.status === "aborted")
-                    return INVALID;
-                if (inner.status === "dirty")
-                    status.dirty();
-                // return value is ignored
-                executeRefinement(inner.value);
-                return { status: status.value, value: inner.value };
-            }
-            else {
-                return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((inner) => {
-                    if (inner.status === "aborted")
-                        return INVALID;
-                    if (inner.status === "dirty")
-                        status.dirty();
-                    return executeRefinement(inner.value).then(() => {
-                        return { status: status.value, value: inner.value };
-                    });
-                });
-            }
-        }
-        if (effect.type === "transform") {
-            if (ctx.common.async === false) {
-                const base = this._def.schema._parseSync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: ctx,
-                });
-                if (!isValid(base))
-                    return INVALID;
-                const result = effect.transform(base.value, checkCtx);
-                if (result instanceof Promise) {
-                    throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
-                }
-                return { status: status.value, value: result };
-            }
-            else {
-                return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base) => {
-                    if (!isValid(base))
-                        return INVALID;
-                    return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
-                        status: status.value,
-                        value: result,
-                    }));
-                });
-            }
-        }
-        util.assertNever(effect);
-    }
-}
-ZodEffects.create = (schema, effect, params) => {
-    return new ZodEffects({
-        schema,
-        typeName: ZodFirstPartyTypeKind.ZodEffects,
-        effect,
-        ...processCreateParams(params),
-    });
-};
-ZodEffects.createWithPreprocess = (preprocess, schema, params) => {
-    return new ZodEffects({
-        schema,
-        effect: { type: "preprocess", transform: preprocess },
-        typeName: ZodFirstPartyTypeKind.ZodEffects,
-        ...processCreateParams(params),
-    });
-};
-class ZodOptional extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType === ZodParsedType.undefined) {
-            return OK(undefined);
-        }
-        return this._def.innerType._parse(input);
-    }
-    unwrap() {
-        return this._def.innerType;
-    }
-}
-ZodOptional.create = (type, params) => {
-    return new ZodOptional({
-        innerType: type,
-        typeName: ZodFirstPartyTypeKind.ZodOptional,
-        ...processCreateParams(params),
-    });
-};
-class ZodNullable extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType === ZodParsedType.null) {
-            return OK(null);
-        }
-        return this._def.innerType._parse(input);
-    }
-    unwrap() {
-        return this._def.innerType;
-    }
-}
-ZodNullable.create = (type, params) => {
-    return new ZodNullable({
-        innerType: type,
-        typeName: ZodFirstPartyTypeKind.ZodNullable,
-        ...processCreateParams(params),
-    });
-};
-class ZodDefault extends ZodType {
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        let data = ctx.data;
-        if (ctx.parsedType === ZodParsedType.undefined) {
-            data = this._def.defaultValue();
-        }
-        return this._def.innerType._parse({
-            data,
-            path: ctx.path,
-            parent: ctx,
-        });
-    }
-    removeDefault() {
-        return this._def.innerType;
-    }
-}
-ZodDefault.create = (type, params) => {
-    return new ZodDefault({
-        innerType: type,
-        typeName: ZodFirstPartyTypeKind.ZodDefault,
-        defaultValue: typeof params.default === "function" ? params.default : () => params.default,
-        ...processCreateParams(params),
-    });
-};
-class ZodCatch extends ZodType {
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        // newCtx is used to not collect issues from inner types in ctx
-        const newCtx = {
-            ...ctx,
-            common: {
-                ...ctx.common,
-                issues: [],
-            },
-        };
-        const result = this._def.innerType._parse({
-            data: newCtx.data,
-            path: newCtx.path,
-            parent: {
-                ...newCtx,
-            },
-        });
-        if (isAsync(result)) {
-            return result.then((result) => {
-                return {
-                    status: "valid",
-                    value: result.status === "valid"
-                        ? result.value
-                        : this._def.catchValue({
-                            get error() {
-                                return new ZodError(newCtx.common.issues);
-                            },
-                            input: newCtx.data,
-                        }),
-                };
-            });
-        }
-        else {
-            return {
-                status: "valid",
-                value: result.status === "valid"
-                    ? result.value
-                    : this._def.catchValue({
-                        get error() {
-                            return new ZodError(newCtx.common.issues);
-                        },
-                        input: newCtx.data,
-                    }),
-            };
-        }
-    }
-    removeCatch() {
-        return this._def.innerType;
-    }
-}
-ZodCatch.create = (type, params) => {
-    return new ZodCatch({
-        innerType: type,
-        typeName: ZodFirstPartyTypeKind.ZodCatch,
-        catchValue: typeof params.catch === "function" ? params.catch : () => params.catch,
-        ...processCreateParams(params),
-    });
-};
-class ZodNaN extends ZodType {
-    _parse(input) {
-        const parsedType = this._getType(input);
-        if (parsedType !== ZodParsedType.nan) {
-            const ctx = this._getOrReturnCtx(input);
-            addIssueToContext(ctx, {
-                code: ZodIssueCode.invalid_type,
-                expected: ZodParsedType.nan,
-                received: ctx.parsedType,
-            });
-            return INVALID;
-        }
-        return { status: "valid", value: input.data };
-    }
-}
-ZodNaN.create = (params) => {
-    return new ZodNaN({
-        typeName: ZodFirstPartyTypeKind.ZodNaN,
-        ...processCreateParams(params),
-    });
-};
-class ZodBranded extends ZodType {
-    _parse(input) {
-        const { ctx } = this._processInputParams(input);
-        const data = ctx.data;
-        return this._def.type._parse({
-            data,
-            path: ctx.path,
-            parent: ctx,
-        });
-    }
-    unwrap() {
-        return this._def.type;
-    }
-}
-class ZodPipeline extends ZodType {
-    _parse(input) {
-        const { status, ctx } = this._processInputParams(input);
-        if (ctx.common.async) {
-            const handleAsync = async () => {
-                const inResult = await this._def.in._parseAsync({
-                    data: ctx.data,
-                    path: ctx.path,
-                    parent: ctx,
-                });
-                if (inResult.status === "aborted")
-                    return INVALID;
-                if (inResult.status === "dirty") {
-                    status.dirty();
-                    return DIRTY(inResult.value);
-                }
-                else {
-                    return this._def.out._parseAsync({
-                        data: inResult.value,
-                        path: ctx.path,
-                        parent: ctx,
-                    });
-                }
-            };
-            return handleAsync();
-        }
-        else {
-            const inResult = this._def.in._parseSync({
-                data: ctx.data,
-                path: ctx.path,
-                parent: ctx,
-            });
-            if (inResult.status === "aborted")
-                return INVALID;
-            if (inResult.status === "dirty") {
-                status.dirty();
-                return {
-                    status: "dirty",
-                    value: inResult.value,
-                };
-            }
-            else {
-                return this._def.out._parseSync({
-                    data: inResult.value,
-                    path: ctx.path,
-                    parent: ctx,
-                });
-            }
-        }
-    }
-    static create(a, b) {
-        return new ZodPipeline({
-            in: a,
-            out: b,
-            typeName: ZodFirstPartyTypeKind.ZodPipeline,
-        });
-    }
-}
-class ZodReadonly extends ZodType {
-    _parse(input) {
-        const result = this._def.innerType._parse(input);
-        const freeze = (data) => {
-            if (isValid(data)) {
-                data.value = Object.freeze(data.value);
-            }
-            return data;
-        };
-        return isAsync(result) ? result.then((data) => freeze(data)) : freeze(result);
-    }
-    unwrap() {
-        return this._def.innerType;
-    }
-}
-ZodReadonly.create = (type, params) => {
-    return new ZodReadonly({
-        innerType: type,
-        typeName: ZodFirstPartyTypeKind.ZodReadonly,
-        ...processCreateParams(params),
-    });
-};
-var ZodFirstPartyTypeKind;
-(function (ZodFirstPartyTypeKind) {
-    ZodFirstPartyTypeKind["ZodString"] = "ZodString";
-    ZodFirstPartyTypeKind["ZodNumber"] = "ZodNumber";
-    ZodFirstPartyTypeKind["ZodNaN"] = "ZodNaN";
-    ZodFirstPartyTypeKind["ZodBigInt"] = "ZodBigInt";
-    ZodFirstPartyTypeKind["ZodBoolean"] = "ZodBoolean";
-    ZodFirstPartyTypeKind["ZodDate"] = "ZodDate";
-    ZodFirstPartyTypeKind["ZodSymbol"] = "ZodSymbol";
-    ZodFirstPartyTypeKind["ZodUndefined"] = "ZodUndefined";
-    ZodFirstPartyTypeKind["ZodNull"] = "ZodNull";
-    ZodFirstPartyTypeKind["ZodAny"] = "ZodAny";
-    ZodFirstPartyTypeKind["ZodUnknown"] = "ZodUnknown";
-    ZodFirstPartyTypeKind["ZodNever"] = "ZodNever";
-    ZodFirstPartyTypeKind["ZodVoid"] = "ZodVoid";
-    ZodFirstPartyTypeKind["ZodArray"] = "ZodArray";
-    ZodFirstPartyTypeKind["ZodObject"] = "ZodObject";
-    ZodFirstPartyTypeKind["ZodUnion"] = "ZodUnion";
-    ZodFirstPartyTypeKind["ZodDiscriminatedUnion"] = "ZodDiscriminatedUnion";
-    ZodFirstPartyTypeKind["ZodIntersection"] = "ZodIntersection";
-    ZodFirstPartyTypeKind["ZodTuple"] = "ZodTuple";
-    ZodFirstPartyTypeKind["ZodRecord"] = "ZodRecord";
-    ZodFirstPartyTypeKind["ZodMap"] = "ZodMap";
-    ZodFirstPartyTypeKind["ZodSet"] = "ZodSet";
-    ZodFirstPartyTypeKind["ZodFunction"] = "ZodFunction";
-    ZodFirstPartyTypeKind["ZodLazy"] = "ZodLazy";
-    ZodFirstPartyTypeKind["ZodLiteral"] = "ZodLiteral";
-    ZodFirstPartyTypeKind["ZodEnum"] = "ZodEnum";
-    ZodFirstPartyTypeKind["ZodEffects"] = "ZodEffects";
-    ZodFirstPartyTypeKind["ZodNativeEnum"] = "ZodNativeEnum";
-    ZodFirstPartyTypeKind["ZodOptional"] = "ZodOptional";
-    ZodFirstPartyTypeKind["ZodNullable"] = "ZodNullable";
-    ZodFirstPartyTypeKind["ZodDefault"] = "ZodDefault";
-    ZodFirstPartyTypeKind["ZodCatch"] = "ZodCatch";
-    ZodFirstPartyTypeKind["ZodPromise"] = "ZodPromise";
-    ZodFirstPartyTypeKind["ZodBranded"] = "ZodBranded";
-    ZodFirstPartyTypeKind["ZodPipeline"] = "ZodPipeline";
-    ZodFirstPartyTypeKind["ZodReadonly"] = "ZodReadonly";
-})(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
-const stringType = ZodString.create;
-const numberType = ZodNumber.create;
-ZodBigInt.create;
-const booleanType = ZodBoolean.create;
-ZodDate.create;
-const unknownType = ZodUnknown.create;
-ZodNever.create;
-const arrayType = ZodArray.create;
-const objectType = ZodObject.create;
-const unionType = ZodUnion.create;
-ZodIntersection.create;
-ZodTuple.create;
-const recordType = ZodRecord.create;
-const lazyType = ZodLazy.create;
-const enumType = ZodEnum.create;
-ZodPromise.create;
-ZodOptional.create;
-ZodNullable.create;
-const coerce = {
-    string: ((arg) => ZodString.create({ ...arg, coerce: true })),
-    number: ((arg) => ZodNumber.create({ ...arg, coerce: true })),
-    boolean: ((arg) => ZodBoolean.create({
-        ...arg,
-        coerce: true,
-    })),
-    bigint: ((arg) => ZodBigInt.create({ ...arg, coerce: true })),
-    date: ((arg) => ZodDate.create({ ...arg, coerce: true })),
-};
-
 /**
  * @license
  * Copyright 2025 Google LLC
@@ -4363,18 +517,18 @@ function getDefaultBaseUrls() {
  *   2. Base URLs set via the latest call to setDefaultBaseUrls.
  *   3. Base URLs set via environment variables.
  */
-function getBaseUrl(options, vertexBaseUrlFromEnv, geminiBaseUrlFromEnv) {
-    var _a, _b, _c;
-    if (!((_a = options.httpOptions) === null || _a === void 0 ? void 0 : _a.baseUrl)) {
+function getBaseUrl(httpOptions, vertexai, vertexBaseUrlFromEnv, geminiBaseUrlFromEnv) {
+    var _a, _b;
+    if (!(httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.baseUrl)) {
         const defaultBaseUrls = getDefaultBaseUrls();
-        if (options.vertexai) {
-            return (_b = defaultBaseUrls.vertexUrl) !== null && _b !== void 0 ? _b : vertexBaseUrlFromEnv;
+        if (vertexai) {
+            return (_a = defaultBaseUrls.vertexUrl) !== null && _a !== void 0 ? _a : vertexBaseUrlFromEnv;
         }
         else {
-            return (_c = defaultBaseUrls.geminiUrl) !== null && _c !== void 0 ? _c : geminiBaseUrlFromEnv;
+            return (_b = defaultBaseUrls.geminiUrl) !== null && _b !== void 0 ? _b : geminiBaseUrlFromEnv;
         }
     }
-    return options.httpOptions.baseUrl;
+    return httpOptions.baseUrl;
 }
 
 /**
@@ -4464,7 +618,16 @@ function setValueByPath(data, keys, value) {
         }
     }
     else {
-        data[keyToSet] = value;
+        if (keyToSet === '_self' &&
+            typeof value === 'object' &&
+            value !== null &&
+            !Array.isArray(value)) {
+            const valueAsRecord = value;
+            Object.assign(data, valueAsRecord);
+        }
+        else {
+            data[keyToSet] = value;
+        }
     }
 }
 function getValueByPath(data, keys) {
@@ -4502,6 +665,218 @@ function getValueByPath(data, keys) {
         }
         throw error;
     }
+}
+
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+function tBytes$1(fromBytes) {
+    if (typeof fromBytes !== 'string') {
+        throw new Error('fromImageBytes must be a string');
+    }
+    // TODO(b/389133914): Remove dummy bytes converter.
+    return fromBytes;
+}
+
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+// Code generated by the Google Gen AI SDK generator DO NOT EDIT.
+function fetchPredictOperationParametersToVertex(fromObject) {
+    const toObject = {};
+    const fromOperationName = getValueByPath(fromObject, [
+        'operationName',
+    ]);
+    if (fromOperationName != null) {
+        setValueByPath(toObject, ['operationName'], fromOperationName);
+    }
+    const fromResourceName = getValueByPath(fromObject, ['resourceName']);
+    if (fromResourceName != null) {
+        setValueByPath(toObject, ['_url', 'resourceName'], fromResourceName);
+    }
+    return toObject;
+}
+function generateVideosOperationFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], fromMetadata);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fromError);
+    }
+    const fromResponse = getValueByPath(fromObject, [
+        'response',
+        'generateVideoResponse',
+    ]);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], generateVideosResponseFromMldev$1(fromResponse));
+    }
+    return toObject;
+}
+function generateVideosOperationFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], fromMetadata);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fromError);
+    }
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], generateVideosResponseFromVertex$1(fromResponse));
+    }
+    return toObject;
+}
+function generateVideosResponseFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromGeneratedVideos = getValueByPath(fromObject, [
+        'generatedSamples',
+    ]);
+    if (fromGeneratedVideos != null) {
+        let transformedList = fromGeneratedVideos;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedVideoFromMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedVideos'], transformedList);
+    }
+    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
+        'raiMediaFilteredCount',
+    ]);
+    if (fromRaiMediaFilteredCount != null) {
+        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
+    }
+    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
+        'raiMediaFilteredReasons',
+    ]);
+    if (fromRaiMediaFilteredReasons != null) {
+        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
+    }
+    return toObject;
+}
+function generateVideosResponseFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromGeneratedVideos = getValueByPath(fromObject, ['videos']);
+    if (fromGeneratedVideos != null) {
+        let transformedList = fromGeneratedVideos;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedVideoFromVertex$1(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedVideos'], transformedList);
+    }
+    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
+        'raiMediaFilteredCount',
+    ]);
+    if (fromRaiMediaFilteredCount != null) {
+        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
+    }
+    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
+        'raiMediaFilteredReasons',
+    ]);
+    if (fromRaiMediaFilteredReasons != null) {
+        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
+    }
+    return toObject;
+}
+function generatedVideoFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromVideo = getValueByPath(fromObject, ['_self']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], videoFromMldev$1(fromVideo));
+    }
+    return toObject;
+}
+function generatedVideoFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromVideo = getValueByPath(fromObject, ['_self']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], videoFromVertex$1(fromVideo));
+    }
+    return toObject;
+}
+function getOperationParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromOperationName = getValueByPath(fromObject, [
+        'operationName',
+    ]);
+    if (fromOperationName != null) {
+        setValueByPath(toObject, ['_url', 'operationName'], fromOperationName);
+    }
+    return toObject;
+}
+function getOperationParametersToVertex(fromObject) {
+    const toObject = {};
+    const fromOperationName = getValueByPath(fromObject, [
+        'operationName',
+    ]);
+    if (fromOperationName != null) {
+        setValueByPath(toObject, ['_url', 'operationName'], fromOperationName);
+    }
+    return toObject;
+}
+function videoFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromUri = getValueByPath(fromObject, ['video', 'uri']);
+    if (fromUri != null) {
+        setValueByPath(toObject, ['uri'], fromUri);
+    }
+    const fromVideoBytes = getValueByPath(fromObject, [
+        'video',
+        'encodedVideo',
+    ]);
+    if (fromVideoBytes != null) {
+        setValueByPath(toObject, ['videoBytes'], tBytes$1(fromVideoBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['encoding']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function videoFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromUri != null) {
+        setValueByPath(toObject, ['uri'], fromUri);
+    }
+    const fromVideoBytes = getValueByPath(fromObject, [
+        'bytesBase64Encoded',
+    ]);
+    if (fromVideoBytes != null) {
+        setValueByPath(toObject, ['videoBytes'], tBytes$1(fromVideoBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
 }
 
 /**
@@ -4722,18 +1097,6 @@ var ApiSpec;
      */
     ApiSpec["ELASTIC_SEARCH"] = "ELASTIC_SEARCH";
 })(ApiSpec || (ApiSpec = {}));
-/** Required. The environment being operated. */
-var Environment;
-(function (Environment) {
-    /**
-     * Defaults to browser.
-     */
-    Environment["ENVIRONMENT_UNSPECIFIED"] = "ENVIRONMENT_UNSPECIFIED";
-    /**
-     * Operates in a web browser.
-     */
-    Environment["ENVIRONMENT_BROWSER"] = "ENVIRONMENT_BROWSER";
-})(Environment || (Environment = {}));
 /** Status of the url retrieval. */
 var UrlRetrievalStatus;
 (function (UrlRetrievalStatus) {
@@ -4749,6 +1112,14 @@ var UrlRetrievalStatus;
      * Url retrieval is failed due to error.
      */
     UrlRetrievalStatus["URL_RETRIEVAL_STATUS_ERROR"] = "URL_RETRIEVAL_STATUS_ERROR";
+    /**
+     * Url retrieval is failed because the content is behind paywall.
+     */
+    UrlRetrievalStatus["URL_RETRIEVAL_STATUS_PAYWALL"] = "URL_RETRIEVAL_STATUS_PAYWALL";
+    /**
+     * Url retrieval is failed because the content is unsafe.
+     */
+    UrlRetrievalStatus["URL_RETRIEVAL_STATUS_UNSAFE"] = "URL_RETRIEVAL_STATUS_UNSAFE";
 })(UrlRetrievalStatus || (UrlRetrievalStatus = {}));
 /** Output only. The reason why the model stopped generating tokens.
 
@@ -4993,6 +1364,22 @@ var JobState;
      */
     JobState["JOB_STATE_PARTIALLY_SUCCEEDED"] = "JOB_STATE_PARTIALLY_SUCCEEDED";
 })(JobState || (JobState = {}));
+/** Tuning mode. */
+var TuningMode;
+(function (TuningMode) {
+    /**
+     * Tuning mode is unspecified.
+     */
+    TuningMode["TUNING_MODE_UNSPECIFIED"] = "TUNING_MODE_UNSPECIFIED";
+    /**
+     * Full fine-tuning mode.
+     */
+    TuningMode["TUNING_MODE_FULL"] = "TUNING_MODE_FULL";
+    /**
+     * PEFT adapter tuning mode.
+     */
+    TuningMode["TUNING_MODE_PEFT_ADAPTER"] = "TUNING_MODE_PEFT_ADAPTER";
+})(TuningMode || (TuningMode = {}));
 /** Optional. Adapter size for tuning. */
 var AdapterSize;
 (function (AdapterSize) {
@@ -5061,6 +1448,18 @@ var DynamicRetrievalConfigMode;
      */
     DynamicRetrievalConfigMode["MODE_DYNAMIC"] = "MODE_DYNAMIC";
 })(DynamicRetrievalConfigMode || (DynamicRetrievalConfigMode = {}));
+/** The environment being operated. */
+var Environment;
+(function (Environment) {
+    /**
+     * Defaults to browser.
+     */
+    Environment["ENVIRONMENT_UNSPECIFIED"] = "ENVIRONMENT_UNSPECIFIED";
+    /**
+     * Operates in a web browser.
+     */
+    Environment["ENVIRONMENT_BROWSER"] = "ENVIRONMENT_BROWSER";
+})(Environment || (Environment = {}));
 /** Config for the function calling config mode. */
 var FunctionCallingConfigMode;
 (function (FunctionCallingConfigMode) {
@@ -5080,6 +1479,10 @@ var FunctionCallingConfigMode;
      * Model will not predict any function calls. Model behavior is same as when not passing any function declarations.
      */
     FunctionCallingConfigMode["NONE"] = "NONE";
+    /**
+     * Model decides to predict either a function call or a natural language response, but will validate function calls with constrained decoding. If "allowed_function_names" are set, the predicted function call will be limited to any one of "allowed_function_names", else the predicted function call will be any one of the provided "function_declarations".
+     */
+    FunctionCallingConfigMode["VALIDATED"] = "VALIDATED";
 })(FunctionCallingConfigMode || (FunctionCallingConfigMode = {}));
 /** Enum that controls the safety filter level for objectionable content. */
 var SafetyFilterLevel;
@@ -5108,11 +1511,38 @@ var PersonGeneration;
 /** Enum that specifies the language of the text in the prompt. */
 var ImagePromptLanguage;
 (function (ImagePromptLanguage) {
+    /**
+     * Auto-detect the language.
+     */
     ImagePromptLanguage["auto"] = "auto";
+    /**
+     * English
+     */
     ImagePromptLanguage["en"] = "en";
+    /**
+     * Japanese
+     */
     ImagePromptLanguage["ja"] = "ja";
+    /**
+     * Korean
+     */
     ImagePromptLanguage["ko"] = "ko";
+    /**
+     * Hindi
+     */
     ImagePromptLanguage["hi"] = "hi";
+    /**
+     * Chinese
+     */
+    ImagePromptLanguage["zh"] = "zh";
+    /**
+     * Portuguese
+     */
+    ImagePromptLanguage["pt"] = "pt";
+    /**
+     * Spanish
+     */
+    ImagePromptLanguage["es"] = "es";
 })(ImagePromptLanguage || (ImagePromptLanguage = {}));
 /** Enum representing the mask mode of a mask reference image. */
 var MaskReferenceMode;
@@ -5139,7 +1569,7 @@ var SubjectReferenceType;
     SubjectReferenceType["SUBJECT_TYPE_ANIMAL"] = "SUBJECT_TYPE_ANIMAL";
     SubjectReferenceType["SUBJECT_TYPE_PRODUCT"] = "SUBJECT_TYPE_PRODUCT";
 })(SubjectReferenceType || (SubjectReferenceType = {}));
-/** Enum representing the Imagen 3 Edit mode. */
+/** Enum representing the editing mode. */
 var EditMode;
 (function (EditMode) {
     EditMode["EDIT_MODE_DEFAULT"] = "EDIT_MODE_DEFAULT";
@@ -5151,6 +1581,57 @@ var EditMode;
     EditMode["EDIT_MODE_BGSWAP"] = "EDIT_MODE_BGSWAP";
     EditMode["EDIT_MODE_PRODUCT_IMAGE"] = "EDIT_MODE_PRODUCT_IMAGE";
 })(EditMode || (EditMode = {}));
+/** Enum that represents the segmentation mode. */
+var SegmentMode;
+(function (SegmentMode) {
+    SegmentMode["FOREGROUND"] = "FOREGROUND";
+    SegmentMode["BACKGROUND"] = "BACKGROUND";
+    SegmentMode["PROMPT"] = "PROMPT";
+    SegmentMode["SEMANTIC"] = "SEMANTIC";
+    SegmentMode["INTERACTIVE"] = "INTERACTIVE";
+})(SegmentMode || (SegmentMode = {}));
+/** Enum for the reference type of a video generation reference image. */
+var VideoGenerationReferenceType;
+(function (VideoGenerationReferenceType) {
+    /**
+     * A reference image that provides assets to the generated video,
+        such as the scene, an object, a character, etc.
+     */
+    VideoGenerationReferenceType["ASSET"] = "ASSET";
+    /**
+     * A reference image that provides aesthetics including colors,
+        lighting, texture, etc., to be used as the style of the generated video,
+        such as 'anime', 'photography', 'origami', etc.
+     */
+    VideoGenerationReferenceType["STYLE"] = "STYLE";
+})(VideoGenerationReferenceType || (VideoGenerationReferenceType = {}));
+/** Enum for the mask mode of a video generation mask. */
+var VideoGenerationMaskMode;
+(function (VideoGenerationMaskMode) {
+    /**
+     * The image mask contains a masked rectangular region which is
+        applied on the first frame of the input video. The object described in
+        the prompt is inserted into this region and will appear in subsequent
+        frames.
+     */
+    VideoGenerationMaskMode["INSERT"] = "INSERT";
+    /**
+     * The image mask is used to determine an object in the
+        first video frame to track. This object is removed from the video.
+     */
+    VideoGenerationMaskMode["REMOVE"] = "REMOVE";
+    /**
+     * The image mask is used to determine a region in the
+        video. Objects in this region will be removed.
+     */
+    VideoGenerationMaskMode["REMOVE_STATIC"] = "REMOVE_STATIC";
+    /**
+     * The image mask contains a masked rectangular region where
+        the input video will go. The remaining area will be generated. Video
+        masks are not supported.
+     */
+    VideoGenerationMaskMode["OUTPAINT"] = "OUTPAINT";
+})(VideoGenerationMaskMode || (VideoGenerationMaskMode = {}));
 /** Enum that controls the compression quality of the generated videos. */
 var VideoCompressionQuality;
 (function (VideoCompressionQuality) {
@@ -5180,6 +1661,26 @@ var FileSource;
     FileSource["UPLOADED"] = "UPLOADED";
     FileSource["GENERATED"] = "GENERATED";
 })(FileSource || (FileSource = {}));
+/** The reason why the turn is complete. */
+var TurnCompleteReason;
+(function (TurnCompleteReason) {
+    /**
+     * Default value. Reason is unspecified.
+     */
+    TurnCompleteReason["TURN_COMPLETE_REASON_UNSPECIFIED"] = "TURN_COMPLETE_REASON_UNSPECIFIED";
+    /**
+     * The function call generated by the model is invalid.
+     */
+    TurnCompleteReason["MALFORMED_FUNCTION_CALL"] = "MALFORMED_FUNCTION_CALL";
+    /**
+     * The response is rejected by the model.
+     */
+    TurnCompleteReason["RESPONSE_REJECTED"] = "RESPONSE_REJECTED";
+    /**
+     * Needs more input from the user.
+     */
+    TurnCompleteReason["NEED_MORE_INPUT"] = "NEED_MORE_INPUT";
+})(TurnCompleteReason || (TurnCompleteReason = {}));
 /** Server content modalities. */
 var MediaModality;
 (function (MediaModality) {
@@ -5348,6 +1849,29 @@ var Scale;
      */
     Scale["B_MAJOR_A_FLAT_MINOR"] = "B_MAJOR_A_FLAT_MINOR";
 })(Scale || (Scale = {}));
+/** The mode of music generation. */
+var MusicGenerationMode;
+(function (MusicGenerationMode) {
+    /**
+     * Rely on the server default generation mode.
+     */
+    MusicGenerationMode["MUSIC_GENERATION_MODE_UNSPECIFIED"] = "MUSIC_GENERATION_MODE_UNSPECIFIED";
+    /**
+     * Steer text prompts to regions of latent space with higher quality
+        music.
+     */
+    MusicGenerationMode["QUALITY"] = "QUALITY";
+    /**
+     * Steer text prompts to regions of latent space with a larger
+        diversity of music.
+     */
+    MusicGenerationMode["DIVERSITY"] = "DIVERSITY";
+    /**
+     * Steer text prompts to regions of latent space more likely to
+        generate music with vocals.
+     */
+    MusicGenerationMode["VOCALIZATION"] = "VOCALIZATION";
+})(MusicGenerationMode || (MusicGenerationMode = {}));
 /** The playback control signal to apply to the music generation. */
 var LiveMusicPlaybackControl;
 (function (LiveMusicPlaybackControl) {
@@ -5649,6 +2173,12 @@ class EditImageResponse {
 }
 class UpscaleImageResponse {
 }
+/** The output images response. */
+class RecontextImageResponse {
+}
+/** The output images response. */
+class SegmentImageResponse {
+}
 class ListModelsResponse {
 }
 class DeleteModelResponse {
@@ -5658,6 +2188,26 @@ class CountTokensResponse {
 }
 /** Response for computing tokens. */
 class ComputeTokensResponse {
+}
+/** A video generation operation. */
+class GenerateVideosOperation {
+    /**
+     * Instantiates an Operation of the same type as the one being called with the fields set from the API response.
+     * @internal
+     */
+    _fromAPIResponse({ apiResponse, isVertexAI, }) {
+        const operation = new GenerateVideosOperation();
+        let response;
+        const op = apiResponse;
+        if (isVertexAI) {
+            response = generateVideosOperationFromVertex$1(op);
+        }
+        else {
+            response = generateVideosOperationFromMldev$1(op);
+        }
+        Object.assign(operation, response);
+        return operation;
+    }
 }
 /** Response for the list tuning jobs method. */
 class ListTuningJobsResponse {
@@ -5962,133 +2512,12 @@ function tContents(origin) {
     }
     return result;
 }
-// The fields that are supported by JSONSchema. Must be kept in sync with the
-// JSONSchema interface above.
-const supportedJsonSchemaFields = new Set([
-    'type',
-    'format',
-    'title',
-    'description',
-    'default',
-    'items',
-    'minItems',
-    'maxItems',
-    'enum',
-    'properties',
-    'required',
-    'minProperties',
-    'maxProperties',
-    'minimum',
-    'maximum',
-    'minLength',
-    'maxLength',
-    'pattern',
-    'anyOf',
-    'propertyOrdering',
-]);
-const jsonSchemaTypeValidator = enumType([
-    'string',
-    'number',
-    'integer',
-    'object',
-    'array',
-    'boolean',
-    'null',
-]);
-// Handles all types and arrays of all types.
-const schemaTypeUnion = unionType([
-    jsonSchemaTypeValidator,
-    arrayType(jsonSchemaTypeValidator),
-]);
-/**
- * Creates a zod validator for JSONSchema.
- *
- * @param strictMode Whether to enable strict mode, default to true. When
- * strict mode is enabled, the zod validator will throw error if there
- * are unrecognized fields in the input data. If strict mode is
- * disabled, the zod validator will ignore the unrecognized fields, only
- * populate the fields that are listed in the JSONSchema. Regardless of
- * the mode the type mismatch will always result in an error, for example
- * items field should be a single JSONSchema, but for tuple type it would
- * be an array of JSONSchema, this will always result in an error.
- * @return The zod validator for JSONSchema.
- */
-function createJsonSchemaValidator(strictMode = true) {
-    const jsonSchemaValidator = lazyType(() => {
-        // Define the base object shape *inside* the z.lazy callback
-        const baseShape = objectType({
-            // --- Type ---
-            type: schemaTypeUnion.optional(),
-            // --- Annotations ---
-            format: stringType().optional(),
-            title: stringType().optional(),
-            description: stringType().optional(),
-            default: unknownType().optional(),
-            // --- Array Validations ---
-            items: jsonSchemaValidator.optional(),
-            minItems: coerce.string().optional(),
-            maxItems: coerce.string().optional(),
-            // --- Generic Validations ---
-            enum: arrayType(unknownType()).optional(),
-            // --- Object Validations ---
-            properties: recordType(stringType(), jsonSchemaValidator).optional(),
-            required: arrayType(stringType()).optional(),
-            minProperties: coerce.string().optional(),
-            maxProperties: coerce.string().optional(),
-            propertyOrdering: arrayType(stringType()).optional(),
-            // --- Numeric Validations ---
-            minimum: numberType().optional(),
-            maximum: numberType().optional(),
-            // --- String Validations ---
-            minLength: coerce.string().optional(),
-            maxLength: coerce.string().optional(),
-            pattern: stringType().optional(),
-            // --- Schema Composition ---
-            anyOf: arrayType(jsonSchemaValidator).optional(),
-            // --- Additional Properties --- This field is not included in the
-            // JSONSchema, will not be communicated to the model, it is here purely
-            // for enabling the zod validation strict mode.
-            additionalProperties: booleanType().optional(),
-        });
-        // Conditionally apply .strict() based on the flag
-        return strictMode ? baseShape.strict() : baseShape;
-    });
-    return jsonSchemaValidator;
-}
 /*
-Handle type field:
-The resulted type field in JSONSchema form zod_to_json_schema can be either
-an array consist of primitive types or a single primitive type.
-This is due to the optimization of zod_to_json_schema, when the types in the
-union are primitive types without any additional specifications,
-zod_to_json_schema will squash the types into an array instead of put them
-in anyOf fields. Otherwise, it will put the types in anyOf fields.
-See the following link for more details:
-https://github.com/zodjs/zod-to-json-schema/blob/main/src/index.ts#L101
-The logic here is trying to undo that optimization, flattening the array of
-types to anyOf fields.
-                                 type field
-                                      |
-                            ___________________________
-                           /                           \
-                          /                              \
-                         /                                \
-                       Array                              Type.*
-                /                  \                       |
-      Include null.              Not included null     type = Type.*.
-      [null, Type.*, Type.*]     multiple types.
-      [null, Type.*]             [Type.*, Type.*]
-            /                                \
-      remove null                             \
-      add nullable = true                      \
-       /                    \                   \
-    [Type.*]           [Type.*, Type.*]          \
- only one type left     multiple types left       \
- add type = Type.*.           \                  /
-                               \                /
-                         not populate the type field in final result
-                           and make the types into anyOf fields
-                          anyOf:[{type: 'Type.*'}, {type: 'Type.*'}];
+Transform the type field from an array of types to an array of anyOf fields.
+Example:
+  {type: ['STRING', 'NUMBER']}
+will be transformed to
+  {anyOf: [{type: 'STRING'}, {type: 'NUMBER'}]}
 */
 function flattenTypeArrayToAnyOf(typeList, resultingSchema) {
     if (typeList.includes('null')) {
@@ -6234,15 +2663,11 @@ function processJsonSchema(_jsonSchema) {
 // https://github.com/StefanTerdell/zod-to-json-schema/blob/70525efe555cd226691e093d171370a3b10921d1/src/zodToJsonSchema.ts#L7
 // typebox can return unknown, see details in
 // https://github.com/sinclairzx81/typebox/blob/5a5431439f7d5ca6b494d0d18fbfd7b1a356d67c/src/type/create/type.ts#L35
+// Note: proper json schemas with the $schema field set never arrive to this
+// transformer. Schemas with $schema are routed to the equivalent API json
+// schema field.
 function tSchema(schema) {
-    if (Object.keys(schema).includes('$schema')) {
-        delete schema['$schema'];
-        const validatedJsonSchema = createJsonSchemaValidator().parse(schema);
-        return processJsonSchema(validatedJsonSchema);
-    }
-    else {
-        return processJsonSchema(schema);
-    }
+    return processJsonSchema(schema);
 }
 function tSpeechConfig(speechConfig) {
     if (typeof speechConfig === 'object') {
@@ -6271,10 +2696,28 @@ function tTool(tool) {
     if (tool.functionDeclarations) {
         for (const functionDeclaration of tool.functionDeclarations) {
             if (functionDeclaration.parameters) {
-                functionDeclaration.parameters = tSchema(functionDeclaration.parameters);
+                if (!Object.keys(functionDeclaration.parameters).includes('$schema')) {
+                    functionDeclaration.parameters = processJsonSchema(functionDeclaration.parameters);
+                }
+                else {
+                    if (!functionDeclaration.parametersJsonSchema) {
+                        functionDeclaration.parametersJsonSchema =
+                            functionDeclaration.parameters;
+                        delete functionDeclaration.parameters;
+                    }
+                }
             }
             if (functionDeclaration.response) {
-                functionDeclaration.response = tSchema(functionDeclaration.response);
+                if (!Object.keys(functionDeclaration.response).includes('$schema')) {
+                    functionDeclaration.response = processJsonSchema(functionDeclaration.response);
+                }
+                else {
+                    if (!functionDeclaration.responseJsonSchema) {
+                        functionDeclaration.responseJsonSchema =
+                            functionDeclaration.response;
+                        delete functionDeclaration.response;
+                    }
+                }
             }
         }
     }
@@ -6392,11 +2835,7 @@ function tTuningJobStatus(status) {
     }
 }
 function tBytes(fromImageBytes) {
-    if (typeof fromImageBytes !== 'string') {
-        throw new Error('fromImageBytes must be a string');
-    }
-    // TODO(b/389133914): Remove dummy bytes converter.
-    return fromImageBytes;
+    return tBytes$1(fromImageBytes);
 }
 function _isFile(origin) {
     return (origin !== null &&
@@ -6479,8 +2918,11 @@ function mcpToGeminiTool(mcpTool, config = {}) {
     const functionDeclaration = {
         name: mcpToolSchema['name'],
         description: mcpToolSchema['description'],
-        parameters: processJsonSchema(filterToJsonSchema(mcpToolSchema['inputSchema'])),
+        parametersJsonSchema: mcpToolSchema['inputSchema'],
     };
+    if (mcpToolSchema['outputSchema']) {
+        functionDeclaration['responseJsonSchema'] = mcpToolSchema['outputSchema'];
+    }
     if (config.behavior) {
         functionDeclaration['behavior'] = config.behavior;
     }
@@ -6511,101 +2953,65 @@ function mcpToolsToGeminiTool(mcpTools, config = {}) {
     }
     return { functionDeclarations: functionDeclarations };
 }
-// Filters the list schema field to only include fields that are supported by
-// JSONSchema.
-function filterListSchemaField(fieldValue) {
-    const listSchemaFieldValue = [];
-    for (const listFieldValue of fieldValue) {
-        listSchemaFieldValue.push(filterToJsonSchema(listFieldValue));
-    }
-    return listSchemaFieldValue;
-}
-// Filters the dict schema field to only include fields that are supported by
-// JSONSchema.
-function filterDictSchemaField(fieldValue) {
-    const dictSchemaFieldValue = {};
-    for (const [key, value] of Object.entries(fieldValue)) {
-        const valueRecord = value;
-        dictSchemaFieldValue[key] = filterToJsonSchema(valueRecord);
-    }
-    return dictSchemaFieldValue;
-}
-// Filters the schema to only include fields that are supported by JSONSchema.
-function filterToJsonSchema(schema) {
-    const schemaFieldNames = new Set(['items']); // 'additional_properties' to come
-    const listSchemaFieldNames = new Set(['anyOf']); // 'one_of', 'all_of', 'not' to come
-    const dictSchemaFieldNames = new Set(['properties']); // 'defs' to come
-    const filteredSchema = {};
-    for (const [fieldName, fieldValue] of Object.entries(schema)) {
-        if (schemaFieldNames.has(fieldName)) {
-            filteredSchema[fieldName] = filterToJsonSchema(fieldValue);
-        }
-        else if (listSchemaFieldNames.has(fieldName)) {
-            filteredSchema[fieldName] = filterListSchemaField(fieldValue);
-        }
-        else if (dictSchemaFieldNames.has(fieldName)) {
-            filteredSchema[fieldName] = filterDictSchemaField(fieldValue);
-        }
-        else if (fieldName === 'type') {
-            const typeValue = fieldValue.toUpperCase();
-            filteredSchema[fieldName] = Object.values(Type).includes(typeValue)
-                ? typeValue
-                : Type.TYPE_UNSPECIFIED;
-        }
-        else if (supportedJsonSchemaFields.has(fieldName)) {
-            filteredSchema[fieldName] = fieldValue;
-        }
-    }
-    return filteredSchema;
-}
 // Transforms a source input into a BatchJobSource object with validation.
-function tBatchJobSource(apiClient, src) {
-    if (typeof src !== 'string' && !Array.isArray(src)) {
-        if (apiClient && apiClient.isVertexAI()) {
-            if (src.gcsUri && src.bigqueryUri) {
-                throw new Error('Only one of `gcsUri` or `bigqueryUri` can be set.');
+function tBatchJobSource(client, src) {
+    let sourceObj;
+    if (typeof src === 'string') {
+        if (client.isVertexAI()) {
+            if (src.startsWith('gs://')) {
+                sourceObj = { format: 'jsonl', gcsUri: [src] };
             }
-            else if (!src.gcsUri && !src.bigqueryUri) {
-                throw new Error('One of `gcsUri` or `bigqueryUri` must be set.');
+            else if (src.startsWith('bq://')) {
+                sourceObj = { format: 'bigquery', bigqueryUri: src };
+            }
+            else {
+                throw new Error(`Unsupported string source for Vertex AI: ${src}`);
             }
         }
         else {
-            // Logic for non-Vertex AI client (inlined_requests, file_name)
-            if (src.inlinedRequests && src.fileName) {
-                throw new Error('Only one of `inlinedRequests` or `fileName` can be set.');
+            // MLDEV
+            if (src.startsWith('files/')) {
+                sourceObj = { fileName: src }; // Default to fileName for string input
             }
-            else if (!src.inlinedRequests && !src.fileName) {
-                throw new Error('One of `inlinedRequests` or `fileName` must be set.');
+            else {
+                throw new Error(`Unsupported string source for Gemini API: ${src}`);
             }
         }
-        return src;
     }
-    // If src is an array (list in Python)
     else if (Array.isArray(src)) {
-        return { inlinedRequests: src };
+        if (client.isVertexAI()) {
+            throw new Error('InlinedRequest[] is not supported in Vertex AI.');
+        }
+        sourceObj = { inlinedRequests: src };
     }
-    else if (typeof src === 'string') {
-        if (src.startsWith('gs://')) {
-            return {
-                format: 'jsonl',
-                gcsUri: [src], // GCS URI is expected as an array
-            };
-        }
-        else if (src.startsWith('bq://')) {
-            return {
-                format: 'bigquery',
-                bigqueryUri: src,
-            };
-        }
-        else if (src.startsWith('files/')) {
-            return {
-                fileName: src,
-            };
+    else {
+        // It's already a BatchJobSource object
+        sourceObj = src;
+    }
+    // Validation logic
+    const vertexSourcesCount = [sourceObj.gcsUri, sourceObj.bigqueryUri].filter(Boolean).length;
+    const mldevSourcesCount = [
+        sourceObj.inlinedRequests,
+        sourceObj.fileName,
+    ].filter(Boolean).length;
+    if (client.isVertexAI()) {
+        if (mldevSourcesCount > 0 || vertexSourcesCount !== 1) {
+            throw new Error('Exactly one of `gcsUri` or `bigqueryUri` must be set for Vertex AI.');
         }
     }
-    throw new Error(`Unsupported source: ${src}`);
+    else {
+        // MLDEV
+        if (vertexSourcesCount > 0 || mldevSourcesCount !== 1) {
+            throw new Error('Exactly one of `inlinedRequests`, `fileName`, ' +
+                'must be set for Gemini API.');
+        }
+    }
+    return sourceObj;
 }
 function tBatchJobDestination(dest) {
+    if (typeof dest !== 'string') {
+        return dest;
+    }
     const destString = dest;
     if (destString.startsWith('gs://')) {
         return {
@@ -6622,6 +3028,52 @@ function tBatchJobDestination(dest) {
     else {
         throw new Error(`Unsupported destination: ${destString}`);
     }
+}
+function tRecvBatchJobDestination(dest) {
+    // Ensure dest is a non-null object before proceeding.
+    if (typeof dest !== 'object' || dest === null) {
+        // If the input is not an object, it cannot be a valid BatchJobDestination
+        // based on the operations performed. Return it cast, or handle as an error.
+        // Casting an empty object might be a safe default.
+        return {};
+    }
+    // Cast to Record<string, unknown> to allow string property access.
+    const obj = dest;
+    // Safely access nested properties.
+    const inlineResponsesVal = obj['inlinedResponses'];
+    if (typeof inlineResponsesVal !== 'object' || inlineResponsesVal === null) {
+        return dest;
+    }
+    const inlineResponsesObj = inlineResponsesVal;
+    const responsesArray = inlineResponsesObj['inlinedResponses'];
+    if (!Array.isArray(responsesArray) || responsesArray.length === 0) {
+        return dest;
+    }
+    // Check if any response has the 'embedding' property.
+    let hasEmbedding = false;
+    for (const responseItem of responsesArray) {
+        if (typeof responseItem !== 'object' || responseItem === null) {
+            continue;
+        }
+        const responseItemObj = responseItem;
+        const responseVal = responseItemObj['response'];
+        if (typeof responseVal !== 'object' || responseVal === null) {
+            continue;
+        }
+        const responseObj = responseVal;
+        // Check for the existence of the 'embedding' key.
+        if (responseObj['embedding'] !== undefined) {
+            hasEmbedding = true;
+            break;
+        }
+    }
+    // Perform the transformation if an embedding was found.
+    if (hasEmbedding) {
+        obj['inlinedEmbedContentResponses'] = obj['inlinedResponses'];
+        delete obj['inlinedResponses'];
+    }
+    // Cast the (potentially) modified object to the target type.
+    return dest;
 }
 function tBatchJobName(apiClient, name) {
     const nameString = name;
@@ -6653,6 +3105,9 @@ function tJobState(state) {
     else if (stateString === 'BATCH_STATE_PENDING') {
         return 'JOB_STATE_PENDING';
     }
+    else if (stateString === 'BATCH_STATE_RUNNING') {
+        return 'JOB_STATE_RUNNING';
+    }
     else if (stateString === 'BATCH_STATE_SUCCEEDED') {
         return 'JOB_STATE_SUCCEEDED';
     }
@@ -6661,6 +3116,9 @@ function tJobState(state) {
     }
     else if (stateString === 'BATCH_STATE_CANCELLED') {
         return 'JOB_STATE_CANCELLED';
+    }
+    else if (stateString === 'BATCH_STATE_EXPIRED') {
+        return 'JOB_STATE_EXPIRED';
     }
     else {
         return stateString;
@@ -6672,19 +3130,263 @@ function tJobState(state) {
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-function videoMetadataToMldev$4(fromObject) {
+function batchJobDestinationFromMldev(fromObject) {
     const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
+    const fromFileName = getValueByPath(fromObject, ['responsesFile']);
+    if (fromFileName != null) {
+        setValueByPath(toObject, ['fileName'], fromFileName);
     }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    const fromInlinedResponses = getValueByPath(fromObject, [
+        'inlinedResponses',
+        'inlinedResponses',
+    ]);
+    if (fromInlinedResponses != null) {
+        let transformedList = fromInlinedResponses;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return inlinedResponseFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['inlinedResponses'], transformedList);
     }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    const fromInlinedEmbedContentResponses = getValueByPath(fromObject, [
+        'inlinedEmbedContentResponses',
+        'inlinedResponses',
+    ]);
+    if (fromInlinedEmbedContentResponses != null) {
+        let transformedList = fromInlinedEmbedContentResponses;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return inlinedEmbedContentResponseFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['inlinedEmbedContentResponses'], transformedList);
+    }
+    return toObject;
+}
+function batchJobDestinationFromVertex(fromObject) {
+    const toObject = {};
+    const fromFormat = getValueByPath(fromObject, ['predictionsFormat']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['format'], fromFormat);
+    }
+    const fromGcsUri = getValueByPath(fromObject, [
+        'gcsDestination',
+        'outputUriPrefix',
+    ]);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
+    }
+    const fromBigqueryUri = getValueByPath(fromObject, [
+        'bigqueryDestination',
+        'outputUri',
+    ]);
+    if (fromBigqueryUri != null) {
+        setValueByPath(toObject, ['bigqueryUri'], fromBigqueryUri);
+    }
+    return toObject;
+}
+function batchJobDestinationToVertex(fromObject) {
+    const toObject = {};
+    const fromFormat = getValueByPath(fromObject, ['format']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['predictionsFormat'], fromFormat);
+    }
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsDestination', 'outputUriPrefix'], fromGcsUri);
+    }
+    const fromBigqueryUri = getValueByPath(fromObject, ['bigqueryUri']);
+    if (fromBigqueryUri != null) {
+        setValueByPath(toObject, ['bigqueryDestination', 'outputUri'], fromBigqueryUri);
+    }
+    if (getValueByPath(fromObject, ['fileName']) !== undefined) {
+        throw new Error('fileName parameter is not supported in Vertex AI.');
+    }
+    if (getValueByPath(fromObject, ['inlinedResponses']) !== undefined) {
+        throw new Error('inlinedResponses parameter is not supported in Vertex AI.');
+    }
+    if (getValueByPath(fromObject, ['inlinedEmbedContentResponses']) !==
+        undefined) {
+        throw new Error('inlinedEmbedContentResponses parameter is not supported in Vertex AI.');
+    }
+    return toObject;
+}
+function batchJobFromMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDisplayName = getValueByPath(fromObject, [
+        'metadata',
+        'displayName',
+    ]);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromState = getValueByPath(fromObject, ['metadata', 'state']);
+    if (fromState != null) {
+        setValueByPath(toObject, ['state'], tJobState(fromState));
+    }
+    const fromCreateTime = getValueByPath(fromObject, [
+        'metadata',
+        'createTime',
+    ]);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, [
+        'metadata',
+        'endTime',
+    ]);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, [
+        'metadata',
+        'updateTime',
+    ]);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    const fromModel = getValueByPath(fromObject, ['metadata', 'model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
+    }
+    const fromDest = getValueByPath(fromObject, ['metadata', 'output']);
+    if (fromDest != null) {
+        setValueByPath(toObject, ['dest'], batchJobDestinationFromMldev(tRecvBatchJobDestination(fromDest)));
+    }
+    return toObject;
+}
+function batchJobFromVertex(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromState = getValueByPath(fromObject, ['state']);
+    if (fromState != null) {
+        setValueByPath(toObject, ['state'], tJobState(fromState));
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], jobErrorFromVertex(fromError));
+    }
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
+    }
+    const fromSrc = getValueByPath(fromObject, ['inputConfig']);
+    if (fromSrc != null) {
+        setValueByPath(toObject, ['src'], batchJobSourceFromVertex(fromSrc));
+    }
+    const fromDest = getValueByPath(fromObject, ['outputConfig']);
+    if (fromDest != null) {
+        setValueByPath(toObject, ['dest'], batchJobDestinationFromVertex(tRecvBatchJobDestination(fromDest)));
+    }
+    return toObject;
+}
+function batchJobSourceFromVertex(fromObject) {
+    const toObject = {};
+    const fromFormat = getValueByPath(fromObject, ['instancesFormat']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['format'], fromFormat);
+    }
+    const fromGcsUri = getValueByPath(fromObject, ['gcsSource', 'uris']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
+    }
+    const fromBigqueryUri = getValueByPath(fromObject, [
+        'bigquerySource',
+        'inputUri',
+    ]);
+    if (fromBigqueryUri != null) {
+        setValueByPath(toObject, ['bigqueryUri'], fromBigqueryUri);
+    }
+    return toObject;
+}
+function batchJobSourceToMldev(apiClient, fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['format']) !== undefined) {
+        throw new Error('format parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
+        throw new Error('gcsUri parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['bigqueryUri']) !== undefined) {
+        throw new Error('bigqueryUri parameter is not supported in Gemini API.');
+    }
+    const fromFileName = getValueByPath(fromObject, ['fileName']);
+    if (fromFileName != null) {
+        setValueByPath(toObject, ['fileName'], fromFileName);
+    }
+    const fromInlinedRequests = getValueByPath(fromObject, [
+        'inlinedRequests',
+    ]);
+    if (fromInlinedRequests != null) {
+        let transformedList = fromInlinedRequests;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return inlinedRequestToMldev(apiClient, item);
+            });
+        }
+        setValueByPath(toObject, ['requests', 'requests'], transformedList);
+    }
+    return toObject;
+}
+function batchJobSourceToVertex(fromObject) {
+    const toObject = {};
+    const fromFormat = getValueByPath(fromObject, ['format']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['instancesFormat'], fromFormat);
+    }
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsSource', 'uris'], fromGcsUri);
+    }
+    const fromBigqueryUri = getValueByPath(fromObject, ['bigqueryUri']);
+    if (fromBigqueryUri != null) {
+        setValueByPath(toObject, ['bigquerySource', 'inputUri'], fromBigqueryUri);
+    }
+    if (getValueByPath(fromObject, ['fileName']) !== undefined) {
+        throw new Error('fileName parameter is not supported in Vertex AI.');
+    }
+    if (getValueByPath(fromObject, ['inlinedRequests']) !== undefined) {
+        throw new Error('inlinedRequests parameter is not supported in Vertex AI.');
+    }
+    return toObject;
+}
+function blobFromMldev$2(fromObject) {
+    const toObject = {};
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
     }
     return toObject;
 }
@@ -6696,6 +3398,343 @@ function blobToMldev$4(fromObject) {
     const fromData = getValueByPath(fromObject, ['data']);
     if (fromData != null) {
         setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function cancelBatchJobParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function cancelBatchJobParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function candidateFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromContent = getValueByPath(fromObject, ['content']);
+    if (fromContent != null) {
+        setValueByPath(toObject, ['content'], contentFromMldev$2(fromContent));
+    }
+    const fromCitationMetadata = getValueByPath(fromObject, [
+        'citationMetadata',
+    ]);
+    if (fromCitationMetadata != null) {
+        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromMldev$1(fromCitationMetadata));
+    }
+    const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
+    if (fromTokenCount != null) {
+        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
+    }
+    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
+    if (fromFinishReason != null) {
+        setValueByPath(toObject, ['finishReason'], fromFinishReason);
+    }
+    const fromUrlContextMetadata = getValueByPath(fromObject, [
+        'urlContextMetadata',
+    ]);
+    if (fromUrlContextMetadata != null) {
+        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromMldev$2(fromUrlContextMetadata));
+    }
+    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
+    if (fromAvgLogprobs != null) {
+        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
+    }
+    const fromGroundingMetadata = getValueByPath(fromObject, [
+        'groundingMetadata',
+    ]);
+    if (fromGroundingMetadata != null) {
+        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
+    }
+    const fromIndex = getValueByPath(fromObject, ['index']);
+    if (fromIndex != null) {
+        setValueByPath(toObject, ['index'], fromIndex);
+    }
+    const fromLogprobsResult = getValueByPath(fromObject, [
+        'logprobsResult',
+    ]);
+    if (fromLogprobsResult != null) {
+        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
+    }
+    const fromSafetyRatings = getValueByPath(fromObject, [
+        'safetyRatings',
+    ]);
+    if (fromSafetyRatings != null) {
+        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
+    }
+    return toObject;
+}
+function citationMetadataFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromCitations = getValueByPath(fromObject, ['citationSources']);
+    if (fromCitations != null) {
+        setValueByPath(toObject, ['citations'], fromCitations);
+    }
+    return toObject;
+}
+function contentEmbeddingFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromValues = getValueByPath(fromObject, ['values']);
+    if (fromValues != null) {
+        setValueByPath(toObject, ['values'], fromValues);
+    }
+    return toObject;
+}
+function contentFromMldev$2(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partFromMldev$2(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentToMldev$4(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partToMldev$4(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function createBatchJobConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (parentObject !== undefined && fromDisplayName != null) {
+        setValueByPath(parentObject, ['batch', 'displayName'], fromDisplayName);
+    }
+    if (getValueByPath(fromObject, ['dest']) !== undefined) {
+        throw new Error('dest parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function createBatchJobConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (parentObject !== undefined && fromDisplayName != null) {
+        setValueByPath(parentObject, ['displayName'], fromDisplayName);
+    }
+    const fromDest = getValueByPath(fromObject, ['dest']);
+    if (parentObject !== undefined && fromDest != null) {
+        setValueByPath(parentObject, ['outputConfig'], batchJobDestinationToVertex(tBatchJobDestination(fromDest)));
+    }
+    return toObject;
+}
+function createBatchJobParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromSrc = getValueByPath(fromObject, ['src']);
+    if (fromSrc != null) {
+        setValueByPath(toObject, ['batch', 'inputConfig'], batchJobSourceToMldev(apiClient, tBatchJobSource(apiClient, fromSrc)));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        createBatchJobConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function createBatchJobParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], tModel(apiClient, fromModel));
+    }
+    const fromSrc = getValueByPath(fromObject, ['src']);
+    if (fromSrc != null) {
+        setValueByPath(toObject, ['inputConfig'], batchJobSourceToVertex(tBatchJobSource(apiClient, fromSrc)));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        createBatchJobConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function createEmbeddingsBatchJobConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (parentObject !== undefined && fromDisplayName != null) {
+        setValueByPath(parentObject, ['batch', 'displayName'], fromDisplayName);
+    }
+    return toObject;
+}
+function createEmbeddingsBatchJobParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromSrc = getValueByPath(fromObject, ['src']);
+    if (fromSrc != null) {
+        setValueByPath(toObject, ['batch', 'inputConfig'], embeddingsBatchJobSourceToMldev(apiClient, fromSrc));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        createEmbeddingsBatchJobConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function deleteBatchJobParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function deleteBatchJobParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function deleteResourceJobFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], jobErrorFromMldev(fromError));
+    }
+    return toObject;
+}
+function deleteResourceJobFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], jobErrorFromVertex(fromError));
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToMldev$4(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function embedContentBatchToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        setValueByPath(toObject, ['requests[]', 'request', 'content'], tContentsForEmbed(apiClient, fromContents));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        setValueByPath(toObject, ['config'], embedContentConfigToMldev$1(fromConfig, toObject));
+    }
+    return toObject;
+}
+function embedContentConfigToMldev$1(fromObject, parentObject) {
+    const toObject = {};
+    const fromTaskType = getValueByPath(fromObject, ['taskType']);
+    if (parentObject !== undefined && fromTaskType != null) {
+        setValueByPath(parentObject, ['requests[]', 'taskType'], fromTaskType);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (parentObject !== undefined && fromTitle != null) {
+        setValueByPath(parentObject, ['requests[]', 'title'], fromTitle);
+    }
+    const fromOutputDimensionality = getValueByPath(fromObject, [
+        'outputDimensionality',
+    ]);
+    if (parentObject !== undefined && fromOutputDimensionality != null) {
+        setValueByPath(parentObject, ['requests[]', 'outputDimensionality'], fromOutputDimensionality);
+    }
+    if (getValueByPath(fromObject, ['mimeType']) !== undefined) {
+        throw new Error('mimeType parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['autoTruncate']) !== undefined) {
+        throw new Error('autoTruncate parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function embeddingsBatchJobSourceToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromFileName = getValueByPath(fromObject, ['fileName']);
+    if (fromFileName != null) {
+        setValueByPath(toObject, ['file_name'], fromFileName);
+    }
+    const fromInlinedRequests = getValueByPath(fromObject, [
+        'inlinedRequests',
+    ]);
+    if (fromInlinedRequests != null) {
+        setValueByPath(toObject, ['requests'], embedContentBatchToMldev(apiClient, fromInlinedRequests));
+    }
+    return toObject;
+}
+function fileDataFromMldev$2(fromObject) {
+    const toObject = {};
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
     }
     const fromMimeType = getValueByPath(fromObject, ['mimeType']);
     if (fromMimeType != null) {
@@ -6718,188 +3757,49 @@ function fileDataToMldev$4(fromObject) {
     }
     return toObject;
 }
-function partToMldev$4(fromObject) {
+function functionCallFromMldev$2(fromObject) {
     const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$4(fromVideoMetadata));
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
     }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToMldev$4(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToMldev$4(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function contentToMldev$4(fromObject) {
+function functionCallToMldev$4(fromObject) {
     const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToMldev$4(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function schemaToMldev$1(fromObject) {
+function functionCallingConfigToMldev$2(fromObject) {
     const toObject = {};
-    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
-    if (fromAnyOf != null) {
-        setValueByPath(toObject, ['anyOf'], fromAnyOf);
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
     }
-    const fromDefault = getValueByPath(fromObject, ['default']);
-    if (fromDefault != null) {
-        setValueByPath(toObject, ['default'], fromDefault);
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromEnum = getValueByPath(fromObject, ['enum']);
-    if (fromEnum != null) {
-        setValueByPath(toObject, ['enum'], fromEnum);
-    }
-    const fromExample = getValueByPath(fromObject, ['example']);
-    if (fromExample != null) {
-        setValueByPath(toObject, ['example'], fromExample);
-    }
-    const fromFormat = getValueByPath(fromObject, ['format']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['format'], fromFormat);
-    }
-    const fromItems = getValueByPath(fromObject, ['items']);
-    if (fromItems != null) {
-        setValueByPath(toObject, ['items'], fromItems);
-    }
-    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
-    if (fromMaxItems != null) {
-        setValueByPath(toObject, ['maxItems'], fromMaxItems);
-    }
-    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
-    if (fromMaxLength != null) {
-        setValueByPath(toObject, ['maxLength'], fromMaxLength);
-    }
-    const fromMaxProperties = getValueByPath(fromObject, [
-        'maxProperties',
+    const fromAllowedFunctionNames = getValueByPath(fromObject, [
+        'allowedFunctionNames',
     ]);
-    if (fromMaxProperties != null) {
-        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
-    }
-    const fromMaximum = getValueByPath(fromObject, ['maximum']);
-    if (fromMaximum != null) {
-        setValueByPath(toObject, ['maximum'], fromMaximum);
-    }
-    const fromMinItems = getValueByPath(fromObject, ['minItems']);
-    if (fromMinItems != null) {
-        setValueByPath(toObject, ['minItems'], fromMinItems);
-    }
-    const fromMinLength = getValueByPath(fromObject, ['minLength']);
-    if (fromMinLength != null) {
-        setValueByPath(toObject, ['minLength'], fromMinLength);
-    }
-    const fromMinProperties = getValueByPath(fromObject, [
-        'minProperties',
-    ]);
-    if (fromMinProperties != null) {
-        setValueByPath(toObject, ['minProperties'], fromMinProperties);
-    }
-    const fromMinimum = getValueByPath(fromObject, ['minimum']);
-    if (fromMinimum != null) {
-        setValueByPath(toObject, ['minimum'], fromMinimum);
-    }
-    const fromNullable = getValueByPath(fromObject, ['nullable']);
-    if (fromNullable != null) {
-        setValueByPath(toObject, ['nullable'], fromNullable);
-    }
-    const fromPattern = getValueByPath(fromObject, ['pattern']);
-    if (fromPattern != null) {
-        setValueByPath(toObject, ['pattern'], fromPattern);
-    }
-    const fromProperties = getValueByPath(fromObject, ['properties']);
-    if (fromProperties != null) {
-        setValueByPath(toObject, ['properties'], fromProperties);
-    }
-    const fromPropertyOrdering = getValueByPath(fromObject, [
-        'propertyOrdering',
-    ]);
-    if (fromPropertyOrdering != null) {
-        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
-    }
-    const fromRequired = getValueByPath(fromObject, ['required']);
-    if (fromRequired != null) {
-        setValueByPath(toObject, ['required'], fromRequired);
-    }
-    const fromTitle = getValueByPath(fromObject, ['title']);
-    if (fromTitle != null) {
-        setValueByPath(toObject, ['title'], fromTitle);
-    }
-    const fromType = getValueByPath(fromObject, ['type']);
-    if (fromType != null) {
-        setValueByPath(toObject, ['type'], fromType);
-    }
-    return toObject;
-}
-function safetySettingToMldev$1(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['method']) !== undefined) {
-        throw new Error('method parameter is not supported in Gemini API.');
-    }
-    const fromCategory = getValueByPath(fromObject, ['category']);
-    if (fromCategory != null) {
-        setValueByPath(toObject, ['category'], fromCategory);
-    }
-    const fromThreshold = getValueByPath(fromObject, ['threshold']);
-    if (fromThreshold != null) {
-        setValueByPath(toObject, ['threshold'], fromThreshold);
+    if (fromAllowedFunctionNames != null) {
+        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
     }
     return toObject;
 }
@@ -6936,239 +3836,6 @@ function functionDeclarationToMldev$4(fromObject) {
     ]);
     if (fromResponseJsonSchema != null) {
         setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
-    }
-    return toObject;
-}
-function intervalToMldev$4(fromObject) {
-    const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function googleSearchToMldev$4(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$4(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToMldev$4(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function googleSearchRetrievalToMldev$4(fromObject) {
-    const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$4(fromDynamicRetrievalConfig));
-    }
-    return toObject;
-}
-function urlContextToMldev$4() {
-    const toObject = {};
-    return toObject;
-}
-function toolToMldev$4(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToMldev$4(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
-    }
-    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
-        throw new Error('retrieval parameter is not supported in Gemini API.');
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$4(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$4(fromGoogleSearchRetrieval));
-    }
-    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
-        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
-        throw new Error('googleMaps parameter is not supported in Gemini API.');
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToMldev$4());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function functionCallingConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromAllowedFunctionNames = getValueByPath(fromObject, [
-        'allowedFunctionNames',
-    ]);
-    if (fromAllowedFunctionNames != null) {
-        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
-    }
-    return toObject;
-}
-function latLngToMldev$2(fromObject) {
-    const toObject = {};
-    const fromLatitude = getValueByPath(fromObject, ['latitude']);
-    if (fromLatitude != null) {
-        setValueByPath(toObject, ['latitude'], fromLatitude);
-    }
-    const fromLongitude = getValueByPath(fromObject, ['longitude']);
-    if (fromLongitude != null) {
-        setValueByPath(toObject, ['longitude'], fromLongitude);
-    }
-    return toObject;
-}
-function retrievalConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromLatLng = getValueByPath(fromObject, ['latLng']);
-    if (fromLatLng != null) {
-        setValueByPath(toObject, ['latLng'], latLngToMldev$2(fromLatLng));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function toolConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromFunctionCallingConfig = getValueByPath(fromObject, [
-        'functionCallingConfig',
-    ]);
-    if (fromFunctionCallingConfig != null) {
-        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev$2(fromFunctionCallingConfig));
-    }
-    const fromRetrievalConfig = getValueByPath(fromObject, [
-        'retrievalConfig',
-    ]);
-    if (fromRetrievalConfig != null) {
-        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev$2(fromRetrievalConfig));
-    }
-    return toObject;
-}
-function prebuiltVoiceConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
-    }
-    return toObject;
-}
-function voiceConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
-    ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$3(fromPrebuiltVoiceConfig));
-    }
-    return toObject;
-}
-function speakerVoiceConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
-    if (fromSpeaker != null) {
-        setValueByPath(toObject, ['speaker'], fromSpeaker);
-    }
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$3(fromVoiceConfig));
-    }
-    return toObject;
-}
-function multiSpeakerVoiceConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
-        'speakerVoiceConfigs',
-    ]);
-    if (fromSpeakerVoiceConfigs != null) {
-        let transformedList = fromSpeakerVoiceConfigs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return speakerVoiceConfigToMldev$3(item);
-            });
-        }
-        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
-    }
-    return toObject;
-}
-function speechConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$3(fromVoiceConfig));
-    }
-    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
-        'multiSpeakerVoiceConfig',
-    ]);
-    if (fromMultiSpeakerVoiceConfig != null) {
-        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$3(fromMultiSpeakerVoiceConfig));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function thinkingConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromIncludeThoughts = getValueByPath(fromObject, [
-        'includeThoughts',
-    ]);
-    if (fromIncludeThoughts != null) {
-        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
-    }
-    const fromThinkingBudget = getValueByPath(fromObject, [
-        'thinkingBudget',
-    ]);
-    if (fromThinkingBudget != null) {
-        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
     }
     return toObject;
 }
@@ -7322,6 +3989,97 @@ function generateContentConfigToMldev$1(apiClient, fromObject, parentObject) {
     }
     return toObject;
 }
+function generateContentResponseFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromCandidates = getValueByPath(fromObject, ['candidates']);
+    if (fromCandidates != null) {
+        let transformedList = fromCandidates;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return candidateFromMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['candidates'], transformedList);
+    }
+    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
+    if (fromModelVersion != null) {
+        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
+    }
+    const fromPromptFeedback = getValueByPath(fromObject, [
+        'promptFeedback',
+    ]);
+    if (fromPromptFeedback != null) {
+        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
+    }
+    const fromResponseId = getValueByPath(fromObject, ['responseId']);
+    if (fromResponseId != null) {
+        setValueByPath(toObject, ['responseId'], fromResponseId);
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
+    ]);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
+    }
+    return toObject;
+}
+function getBatchJobParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function getBatchJobParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    }
+    return toObject;
+}
+function googleSearchRetrievalToMldev$4(fromObject) {
+    const toObject = {};
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$4(fromDynamicRetrievalConfig));
+    }
+    return toObject;
+}
+function googleSearchToMldev$4(fromObject) {
+    const toObject = {};
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$4(fromTimeRangeFilter));
+    }
+    if (getValueByPath(fromObject, ['excludeDomains']) !== undefined) {
+        throw new Error('excludeDomains parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function inlinedEmbedContentResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], singleEmbedContentResponseFromMldev(fromResponse));
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], jobErrorFromMldev(fromError));
+    }
+    return toObject;
+}
 function inlinedRequestToMldev(apiClient, fromObject) {
     const toObject = {};
     const fromModel = getValueByPath(fromObject, ['model']);
@@ -7344,83 +4102,71 @@ function inlinedRequestToMldev(apiClient, fromObject) {
     }
     return toObject;
 }
-function batchJobSourceToMldev(apiClient, fromObject) {
+function inlinedResponseFromMldev(fromObject) {
     const toObject = {};
-    if (getValueByPath(fromObject, ['format']) !== undefined) {
-        throw new Error('format parameter is not supported in Gemini API.');
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], generateContentResponseFromMldev$1(fromResponse));
     }
-    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
-        throw new Error('gcsUri parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['bigqueryUri']) !== undefined) {
-        throw new Error('bigqueryUri parameter is not supported in Gemini API.');
-    }
-    const fromFileName = getValueByPath(fromObject, ['fileName']);
-    if (fromFileName != null) {
-        setValueByPath(toObject, ['fileName'], fromFileName);
-    }
-    const fromInlinedRequests = getValueByPath(fromObject, [
-        'inlinedRequests',
-    ]);
-    if (fromInlinedRequests != null) {
-        let transformedList = fromInlinedRequests;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return inlinedRequestToMldev(apiClient, item);
-            });
-        }
-        setValueByPath(toObject, ['requests', 'requests'], transformedList);
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], jobErrorFromMldev(fromError));
     }
     return toObject;
 }
-function createBatchJobConfigToMldev(fromObject, parentObject) {
+function intervalToMldev$4(fromObject) {
     const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (parentObject !== undefined && fromDisplayName != null) {
-        setValueByPath(parentObject, ['batch', 'displayName'], fromDisplayName);
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
     }
-    if (getValueByPath(fromObject, ['dest']) !== undefined) {
-        throw new Error('dest parameter is not supported in Gemini API.');
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
     }
     return toObject;
 }
-function createBatchJobParametersToMldev(apiClient, fromObject) {
+function jobErrorFromMldev(fromObject) {
     const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    const fromDetails = getValueByPath(fromObject, ['details']);
+    if (fromDetails != null) {
+        setValueByPath(toObject, ['details'], fromDetails);
     }
-    const fromSrc = getValueByPath(fromObject, ['src']);
-    if (fromSrc != null) {
-        setValueByPath(toObject, ['batch', 'inputConfig'], batchJobSourceToMldev(apiClient, tBatchJobSource(apiClient, fromSrc)));
+    const fromCode = getValueByPath(fromObject, ['code']);
+    if (fromCode != null) {
+        setValueByPath(toObject, ['code'], fromCode);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createBatchJobConfigToMldev(fromConfig, toObject));
+    const fromMessage = getValueByPath(fromObject, ['message']);
+    if (fromMessage != null) {
+        setValueByPath(toObject, ['message'], fromMessage);
     }
     return toObject;
 }
-function getBatchJobParametersToMldev(apiClient, fromObject) {
+function jobErrorFromVertex(fromObject) {
     const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    const fromDetails = getValueByPath(fromObject, ['details']);
+    if (fromDetails != null) {
+        setValueByPath(toObject, ['details'], fromDetails);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
+    const fromCode = getValueByPath(fromObject, ['code']);
+    if (fromCode != null) {
+        setValueByPath(toObject, ['code'], fromCode);
+    }
+    const fromMessage = getValueByPath(fromObject, ['message']);
+    if (fromMessage != null) {
+        setValueByPath(toObject, ['message'], fromMessage);
     }
     return toObject;
 }
-function cancelBatchJobParametersToMldev(apiClient, fromObject) {
+function latLngToMldev$2(fromObject) {
     const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    const fromLatitude = getValueByPath(fromObject, ['latitude']);
+    if (fromLatitude != null) {
+        setValueByPath(toObject, ['latitude'], fromLatitude);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
+    const fromLongitude = getValueByPath(fromObject, ['longitude']);
+    if (fromLongitude != null) {
+        setValueByPath(toObject, ['longitude'], fromLongitude);
     }
     return toObject;
 }
@@ -7436,122 +4182,6 @@ function listBatchJobsConfigToMldev(fromObject, parentObject) {
     }
     if (getValueByPath(fromObject, ['filter']) !== undefined) {
         throw new Error('filter parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function listBatchJobsParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listBatchJobsConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function deleteBatchJobParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function batchJobSourceToVertex(fromObject) {
-    const toObject = {};
-    const fromFormat = getValueByPath(fromObject, ['format']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['instancesFormat'], fromFormat);
-    }
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsSource', 'uris'], fromGcsUri);
-    }
-    const fromBigqueryUri = getValueByPath(fromObject, ['bigqueryUri']);
-    if (fromBigqueryUri != null) {
-        setValueByPath(toObject, ['bigquerySource', 'inputUri'], fromBigqueryUri);
-    }
-    if (getValueByPath(fromObject, ['fileName']) !== undefined) {
-        throw new Error('fileName parameter is not supported in Vertex AI.');
-    }
-    if (getValueByPath(fromObject, ['inlinedRequests']) !== undefined) {
-        throw new Error('inlinedRequests parameter is not supported in Vertex AI.');
-    }
-    return toObject;
-}
-function batchJobDestinationToVertex(fromObject) {
-    const toObject = {};
-    const fromFormat = getValueByPath(fromObject, ['format']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['predictionsFormat'], fromFormat);
-    }
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsDestination', 'outputUriPrefix'], fromGcsUri);
-    }
-    const fromBigqueryUri = getValueByPath(fromObject, ['bigqueryUri']);
-    if (fromBigqueryUri != null) {
-        setValueByPath(toObject, ['bigqueryDestination', 'outputUri'], fromBigqueryUri);
-    }
-    if (getValueByPath(fromObject, ['fileName']) !== undefined) {
-        throw new Error('fileName parameter is not supported in Vertex AI.');
-    }
-    if (getValueByPath(fromObject, ['inlinedResponses']) !== undefined) {
-        throw new Error('inlinedResponses parameter is not supported in Vertex AI.');
-    }
-    return toObject;
-}
-function createBatchJobConfigToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (parentObject !== undefined && fromDisplayName != null) {
-        setValueByPath(parentObject, ['displayName'], fromDisplayName);
-    }
-    const fromDest = getValueByPath(fromObject, ['dest']);
-    if (parentObject !== undefined && fromDest != null) {
-        setValueByPath(parentObject, ['outputConfig'], batchJobDestinationToVertex(tBatchJobDestination(fromDest)));
-    }
-    return toObject;
-}
-function createBatchJobParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], tModel(apiClient, fromModel));
-    }
-    const fromSrc = getValueByPath(fromObject, ['src']);
-    if (fromSrc != null) {
-        setValueByPath(toObject, ['inputConfig'], batchJobSourceToVertex(tBatchJobSource(apiClient, fromSrc)));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createBatchJobConfigToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function getBatchJobParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function cancelBatchJobParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
     }
     return toObject;
 }
@@ -7571,67 +4201,89 @@ function listBatchJobsConfigToVertex(fromObject, parentObject) {
     }
     return toObject;
 }
+function listBatchJobsParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listBatchJobsConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
 function listBatchJobsParametersToVertex(fromObject) {
     const toObject = {};
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listBatchJobsConfigToVertex(fromConfig, toObject));
+        listBatchJobsConfigToVertex(fromConfig, toObject);
     }
     return toObject;
 }
-function deleteBatchJobParametersToVertex(apiClient, fromObject) {
+function listBatchJobsResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tBatchJobName(apiClient, fromName));
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    }
+    const fromBatchJobs = getValueByPath(fromObject, ['operations']);
+    if (fromBatchJobs != null) {
+        let transformedList = fromBatchJobs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return batchJobFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['batchJobs'], transformedList);
     }
     return toObject;
 }
-function jobErrorFromMldev() {
+function listBatchJobsResponseFromVertex(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function videoMetadataFromMldev$2(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
     }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobFromMldev$2(fromObject) {
-    const toObject = {};
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    const fromBatchJobs = getValueByPath(fromObject, [
+        'batchPredictionJobs',
+    ]);
+    if (fromBatchJobs != null) {
+        let transformedList = fromBatchJobs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return batchJobFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['batchJobs'], transformedList);
     }
     return toObject;
 }
-function fileDataFromMldev$2(fromObject) {
+function multiSpeakerVoiceConfigToMldev$3(fromObject) {
     const toObject = {};
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
+        'speakerVoiceConfigs',
+    ]);
+    if (fromSpeakerVoiceConfigs != null) {
+        let transformedList = fromSpeakerVoiceConfigs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return speakerVoiceConfigToMldev$3(item);
+            });
+        }
+        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
     }
     return toObject;
 }
@@ -7661,6 +4313,10 @@ function partFromMldev$2(fromObject) {
     if (fromThoughtSignature != null) {
         setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
     }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallFromMldev$2(fromFunctionCall));
+    }
     const fromCodeExecutionResult = getValueByPath(fromObject, [
         'codeExecutionResult',
     ]);
@@ -7672,10 +4328,6 @@ function partFromMldev$2(fromObject) {
     ]);
     if (fromExecutableCode != null) {
         setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
     }
     const fromFunctionResponse = getValueByPath(fromObject, [
         'functionResponse',
@@ -7689,43 +4341,327 @@ function partFromMldev$2(fromObject) {
     }
     return toObject;
 }
-function contentFromMldev$2(fromObject) {
+function partToMldev$4(fromObject) {
     const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$4(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToMldev$4(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToMldev$4(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToMldev$4(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function prebuiltVoiceConfigToMldev$3(fromObject) {
+    const toObject = {};
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function retrievalConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromLatLng = getValueByPath(fromObject, ['latLng']);
+    if (fromLatLng != null) {
+        setValueByPath(toObject, ['latLng'], latLngToMldev$2(fromLatLng));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function safetySettingToMldev$1(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['method']) !== undefined) {
+        throw new Error('method parameter is not supported in Gemini API.');
+    }
+    const fromCategory = getValueByPath(fromObject, ['category']);
+    if (fromCategory != null) {
+        setValueByPath(toObject, ['category'], fromCategory);
+    }
+    const fromThreshold = getValueByPath(fromObject, ['threshold']);
+    if (fromThreshold != null) {
+        setValueByPath(toObject, ['threshold'], fromThreshold);
+    }
+    return toObject;
+}
+function schemaToMldev$1(fromObject) {
+    const toObject = {};
+    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
+    if (fromAnyOf != null) {
+        setValueByPath(toObject, ['anyOf'], fromAnyOf);
+    }
+    const fromDefault = getValueByPath(fromObject, ['default']);
+    if (fromDefault != null) {
+        setValueByPath(toObject, ['default'], fromDefault);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
+    }
+    const fromEnum = getValueByPath(fromObject, ['enum']);
+    if (fromEnum != null) {
+        setValueByPath(toObject, ['enum'], fromEnum);
+    }
+    const fromExample = getValueByPath(fromObject, ['example']);
+    if (fromExample != null) {
+        setValueByPath(toObject, ['example'], fromExample);
+    }
+    const fromFormat = getValueByPath(fromObject, ['format']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['format'], fromFormat);
+    }
+    const fromItems = getValueByPath(fromObject, ['items']);
+    if (fromItems != null) {
+        setValueByPath(toObject, ['items'], fromItems);
+    }
+    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
+    if (fromMaxItems != null) {
+        setValueByPath(toObject, ['maxItems'], fromMaxItems);
+    }
+    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
+    if (fromMaxLength != null) {
+        setValueByPath(toObject, ['maxLength'], fromMaxLength);
+    }
+    const fromMaxProperties = getValueByPath(fromObject, [
+        'maxProperties',
+    ]);
+    if (fromMaxProperties != null) {
+        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
+    }
+    const fromMaximum = getValueByPath(fromObject, ['maximum']);
+    if (fromMaximum != null) {
+        setValueByPath(toObject, ['maximum'], fromMaximum);
+    }
+    const fromMinItems = getValueByPath(fromObject, ['minItems']);
+    if (fromMinItems != null) {
+        setValueByPath(toObject, ['minItems'], fromMinItems);
+    }
+    const fromMinLength = getValueByPath(fromObject, ['minLength']);
+    if (fromMinLength != null) {
+        setValueByPath(toObject, ['minLength'], fromMinLength);
+    }
+    const fromMinProperties = getValueByPath(fromObject, [
+        'minProperties',
+    ]);
+    if (fromMinProperties != null) {
+        setValueByPath(toObject, ['minProperties'], fromMinProperties);
+    }
+    const fromMinimum = getValueByPath(fromObject, ['minimum']);
+    if (fromMinimum != null) {
+        setValueByPath(toObject, ['minimum'], fromMinimum);
+    }
+    const fromNullable = getValueByPath(fromObject, ['nullable']);
+    if (fromNullable != null) {
+        setValueByPath(toObject, ['nullable'], fromNullable);
+    }
+    const fromPattern = getValueByPath(fromObject, ['pattern']);
+    if (fromPattern != null) {
+        setValueByPath(toObject, ['pattern'], fromPattern);
+    }
+    const fromProperties = getValueByPath(fromObject, ['properties']);
+    if (fromProperties != null) {
+        setValueByPath(toObject, ['properties'], fromProperties);
+    }
+    const fromPropertyOrdering = getValueByPath(fromObject, [
+        'propertyOrdering',
+    ]);
+    if (fromPropertyOrdering != null) {
+        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
+    }
+    const fromRequired = getValueByPath(fromObject, ['required']);
+    if (fromRequired != null) {
+        setValueByPath(toObject, ['required'], fromRequired);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (fromTitle != null) {
+        setValueByPath(toObject, ['title'], fromTitle);
+    }
+    const fromType = getValueByPath(fromObject, ['type']);
+    if (fromType != null) {
+        setValueByPath(toObject, ['type'], fromType);
+    }
+    return toObject;
+}
+function singleEmbedContentResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromEmbedding = getValueByPath(fromObject, ['embedding']);
+    if (fromEmbedding != null) {
+        setValueByPath(toObject, ['embedding'], contentEmbeddingFromMldev$1(fromEmbedding));
+    }
+    const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
+    if (fromTokenCount != null) {
+        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
+    }
+    return toObject;
+}
+function speakerVoiceConfigToMldev$3(fromObject) {
+    const toObject = {};
+    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
+    if (fromSpeaker != null) {
+        setValueByPath(toObject, ['speaker'], fromSpeaker);
+    }
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$3(fromVoiceConfig));
+    }
+    return toObject;
+}
+function speechConfigToMldev$3(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$3(fromVoiceConfig));
+    }
+    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
+        'multiSpeakerVoiceConfig',
+    ]);
+    if (fromMultiSpeakerVoiceConfig != null) {
+        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$3(fromMultiSpeakerVoiceConfig));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function thinkingConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromIncludeThoughts = getValueByPath(fromObject, [
+        'includeThoughts',
+    ]);
+    if (fromIncludeThoughts != null) {
+        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
+    }
+    const fromThinkingBudget = getValueByPath(fromObject, [
+        'thinkingBudget',
+    ]);
+    if (fromThinkingBudget != null) {
+        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
+    }
+    return toObject;
+}
+function toolComputerUseToMldev$4(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromFunctionCallingConfig = getValueByPath(fromObject, [
+        'functionCallingConfig',
+    ]);
+    if (fromFunctionCallingConfig != null) {
+        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev$2(fromFunctionCallingConfig));
+    }
+    const fromRetrievalConfig = getValueByPath(fromObject, [
+        'retrievalConfig',
+    ]);
+    if (fromRetrievalConfig != null) {
+        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev$2(fromRetrievalConfig));
+    }
+    return toObject;
+}
+function toolToMldev$4(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return partFromMldev$2(item);
+                return functionDeclarationToMldev$4(item);
             });
         }
-        setValueByPath(toObject, ['parts'], transformedList);
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
+        throw new Error('retrieval parameter is not supported in Gemini API.');
     }
-    return toObject;
-}
-function citationMetadataFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromCitations = getValueByPath(fromObject, ['citationSources']);
-    if (fromCitations != null) {
-        setValueByPath(toObject, ['citations'], fromCitations);
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$4(fromGoogleSearch));
     }
-    return toObject;
-}
-function urlMetadataFromMldev$2(fromObject) {
-    const toObject = {};
-    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
-    if (fromRetrievedUrl != null) {
-        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
-    }
-    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
-        'urlRetrievalStatus',
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
     ]);
-    if (fromUrlRetrievalStatus != null) {
-        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$4(fromGoogleSearchRetrieval));
+    }
+    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
+        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
+        throw new Error('googleMaps parameter is not supported in Gemini API.');
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToMldev$4());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToMldev$4(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
     }
     return toObject;
 }
@@ -7743,347 +4679,63 @@ function urlContextMetadataFromMldev$2(fromObject) {
     }
     return toObject;
 }
-function candidateFromMldev$1(fromObject) {
+function urlContextToMldev$4() {
     const toObject = {};
-    const fromContent = getValueByPath(fromObject, ['content']);
-    if (fromContent != null) {
-        setValueByPath(toObject, ['content'], contentFromMldev$2(fromContent));
+    return toObject;
+}
+function urlMetadataFromMldev$2(fromObject) {
+    const toObject = {};
+    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
+    if (fromRetrievedUrl != null) {
+        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
     }
-    const fromCitationMetadata = getValueByPath(fromObject, [
-        'citationMetadata',
+    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
+        'urlRetrievalStatus',
     ]);
-    if (fromCitationMetadata != null) {
-        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromMldev$1(fromCitationMetadata));
-    }
-    const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
-    if (fromTokenCount != null) {
-        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
-    }
-    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
-    if (fromFinishReason != null) {
-        setValueByPath(toObject, ['finishReason'], fromFinishReason);
-    }
-    const fromUrlContextMetadata = getValueByPath(fromObject, [
-        'urlContextMetadata',
-    ]);
-    if (fromUrlContextMetadata != null) {
-        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromMldev$2(fromUrlContextMetadata));
-    }
-    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
-    if (fromAvgLogprobs != null) {
-        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
-    }
-    const fromGroundingMetadata = getValueByPath(fromObject, [
-        'groundingMetadata',
-    ]);
-    if (fromGroundingMetadata != null) {
-        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
-    }
-    const fromIndex = getValueByPath(fromObject, ['index']);
-    if (fromIndex != null) {
-        setValueByPath(toObject, ['index'], fromIndex);
-    }
-    const fromLogprobsResult = getValueByPath(fromObject, [
-        'logprobsResult',
-    ]);
-    if (fromLogprobsResult != null) {
-        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
-    }
-    const fromSafetyRatings = getValueByPath(fromObject, [
-        'safetyRatings',
-    ]);
-    if (fromSafetyRatings != null) {
-        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
+    if (fromUrlRetrievalStatus != null) {
+        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
     }
     return toObject;
 }
-function generateContentResponseFromMldev$1(fromObject) {
+function videoMetadataFromMldev$2(fromObject) {
     const toObject = {};
-    const fromCandidates = getValueByPath(fromObject, ['candidates']);
-    if (fromCandidates != null) {
-        let transformedList = fromCandidates;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return candidateFromMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['candidates'], transformedList);
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
     }
-    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
-    if (fromModelVersion != null) {
-        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
     }
-    const fromPromptFeedback = getValueByPath(fromObject, [
-        'promptFeedback',
-    ]);
-    if (fromPromptFeedback != null) {
-        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
     }
     return toObject;
 }
-function inlinedResponseFromMldev(fromObject) {
+function videoMetadataToMldev$4(fromObject) {
     const toObject = {};
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], generateContentResponseFromMldev$1(fromResponse));
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
     }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], jobErrorFromMldev());
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
     }
     return toObject;
 }
-function batchJobDestinationFromMldev(fromObject) {
+function voiceConfigToMldev$3(fromObject) {
     const toObject = {};
-    const fromFileName = getValueByPath(fromObject, ['responsesFile']);
-    if (fromFileName != null) {
-        setValueByPath(toObject, ['fileName'], fromFileName);
-    }
-    const fromInlinedResponses = getValueByPath(fromObject, [
-        'inlinedResponses',
-        'inlinedResponses',
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
     ]);
-    if (fromInlinedResponses != null) {
-        let transformedList = fromInlinedResponses;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return inlinedResponseFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['inlinedResponses'], transformedList);
-    }
-    return toObject;
-}
-function batchJobFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDisplayName = getValueByPath(fromObject, [
-        'metadata',
-        'displayName',
-    ]);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromState = getValueByPath(fromObject, ['metadata', 'state']);
-    if (fromState != null) {
-        setValueByPath(toObject, ['state'], tJobState(fromState));
-    }
-    const fromCreateTime = getValueByPath(fromObject, [
-        'metadata',
-        'createTime',
-    ]);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, [
-        'metadata',
-        'endTime',
-    ]);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, [
-        'metadata',
-        'updateTime',
-    ]);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    const fromModel = getValueByPath(fromObject, ['metadata', 'model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    const fromDest = getValueByPath(fromObject, ['metadata', 'output']);
-    if (fromDest != null) {
-        setValueByPath(toObject, ['dest'], batchJobDestinationFromMldev(fromDest));
-    }
-    return toObject;
-}
-function listBatchJobsResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
-    ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
-    }
-    const fromBatchJobs = getValueByPath(fromObject, ['operations']);
-    if (fromBatchJobs != null) {
-        let transformedList = fromBatchJobs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return batchJobFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['batchJobs'], transformedList);
-    }
-    return toObject;
-}
-function deleteResourceJobFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], jobErrorFromMldev());
-    }
-    return toObject;
-}
-function jobErrorFromVertex(fromObject) {
-    const toObject = {};
-    const fromDetails = getValueByPath(fromObject, ['details']);
-    if (fromDetails != null) {
-        setValueByPath(toObject, ['details'], fromDetails);
-    }
-    const fromCode = getValueByPath(fromObject, ['code']);
-    if (fromCode != null) {
-        setValueByPath(toObject, ['code'], fromCode);
-    }
-    const fromMessage = getValueByPath(fromObject, ['message']);
-    if (fromMessage != null) {
-        setValueByPath(toObject, ['message'], fromMessage);
-    }
-    return toObject;
-}
-function batchJobSourceFromVertex(fromObject) {
-    const toObject = {};
-    const fromFormat = getValueByPath(fromObject, ['instancesFormat']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['format'], fromFormat);
-    }
-    const fromGcsUri = getValueByPath(fromObject, ['gcsSource', 'uris']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
-    }
-    const fromBigqueryUri = getValueByPath(fromObject, [
-        'bigquerySource',
-        'inputUri',
-    ]);
-    if (fromBigqueryUri != null) {
-        setValueByPath(toObject, ['bigqueryUri'], fromBigqueryUri);
-    }
-    return toObject;
-}
-function batchJobDestinationFromVertex(fromObject) {
-    const toObject = {};
-    const fromFormat = getValueByPath(fromObject, ['predictionsFormat']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['format'], fromFormat);
-    }
-    const fromGcsUri = getValueByPath(fromObject, [
-        'gcsDestination',
-        'outputUriPrefix',
-    ]);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
-    }
-    const fromBigqueryUri = getValueByPath(fromObject, [
-        'bigqueryDestination',
-        'outputUri',
-    ]);
-    if (fromBigqueryUri != null) {
-        setValueByPath(toObject, ['bigqueryUri'], fromBigqueryUri);
-    }
-    return toObject;
-}
-function batchJobFromVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromState = getValueByPath(fromObject, ['state']);
-    if (fromState != null) {
-        setValueByPath(toObject, ['state'], tJobState(fromState));
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], jobErrorFromVertex(fromError));
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    const fromSrc = getValueByPath(fromObject, ['inputConfig']);
-    if (fromSrc != null) {
-        setValueByPath(toObject, ['src'], batchJobSourceFromVertex(fromSrc));
-    }
-    const fromDest = getValueByPath(fromObject, ['outputConfig']);
-    if (fromDest != null) {
-        setValueByPath(toObject, ['dest'], batchJobDestinationFromVertex(fromDest));
-    }
-    return toObject;
-}
-function listBatchJobsResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
-    ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
-    }
-    const fromBatchJobs = getValueByPath(fromObject, [
-        'batchPredictionJobs',
-    ]);
-    if (fromBatchJobs != null) {
-        let transformedList = fromBatchJobs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return batchJobFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['batchJobs'], transformedList);
-    }
-    return toObject;
-}
-function deleteResourceJobFromVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], jobErrorFromVertex(fromError));
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$3(fromPrebuiltVoiceConfig));
     }
     return toObject;
 }
@@ -8092,9 +4744,6 @@ function deleteResourceJobFromVertex(fromObject) {
  * @license
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
- */
-/**
- * Pagers for the GenAI List APIs.
  */
 var PagedItem;
 (function (PagedItem) {
@@ -8118,9 +4767,10 @@ class Pager {
         var _a, _b;
         this.nameInternal = name;
         this.pageInternal = response[this.nameInternal] || [];
+        this.sdkHttpResponseInternal = response === null || response === void 0 ? void 0 : response.sdkHttpResponse;
         this.idxInternal = 0;
         let requestParams = { config: {} };
-        if (!params) {
+        if (!params || Object.keys(params).length === 0) {
             requestParams = { config: {} };
         }
         else if (typeof params === 'object') {
@@ -8163,6 +4813,12 @@ class Pager {
      */
     get pageSize() {
         return this.pageInternalSize;
+    }
+    /**
+     * Returns the headers of the API response.
+     */
+    get sdkHttpResponse() {
+        return this.sdkHttpResponseInternal;
     }
     /**
      * Returns the parameters when making the API request for the next page.
@@ -8293,31 +4949,89 @@ class Batches extends BaseModule {
          * ```
          */
         this.create = async (params) => {
+            var _a, _b;
             if (this.apiClient.isVertexAI()) {
-                const timestamp = Date.now();
-                const timestampStr = timestamp.toString();
-                if (Array.isArray(params.src)) {
-                    throw new Error('InlinedRequest[] is not supported in Vertex AI. Please use ' +
-                        'Google Cloud Storage URI or BigQuery URI instead.');
-                }
-                params.config = params.config || {};
-                if (params.config.displayName === undefined) {
-                    params.config.displayName = 'genaiBatchJob_${timestampStr}';
-                }
-                if (params.config.dest === undefined && typeof params.src === 'string') {
-                    if (params.src.startsWith('gs://') && params.src.endsWith('.jsonl')) {
-                        params.config.dest = `${params.src.slice(0, -6)}/dest`;
-                    }
-                    else if (params.src.startsWith('bq://')) {
-                        params.config.dest =
-                            `${params.src}_dest_${timestampStr}`;
-                    }
-                    else {
-                        throw new Error('Unsupported source:' + params.src);
-                    }
-                }
+                // Format destination if not provided
+                // Cast params.src as Vertex AI path does not handle InlinedRequest[]
+                params.config = this.formatDestination(params.src, params.config);
+                return this.createInternal(params);
             }
-            return await this.createInternal(params);
+            // MLDEV
+            const src = params.src;
+            const is_inlined = Array.isArray(params.src) || src.inlinedRequests !== undefined;
+            if (!is_inlined) {
+                return this.createInternal(params);
+            }
+            // Inlined generate content requests handling
+            const result = this.createInlinedGenerateContentRequest(params);
+            const path = result.path;
+            const requestBody = result.body;
+            const queryParams = createBatchJobParametersToMldev(this.apiClient, params)['_query'] || {};
+            const response = this.apiClient
+                .request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(requestBody),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
+            })
+                .then((httpResponse) => {
+                return httpResponse.json();
+            });
+            return response.then((apiResponse) => {
+                const resp = batchJobFromMldev(apiResponse);
+                return resp;
+            });
+        };
+        /**
+         * **Experimental** Creates an embedding batch job.
+         *
+         * @param params - The parameters for create embedding batch job request.
+         * @return The created batch job.
+         *
+         * @example
+         * ```ts
+         * const response = await ai.batches.createEmbeddings({
+         *   model: 'text-embedding-004',
+         *   src: {fileName: 'files/my_embedding_input'},
+         * });
+         * console.log(response);
+         * ```
+         */
+        this.createEmbeddings = async (params) => {
+            var _a, _b;
+            console.warn('batches.createEmbeddings() is experimental and may change without notice.');
+            if (this.apiClient.isVertexAI()) {
+                throw new Error('Vertex AI does not support batches.createEmbeddings.');
+            }
+            // MLDEV
+            const src = params.src;
+            const is_inlined = src.inlinedRequests !== undefined;
+            if (!is_inlined) {
+                return this.createEmbeddingsInternal(params); // Fixed typo here
+            }
+            // Inlined embed content requests handling
+            const result = this.createInlinedEmbedContentRequest(params);
+            const path = result.path;
+            const requestBody = result.body;
+            const queryParams = createEmbeddingsBatchJobParametersToMldev(this.apiClient, params)['_query'] || {};
+            const response = this.apiClient
+                .request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(requestBody),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
+            })
+                .then((httpResponse) => {
+                return httpResponse.json();
+            });
+            return response.then((apiResponse) => {
+                const resp = batchJobFromMldev(apiResponse);
+                return resp;
+            });
         };
         /**
          * Lists batch job configurations.
@@ -8337,6 +5051,112 @@ class Batches extends BaseModule {
             return new Pager(PagedItem.PAGED_ITEM_BATCH_JOBS, (x) => this.listInternal(x), await this.listInternal(params), params);
         };
     }
+    // Helper function to handle inlined generate content requests
+    createInlinedGenerateContentRequest(params) {
+        const body = createBatchJobParametersToMldev(this.apiClient, // Use instance apiClient
+        params);
+        const urlParams = body['_url'];
+        const path = formatMap('{model}:batchGenerateContent', urlParams);
+        const batch = body['batch'];
+        const inputConfig = batch['inputConfig'];
+        const requestsWrapper = inputConfig['requests'];
+        const requests = requestsWrapper['requests'];
+        const newRequests = [];
+        for (const request of requests) {
+            const requestDict = Object.assign({}, request); // Clone
+            if (requestDict['systemInstruction']) {
+                const systemInstructionValue = requestDict['systemInstruction'];
+                delete requestDict['systemInstruction'];
+                const requestContent = requestDict['request'];
+                requestContent['systemInstruction'] = systemInstructionValue;
+                requestDict['request'] = requestContent;
+            }
+            newRequests.push(requestDict);
+        }
+        requestsWrapper['requests'] = newRequests;
+        delete body['config'];
+        delete body['_url'];
+        delete body['_query'];
+        return { path, body };
+    }
+    // Helper function to handle inlined embedding requests
+    createInlinedEmbedContentRequest(params) {
+        const body = createEmbeddingsBatchJobParametersToMldev(this.apiClient, // Use instance apiClient
+        params);
+        const urlParams = body['_url'];
+        const path = formatMap('{model}:asyncBatchEmbedContent', urlParams);
+        const batch = body['batch'];
+        const inputConfig = batch['inputConfig'];
+        const requestsWrapper = inputConfig['requests'];
+        const requests = requestsWrapper['requests'];
+        const newRequests = [];
+        delete requestsWrapper['config']; // Remove top-level config
+        for (const request of requests) {
+            const requestDict = Object.assign({}, request); // Clone
+            const innerRequest = requestDict['request'];
+            for (const key in requestDict) {
+                if (key !== 'request') {
+                    innerRequest[key] = requestDict[key];
+                    delete requestDict[key];
+                }
+            }
+            newRequests.push(requestDict);
+        }
+        requestsWrapper['requests'] = newRequests;
+        delete body['config'];
+        delete body['_url'];
+        delete body['_query'];
+        return { path, body };
+    }
+    // Helper function to get the first GCS URI
+    getGcsUri(src) {
+        if (typeof src === 'string') {
+            return src.startsWith('gs://') ? src : undefined;
+        }
+        if (!Array.isArray(src) && src.gcsUri && src.gcsUri.length > 0) {
+            return src.gcsUri[0];
+        }
+        return undefined;
+    }
+    // Helper function to get the BigQuery URI
+    getBigqueryUri(src) {
+        if (typeof src === 'string') {
+            return src.startsWith('bq://') ? src : undefined;
+        }
+        if (!Array.isArray(src)) {
+            return src.bigqueryUri;
+        }
+        return undefined;
+    }
+    // Function to format the destination configuration for Vertex AI
+    formatDestination(src, config) {
+        const newConfig = config ? Object.assign({}, config) : {};
+        const timestampStr = Date.now().toString();
+        if (!newConfig.displayName) {
+            newConfig.displayName = `genaiBatchJob_${timestampStr}`;
+        }
+        if (newConfig.dest === undefined) {
+            const gcsUri = this.getGcsUri(src);
+            const bigqueryUri = this.getBigqueryUri(src);
+            if (gcsUri) {
+                if (gcsUri.endsWith('.jsonl')) {
+                    // For .jsonl files, remove suffix and add /dest
+                    newConfig.dest = `${gcsUri.slice(0, -6)}/dest`;
+                }
+                else {
+                    // Fallback for other GCS URIs
+                    newConfig.dest = `${gcsUri}_dest_${timestampStr}`;
+                }
+            }
+            else if (bigqueryUri) {
+                newConfig.dest = `${bigqueryUri}_dest_${timestampStr}`;
+            }
+            else {
+                throw new Error('Unsupported source for Vertex AI: No GCS or BigQuery URI found.');
+            }
+        }
+        return newConfig;
+    }
     /**
      * Internal method to create batch job.
      *
@@ -8353,7 +5173,6 @@ class Batches extends BaseModule {
             const body = createBatchJobParametersToVertex(this.apiClient, params);
             path = formatMap('batchPredictionJobs', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8377,7 +5196,6 @@ class Batches extends BaseModule {
             const body = createBatchJobParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:batchGenerateContent', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8388,6 +5206,45 @@ class Batches extends BaseModule {
                 httpMethod: 'POST',
                 httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
+            })
+                .then((httpResponse) => {
+                return httpResponse.json();
+            });
+            return response.then((apiResponse) => {
+                const resp = batchJobFromMldev(apiResponse);
+                return resp;
+            });
+        }
+    }
+    /**
+     * Internal method to create batch job.
+     *
+     * @param params - The parameters for create batch job request.
+     * @return The created batch job.
+     *
+     */
+    async createEmbeddingsInternal(params) {
+        var _a, _b;
+        let response;
+        let path = '';
+        let queryParams = {};
+        if (this.apiClient.isVertexAI()) {
+            throw new Error('This method is only supported by the Gemini Developer API.');
+        }
+        else {
+            const body = createEmbeddingsBatchJobParametersToMldev(this.apiClient, params);
+            path = formatMap('{model}:asyncBatchEmbedContent', body['_url']);
+            queryParams = body['_query'];
+            delete body['_url'];
+            delete body['_query'];
+            response = this.apiClient
+                .request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(body),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
                 return httpResponse.json();
@@ -8418,7 +5275,6 @@ class Batches extends BaseModule {
             const body = getBatchJobParametersToVertex(this.apiClient, params);
             path = formatMap('batchPredictionJobs/{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8442,7 +5298,6 @@ class Batches extends BaseModule {
             const body = getBatchJobParametersToMldev(this.apiClient, params);
             path = formatMap('batches/{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8482,7 +5337,6 @@ class Batches extends BaseModule {
             const body = cancelBatchJobParametersToVertex(this.apiClient, params);
             path = formatMap('batchPredictionJobs/{name}:cancel', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             await this.apiClient.request({
@@ -8498,7 +5352,6 @@ class Batches extends BaseModule {
             const body = cancelBatchJobParametersToMldev(this.apiClient, params);
             path = formatMap('batches/{name}:cancel', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             await this.apiClient.request({
@@ -8520,7 +5373,6 @@ class Batches extends BaseModule {
             const body = listBatchJobsParametersToVertex(params);
             path = formatMap('batchPredictionJobs', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8533,7 +5385,13 @@ class Batches extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listBatchJobsResponseFromVertex(apiResponse);
@@ -8546,7 +5404,6 @@ class Batches extends BaseModule {
             const body = listBatchJobsParametersToMldev(params);
             path = formatMap('batches', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8559,7 +5416,13 @@ class Batches extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listBatchJobsResponseFromMldev(apiResponse);
@@ -8589,7 +5452,6 @@ class Batches extends BaseModule {
             const body = deleteBatchJobParametersToVertex(this.apiClient, params);
             path = formatMap('batchPredictionJobs/{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8602,7 +5464,13 @@ class Batches extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = deleteResourceJobFromVertex(apiResponse);
@@ -8613,7 +5481,6 @@ class Batches extends BaseModule {
             const body = deleteBatchJobParametersToMldev(this.apiClient, params);
             path = formatMap('batches/{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -8626,7 +5493,13 @@ class Batches extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = deleteResourceJobFromMldev(apiResponse);
@@ -8641,19 +5514,43 @@ class Batches extends BaseModule {
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-function videoMetadataToMldev$3(fromObject) {
+function apiKeyConfigToVertex$2(fromObject) {
     const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
+    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
+    if (fromApiKeyString != null) {
+        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
     }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    return toObject;
+}
+function authConfigToVertex$2(fromObject) {
+    const toObject = {};
+    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
+    if (fromApiKeyConfig != null) {
+        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex$2(fromApiKeyConfig));
     }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    const fromAuthType = getValueByPath(fromObject, ['authType']);
+    if (fromAuthType != null) {
+        setValueByPath(toObject, ['authType'], fromAuthType);
+    }
+    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
+        'googleServiceAccountConfig',
+    ]);
+    if (fromGoogleServiceAccountConfig != null) {
+        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
+    }
+    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
+        'httpBasicAuthConfig',
+    ]);
+    if (fromHttpBasicAuthConfig != null) {
+        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
+    }
+    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
+    if (fromOauthConfig != null) {
+        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
+    }
+    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
+    if (fromOidcConfig != null) {
+        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
     }
     return toObject;
 }
@@ -8672,14 +5569,15 @@ function blobToMldev$3(fromObject) {
     }
     return toObject;
 }
-function fileDataToMldev$3(fromObject) {
+function blobToVertex$2(fromObject) {
     const toObject = {};
-    if (getValueByPath(fromObject, ['displayName']) !== undefined) {
-        throw new Error('displayName parameter is not supported in Gemini API.');
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
     }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
     }
     const fromMimeType = getValueByPath(fromObject, ['mimeType']);
     if (fromMimeType != null) {
@@ -8687,57 +5585,71 @@ function fileDataToMldev$3(fromObject) {
     }
     return toObject;
 }
-function partToMldev$3(fromObject) {
+function cachedContentFromMldev(fromObject) {
     const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
+    }
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
+    if (fromExpireTime != null) {
+        setValueByPath(toObject, ['expireTime'], fromExpireTime);
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
     ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$3(fromVideoMetadata));
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
     }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
+    return toObject;
+}
+function cachedContentFromVertex(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToMldev$3(fromInlineData));
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
     }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToMldev$3(fromFileData));
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
     }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
+    if (fromExpireTime != null) {
+        setValueByPath(toObject, ['expireTime'], fromExpireTime);
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
     ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
     }
     return toObject;
 }
@@ -8759,192 +5671,21 @@ function contentToMldev$3(fromObject) {
     }
     return toObject;
 }
-function functionDeclarationToMldev$3(fromObject) {
+function contentToVertex$2(fromObject) {
     const toObject = {};
-    const fromBehavior = getValueByPath(fromObject, ['behavior']);
-    if (fromBehavior != null) {
-        setValueByPath(toObject, ['behavior'], fromBehavior);
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromParameters = getValueByPath(fromObject, ['parameters']);
-    if (fromParameters != null) {
-        setValueByPath(toObject, ['parameters'], fromParameters);
-    }
-    const fromParametersJsonSchema = getValueByPath(fromObject, [
-        'parametersJsonSchema',
-    ]);
-    if (fromParametersJsonSchema != null) {
-        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
-    }
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], fromResponse);
-    }
-    const fromResponseJsonSchema = getValueByPath(fromObject, [
-        'responseJsonSchema',
-    ]);
-    if (fromResponseJsonSchema != null) {
-        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
-    }
-    return toObject;
-}
-function intervalToMldev$3(fromObject) {
-    const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function googleSearchToMldev$3(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$3(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToMldev$3(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function googleSearchRetrievalToMldev$3(fromObject) {
-    const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$3(fromDynamicRetrievalConfig));
-    }
-    return toObject;
-}
-function urlContextToMldev$3() {
-    const toObject = {};
-    return toObject;
-}
-function toolToMldev$3(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return functionDeclarationToMldev$3(item);
+                return partToVertex$2(item);
             });
         }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+        setValueByPath(toObject, ['parts'], transformedList);
     }
-    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
-        throw new Error('retrieval parameter is not supported in Gemini API.');
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$3(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$3(fromGoogleSearchRetrieval));
-    }
-    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
-        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
-        throw new Error('googleMaps parameter is not supported in Gemini API.');
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToMldev$3());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function functionCallingConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromAllowedFunctionNames = getValueByPath(fromObject, [
-        'allowedFunctionNames',
-    ]);
-    if (fromAllowedFunctionNames != null) {
-        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
-    }
-    return toObject;
-}
-function latLngToMldev$1(fromObject) {
-    const toObject = {};
-    const fromLatitude = getValueByPath(fromObject, ['latitude']);
-    if (fromLatitude != null) {
-        setValueByPath(toObject, ['latitude'], fromLatitude);
-    }
-    const fromLongitude = getValueByPath(fromObject, ['longitude']);
-    if (fromLongitude != null) {
-        setValueByPath(toObject, ['longitude'], fromLongitude);
-    }
-    return toObject;
-}
-function retrievalConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromLatLng = getValueByPath(fromObject, ['latLng']);
-    if (fromLatLng != null) {
-        setValueByPath(toObject, ['latLng'], latLngToMldev$1(fromLatLng));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function toolConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromFunctionCallingConfig = getValueByPath(fromObject, [
-        'functionCallingConfig',
-    ]);
-    if (fromFunctionCallingConfig != null) {
-        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev$1(fromFunctionCallingConfig));
-    }
-    const fromRetrievalConfig = getValueByPath(fromObject, [
-        'retrievalConfig',
-    ]);
-    if (fromRetrievalConfig != null) {
-        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev$1(fromRetrievalConfig));
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
     }
     return toObject;
 }
@@ -8994,451 +5735,6 @@ function createCachedContentConfigToMldev(fromObject, parentObject) {
     }
     if (getValueByPath(fromObject, ['kmsKeyName']) !== undefined) {
         throw new Error('kmsKeyName parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function createCachedContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], tCachesModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createCachedContentConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function getCachedContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function deleteCachedContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function updateCachedContentConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    const fromTtl = getValueByPath(fromObject, ['ttl']);
-    if (parentObject !== undefined && fromTtl != null) {
-        setValueByPath(parentObject, ['ttl'], fromTtl);
-    }
-    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
-    if (parentObject !== undefined && fromExpireTime != null) {
-        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
-    }
-    return toObject;
-}
-function updateCachedContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], updateCachedContentConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function listCachedContentsConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
-    }
-    return toObject;
-}
-function listCachedContentsParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listCachedContentsConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function videoMetadataToVertex$2(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobToVertex$2(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataToVertex$2(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partToVertex$2(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex$2(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToVertex$2(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToVertex$2(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function contentToVertex$2(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToVertex$2(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
-    }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
-    }
-    return toObject;
-}
-function functionDeclarationToVertex$2(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['behavior']) !== undefined) {
-        throw new Error('behavior parameter is not supported in Vertex AI.');
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromParameters = getValueByPath(fromObject, ['parameters']);
-    if (fromParameters != null) {
-        setValueByPath(toObject, ['parameters'], fromParameters);
-    }
-    const fromParametersJsonSchema = getValueByPath(fromObject, [
-        'parametersJsonSchema',
-    ]);
-    if (fromParametersJsonSchema != null) {
-        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
-    }
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], fromResponse);
-    }
-    const fromResponseJsonSchema = getValueByPath(fromObject, [
-        'responseJsonSchema',
-    ]);
-    if (fromResponseJsonSchema != null) {
-        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
-    }
-    return toObject;
-}
-function intervalToVertex$2(fromObject) {
-    const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function googleSearchToVertex$2(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex$2(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToVertex$2(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function googleSearchRetrievalToVertex$2(fromObject) {
-    const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToVertex$2(fromDynamicRetrievalConfig));
-    }
-    return toObject;
-}
-function enterpriseWebSearchToVertex$2() {
-    const toObject = {};
-    return toObject;
-}
-function apiKeyConfigToVertex$2(fromObject) {
-    const toObject = {};
-    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
-    if (fromApiKeyString != null) {
-        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
-    }
-    return toObject;
-}
-function authConfigToVertex$2(fromObject) {
-    const toObject = {};
-    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
-    if (fromApiKeyConfig != null) {
-        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex$2(fromApiKeyConfig));
-    }
-    const fromAuthType = getValueByPath(fromObject, ['authType']);
-    if (fromAuthType != null) {
-        setValueByPath(toObject, ['authType'], fromAuthType);
-    }
-    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
-        'googleServiceAccountConfig',
-    ]);
-    if (fromGoogleServiceAccountConfig != null) {
-        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
-    }
-    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
-        'httpBasicAuthConfig',
-    ]);
-    if (fromHttpBasicAuthConfig != null) {
-        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
-    }
-    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
-    if (fromOauthConfig != null) {
-        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
-    }
-    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
-    if (fromOidcConfig != null) {
-        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
-    }
-    return toObject;
-}
-function googleMapsToVertex$2(fromObject) {
-    const toObject = {};
-    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
-    if (fromAuthConfig != null) {
-        setValueByPath(toObject, ['authConfig'], authConfigToVertex$2(fromAuthConfig));
-    }
-    return toObject;
-}
-function urlContextToVertex$2() {
-    const toObject = {};
-    return toObject;
-}
-function toolToVertex$2(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToVertex$2(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
-    }
-    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
-    if (fromRetrieval != null) {
-        setValueByPath(toObject, ['retrieval'], fromRetrieval);
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex$2(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex$2(fromGoogleSearchRetrieval));
-    }
-    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
-        'enterpriseWebSearch',
-    ]);
-    if (fromEnterpriseWebSearch != null) {
-        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex$2());
-    }
-    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
-    if (fromGoogleMaps != null) {
-        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex$2(fromGoogleMaps));
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToVertex$2());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function functionCallingConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromAllowedFunctionNames = getValueByPath(fromObject, [
-        'allowedFunctionNames',
-    ]);
-    if (fromAllowedFunctionNames != null) {
-        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
-    }
-    return toObject;
-}
-function latLngToVertex$1(fromObject) {
-    const toObject = {};
-    const fromLatitude = getValueByPath(fromObject, ['latitude']);
-    if (fromLatitude != null) {
-        setValueByPath(toObject, ['latitude'], fromLatitude);
-    }
-    const fromLongitude = getValueByPath(fromObject, ['longitude']);
-    if (fromLongitude != null) {
-        setValueByPath(toObject, ['longitude'], fromLongitude);
-    }
-    return toObject;
-}
-function retrievalConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromLatLng = getValueByPath(fromObject, ['latLng']);
-    if (fromLatLng != null) {
-        setValueByPath(toObject, ['latLng'], latLngToVertex$1(fromLatLng));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function toolConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromFunctionCallingConfig = getValueByPath(fromObject, [
-        'functionCallingConfig',
-    ]);
-    if (fromFunctionCallingConfig != null) {
-        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToVertex$1(fromFunctionCallingConfig));
-    }
-    const fromRetrievalConfig = getValueByPath(fromObject, [
-        'retrievalConfig',
-    ]);
-    if (fromRetrievalConfig != null) {
-        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToVertex$1(fromRetrievalConfig));
     }
     return toObject;
 }
@@ -9492,6 +5788,18 @@ function createCachedContentConfigToVertex(fromObject, parentObject) {
     }
     return toObject;
 }
+function createCachedContentParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], tCachesModel(apiClient, fromModel));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        createCachedContentConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
 function createCachedContentParametersToVertex(apiClient, fromObject) {
     const toObject = {};
     const fromModel = getValueByPath(fromObject, ['model']);
@@ -9500,19 +5808,15 @@ function createCachedContentParametersToVertex(apiClient, fromObject) {
     }
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createCachedContentConfigToVertex(fromConfig, toObject));
+        createCachedContentConfigToVertex(fromConfig, toObject);
     }
     return toObject;
 }
-function getCachedContentParametersToVertex(apiClient, fromObject) {
+function deleteCachedContentParametersToMldev(apiClient, fromObject) {
     const toObject = {};
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
     }
     return toObject;
 }
@@ -9522,33 +5826,358 @@ function deleteCachedContentParametersToVertex(apiClient, fromObject) {
     if (fromName != null) {
         setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
     return toObject;
 }
-function updateCachedContentConfigToVertex(fromObject, parentObject) {
+function deleteCachedContentResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromTtl = getValueByPath(fromObject, ['ttl']);
-    if (parentObject !== undefined && fromTtl != null) {
-        setValueByPath(parentObject, ['ttl'], fromTtl);
-    }
-    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
-    if (parentObject !== undefined && fromExpireTime != null) {
-        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
     return toObject;
 }
-function updateCachedContentParametersToVertex(apiClient, fromObject) {
+function deleteCachedContentResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToMldev$3(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToVertex$2(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function enterpriseWebSearchToVertex$2(fromObject) {
+    const toObject = {};
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
+    }
+    return toObject;
+}
+function fileDataToMldev$3(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['displayName']) !== undefined) {
+        throw new Error('displayName parameter is not supported in Gemini API.');
+    }
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function fileDataToVertex$2(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function functionCallToMldev$3(fromObject) {
+    const toObject = {};
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
+    }
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    return toObject;
+}
+function functionCallToVertex$2(fromObject) {
+    const toObject = {};
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
+    }
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    return toObject;
+}
+function functionCallingConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromAllowedFunctionNames = getValueByPath(fromObject, [
+        'allowedFunctionNames',
+    ]);
+    if (fromAllowedFunctionNames != null) {
+        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
+    }
+    return toObject;
+}
+function functionCallingConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromAllowedFunctionNames = getValueByPath(fromObject, [
+        'allowedFunctionNames',
+    ]);
+    if (fromAllowedFunctionNames != null) {
+        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
+    }
+    return toObject;
+}
+function functionDeclarationToMldev$3(fromObject) {
+    const toObject = {};
+    const fromBehavior = getValueByPath(fromObject, ['behavior']);
+    if (fromBehavior != null) {
+        setValueByPath(toObject, ['behavior'], fromBehavior);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromParameters = getValueByPath(fromObject, ['parameters']);
+    if (fromParameters != null) {
+        setValueByPath(toObject, ['parameters'], fromParameters);
+    }
+    const fromParametersJsonSchema = getValueByPath(fromObject, [
+        'parametersJsonSchema',
+    ]);
+    if (fromParametersJsonSchema != null) {
+        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
+    }
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], fromResponse);
+    }
+    const fromResponseJsonSchema = getValueByPath(fromObject, [
+        'responseJsonSchema',
+    ]);
+    if (fromResponseJsonSchema != null) {
+        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
+    }
+    return toObject;
+}
+function functionDeclarationToVertex$2(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['behavior']) !== undefined) {
+        throw new Error('behavior parameter is not supported in Vertex AI.');
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromParameters = getValueByPath(fromObject, ['parameters']);
+    if (fromParameters != null) {
+        setValueByPath(toObject, ['parameters'], fromParameters);
+    }
+    const fromParametersJsonSchema = getValueByPath(fromObject, [
+        'parametersJsonSchema',
+    ]);
+    if (fromParametersJsonSchema != null) {
+        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
+    }
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], fromResponse);
+    }
+    const fromResponseJsonSchema = getValueByPath(fromObject, [
+        'responseJsonSchema',
+    ]);
+    if (fromResponseJsonSchema != null) {
+        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
+    }
+    return toObject;
+}
+function getCachedContentParametersToMldev(apiClient, fromObject) {
     const toObject = {};
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], updateCachedContentConfigToVertex(fromConfig, toObject));
+    return toObject;
+}
+function getCachedContentParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
+    }
+    return toObject;
+}
+function googleMapsToVertex$2(fromObject) {
+    const toObject = {};
+    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
+    if (fromAuthConfig != null) {
+        setValueByPath(toObject, ['authConfig'], authConfigToVertex$2(fromAuthConfig));
+    }
+    return toObject;
+}
+function googleSearchRetrievalToMldev$3(fromObject) {
+    const toObject = {};
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$3(fromDynamicRetrievalConfig));
+    }
+    return toObject;
+}
+function googleSearchRetrievalToVertex$2(fromObject) {
+    const toObject = {};
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToVertex$2(fromDynamicRetrievalConfig));
+    }
+    return toObject;
+}
+function googleSearchToMldev$3(fromObject) {
+    const toObject = {};
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$3(fromTimeRangeFilter));
+    }
+    if (getValueByPath(fromObject, ['excludeDomains']) !== undefined) {
+        throw new Error('excludeDomains parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function googleSearchToVertex$2(fromObject) {
+    const toObject = {};
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex$2(fromTimeRangeFilter));
+    }
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
+    }
+    return toObject;
+}
+function intervalToMldev$3(fromObject) {
+    const toObject = {};
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    return toObject;
+}
+function intervalToVertex$2(fromObject) {
+    const toObject = {};
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    return toObject;
+}
+function latLngToMldev$1(fromObject) {
+    const toObject = {};
+    const fromLatitude = getValueByPath(fromObject, ['latitude']);
+    if (fromLatitude != null) {
+        setValueByPath(toObject, ['latitude'], fromLatitude);
+    }
+    const fromLongitude = getValueByPath(fromObject, ['longitude']);
+    if (fromLongitude != null) {
+        setValueByPath(toObject, ['longitude'], fromLongitude);
+    }
+    return toObject;
+}
+function latLngToVertex$1(fromObject) {
+    const toObject = {};
+    const fromLatitude = getValueByPath(fromObject, ['latitude']);
+    if (fromLatitude != null) {
+        setValueByPath(toObject, ['latitude'], fromLatitude);
+    }
+    const fromLongitude = getValueByPath(fromObject, ['longitude']);
+    if (fromLongitude != null) {
+        setValueByPath(toObject, ['longitude'], fromLongitude);
+    }
+    return toObject;
+}
+function listCachedContentsConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
     }
     return toObject;
 }
@@ -9564,54 +6193,30 @@ function listCachedContentsConfigToVertex(fromObject, parentObject) {
     }
     return toObject;
 }
+function listCachedContentsParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listCachedContentsConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
 function listCachedContentsParametersToVertex(fromObject) {
     const toObject = {};
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listCachedContentsConfigToVertex(fromConfig, toObject));
+        listCachedContentsConfigToVertex(fromConfig, toObject);
     }
-    return toObject;
-}
-function cachedContentFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
-    if (fromExpireTime != null) {
-        setValueByPath(toObject, ['expireTime'], fromExpireTime);
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
-    }
-    return toObject;
-}
-function deleteCachedContentResponseFromMldev() {
-    const toObject = {};
     return toObject;
 }
 function listCachedContentsResponseFromMldev(fromObject) {
     const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
     const fromNextPageToken = getValueByPath(fromObject, [
         'nextPageToken',
     ]);
@@ -9632,46 +6237,14 @@ function listCachedContentsResponseFromMldev(fromObject) {
     }
     return toObject;
 }
-function cachedContentFromVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
-    if (fromExpireTime != null) {
-        setValueByPath(toObject, ['expireTime'], fromExpireTime);
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
-    }
-    return toObject;
-}
-function deleteCachedContentResponseFromVertex() {
-    const toObject = {};
-    return toObject;
-}
 function listCachedContentsResponseFromVertex(fromObject) {
     const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
     const fromNextPageToken = getValueByPath(fromObject, [
         'nextPageToken',
     ]);
@@ -9689,6 +6262,389 @@ function listCachedContentsResponseFromVertex(fromObject) {
             });
         }
         setValueByPath(toObject, ['cachedContents'], transformedList);
+    }
+    return toObject;
+}
+function partToMldev$3(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$3(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToMldev$3(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToMldev$3(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToMldev$3(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function partToVertex$2(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex$2(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToVertex$2(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToVertex$2(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToVertex$2(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function retrievalConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromLatLng = getValueByPath(fromObject, ['latLng']);
+    if (fromLatLng != null) {
+        setValueByPath(toObject, ['latLng'], latLngToMldev$1(fromLatLng));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function retrievalConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromLatLng = getValueByPath(fromObject, ['latLng']);
+    if (fromLatLng != null) {
+        setValueByPath(toObject, ['latLng'], latLngToVertex$1(fromLatLng));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function toolComputerUseToMldev$3(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolComputerUseToVertex$2(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromFunctionCallingConfig = getValueByPath(fromObject, [
+        'functionCallingConfig',
+    ]);
+    if (fromFunctionCallingConfig != null) {
+        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev$1(fromFunctionCallingConfig));
+    }
+    const fromRetrievalConfig = getValueByPath(fromObject, [
+        'retrievalConfig',
+    ]);
+    if (fromRetrievalConfig != null) {
+        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev$1(fromRetrievalConfig));
+    }
+    return toObject;
+}
+function toolConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromFunctionCallingConfig = getValueByPath(fromObject, [
+        'functionCallingConfig',
+    ]);
+    if (fromFunctionCallingConfig != null) {
+        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToVertex$1(fromFunctionCallingConfig));
+    }
+    const fromRetrievalConfig = getValueByPath(fromObject, [
+        'retrievalConfig',
+    ]);
+    if (fromRetrievalConfig != null) {
+        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToVertex$1(fromRetrievalConfig));
+    }
+    return toObject;
+}
+function toolToMldev$3(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToMldev$3(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
+        throw new Error('retrieval parameter is not supported in Gemini API.');
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$3(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$3(fromGoogleSearchRetrieval));
+    }
+    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
+        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
+        throw new Error('googleMaps parameter is not supported in Gemini API.');
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToMldev$3());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToMldev$3(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function toolToVertex$2(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToVertex$2(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
+    if (fromRetrieval != null) {
+        setValueByPath(toObject, ['retrieval'], fromRetrieval);
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex$2(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex$2(fromGoogleSearchRetrieval));
+    }
+    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
+        'enterpriseWebSearch',
+    ]);
+    if (fromEnterpriseWebSearch != null) {
+        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex$2(fromEnterpriseWebSearch));
+    }
+    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
+    if (fromGoogleMaps != null) {
+        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex$2(fromGoogleMaps));
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToVertex$2());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToVertex$2(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function updateCachedContentConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromTtl = getValueByPath(fromObject, ['ttl']);
+    if (parentObject !== undefined && fromTtl != null) {
+        setValueByPath(parentObject, ['ttl'], fromTtl);
+    }
+    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
+    if (parentObject !== undefined && fromExpireTime != null) {
+        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
+    }
+    return toObject;
+}
+function updateCachedContentConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromTtl = getValueByPath(fromObject, ['ttl']);
+    if (parentObject !== undefined && fromTtl != null) {
+        setValueByPath(parentObject, ['ttl'], fromTtl);
+    }
+    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
+    if (parentObject !== undefined && fromExpireTime != null) {
+        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
+    }
+    return toObject;
+}
+function updateCachedContentParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        updateCachedContentConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function updateCachedContentParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], tCachedContentName(apiClient, fromName));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        updateCachedContentConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function urlContextToMldev$3() {
+    const toObject = {};
+    return toObject;
+}
+function urlContextToVertex$2() {
+    const toObject = {};
+    return toObject;
+}
+function videoMetadataToMldev$3(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoMetadataToVertex$2(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
     }
     return toObject;
 }
@@ -9755,7 +6711,6 @@ class Caches extends BaseModule {
             const body = createCachedContentParametersToVertex(this.apiClient, params);
             path = formatMap('cachedContents', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9779,7 +6734,6 @@ class Caches extends BaseModule {
             const body = createCachedContentParametersToMldev(this.apiClient, params);
             path = formatMap('cachedContents', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9820,7 +6774,6 @@ class Caches extends BaseModule {
             const body = getCachedContentParametersToVertex(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9844,7 +6797,6 @@ class Caches extends BaseModule {
             const body = getCachedContentParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9885,7 +6837,6 @@ class Caches extends BaseModule {
             const body = deleteCachedContentParametersToVertex(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9898,10 +6849,16 @@ class Caches extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
-            return response.then(() => {
-                const resp = deleteCachedContentResponseFromVertex();
+            return response.then((apiResponse) => {
+                const resp = deleteCachedContentResponseFromVertex(apiResponse);
                 const typedResp = new DeleteCachedContentResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -9911,7 +6868,6 @@ class Caches extends BaseModule {
             const body = deleteCachedContentParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9924,10 +6880,16 @@ class Caches extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
-            return response.then(() => {
-                const resp = deleteCachedContentResponseFromMldev();
+            return response.then((apiResponse) => {
+                const resp = deleteCachedContentResponseFromMldev(apiResponse);
                 const typedResp = new DeleteCachedContentResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -9957,7 +6919,6 @@ class Caches extends BaseModule {
             const body = updateCachedContentParametersToVertex(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -9981,7 +6942,6 @@ class Caches extends BaseModule {
             const body = updateCachedContentParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10011,7 +6971,6 @@ class Caches extends BaseModule {
             const body = listCachedContentsParametersToVertex(params);
             path = formatMap('cachedContents', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10024,7 +6983,13 @@ class Caches extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listCachedContentsResponseFromVertex(apiResponse);
@@ -10037,7 +7002,6 @@ class Caches extends BaseModule {
             const body = listCachedContentsParametersToMldev(params);
             path = formatMap('cachedContents', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10050,7 +7014,13 @@ class Caches extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listCachedContentsResponseFromMldev(apiResponse);
@@ -10146,9 +7116,6 @@ function isValidContent(content) {
     }
     for (const part of content.parts) {
         if (part === undefined || Object.keys(part).length === 0) {
-            return false;
-        }
-        if (!part.thought && part.text !== undefined && part.text === '') {
             return false;
         }
     }
@@ -10470,23 +7437,119 @@ class ApiError extends Error {
  * SPDX-License-Identifier: Apache-2.0
  */
 // Code generated by the Google Gen AI SDK generator DO NOT EDIT.
-function listFilesConfigToMldev(fromObject, parentObject) {
+function createFileParametersToMldev(fromObject) {
     const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    const fromFile = getValueByPath(fromObject, ['file']);
+    if (fromFile != null) {
+        setValueByPath(toObject, ['file'], fileToMldev(fromFile));
     }
     return toObject;
 }
-function listFilesParametersToMldev(fromObject) {
+function createFileResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listFilesConfigToMldev(fromConfig, toObject));
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    return toObject;
+}
+function deleteFileParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'file'], tFileName(fromName));
+    }
+    return toObject;
+}
+function deleteFileResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    return toObject;
+}
+function fileFromMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    const fromSizeBytes = getValueByPath(fromObject, ['sizeBytes']);
+    if (fromSizeBytes != null) {
+        setValueByPath(toObject, ['sizeBytes'], fromSizeBytes);
+    }
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromExpirationTime = getValueByPath(fromObject, [
+        'expirationTime',
+    ]);
+    if (fromExpirationTime != null) {
+        setValueByPath(toObject, ['expirationTime'], fromExpirationTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    const fromSha256Hash = getValueByPath(fromObject, ['sha256Hash']);
+    if (fromSha256Hash != null) {
+        setValueByPath(toObject, ['sha256Hash'], fromSha256Hash);
+    }
+    const fromUri = getValueByPath(fromObject, ['uri']);
+    if (fromUri != null) {
+        setValueByPath(toObject, ['uri'], fromUri);
+    }
+    const fromDownloadUri = getValueByPath(fromObject, ['downloadUri']);
+    if (fromDownloadUri != null) {
+        setValueByPath(toObject, ['downloadUri'], fromDownloadUri);
+    }
+    const fromState = getValueByPath(fromObject, ['state']);
+    if (fromState != null) {
+        setValueByPath(toObject, ['state'], fromState);
+    }
+    const fromSource = getValueByPath(fromObject, ['source']);
+    if (fromSource != null) {
+        setValueByPath(toObject, ['source'], fromSource);
+    }
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], fromVideoMetadata);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fileStatusFromMldev(fromError));
+    }
+    return toObject;
+}
+function fileStatusFromMldev(fromObject) {
+    const toObject = {};
+    const fromDetails = getValueByPath(fromObject, ['details']);
+    if (fromDetails != null) {
+        setValueByPath(toObject, ['details'], fromDetails);
+    }
+    const fromMessage = getValueByPath(fromObject, ['message']);
+    if (fromMessage != null) {
+        setValueByPath(toObject, ['message'], fromMessage);
+    }
+    const fromCode = getValueByPath(fromObject, ['code']);
+    if (fromCode != null) {
+        setValueByPath(toObject, ['code'], fromCode);
     }
     return toObject;
 }
@@ -10570,124 +7633,42 @@ function fileToMldev(fromObject) {
     }
     return toObject;
 }
-function createFileParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromFile = getValueByPath(fromObject, ['file']);
-    if (fromFile != null) {
-        setValueByPath(toObject, ['file'], fileToMldev(fromFile));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
 function getFileParametersToMldev(fromObject) {
     const toObject = {};
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['_url', 'file'], tFileName(fromName));
     }
+    return toObject;
+}
+function listFilesConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    }
+    return toObject;
+}
+function listFilesParametersToMldev(fromObject) {
+    const toObject = {};
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function deleteFileParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'file'], tFileName(fromName));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function fileStatusFromMldev(fromObject) {
-    const toObject = {};
-    const fromDetails = getValueByPath(fromObject, ['details']);
-    if (fromDetails != null) {
-        setValueByPath(toObject, ['details'], fromDetails);
-    }
-    const fromMessage = getValueByPath(fromObject, ['message']);
-    if (fromMessage != null) {
-        setValueByPath(toObject, ['message'], fromMessage);
-    }
-    const fromCode = getValueByPath(fromObject, ['code']);
-    if (fromCode != null) {
-        setValueByPath(toObject, ['code'], fromCode);
-    }
-    return toObject;
-}
-function fileFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    const fromSizeBytes = getValueByPath(fromObject, ['sizeBytes']);
-    if (fromSizeBytes != null) {
-        setValueByPath(toObject, ['sizeBytes'], fromSizeBytes);
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromExpirationTime = getValueByPath(fromObject, [
-        'expirationTime',
-    ]);
-    if (fromExpirationTime != null) {
-        setValueByPath(toObject, ['expirationTime'], fromExpirationTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    const fromSha256Hash = getValueByPath(fromObject, ['sha256Hash']);
-    if (fromSha256Hash != null) {
-        setValueByPath(toObject, ['sha256Hash'], fromSha256Hash);
-    }
-    const fromUri = getValueByPath(fromObject, ['uri']);
-    if (fromUri != null) {
-        setValueByPath(toObject, ['uri'], fromUri);
-    }
-    const fromDownloadUri = getValueByPath(fromObject, ['downloadUri']);
-    if (fromDownloadUri != null) {
-        setValueByPath(toObject, ['downloadUri'], fromDownloadUri);
-    }
-    const fromState = getValueByPath(fromObject, ['state']);
-    if (fromState != null) {
-        setValueByPath(toObject, ['state'], fromState);
-    }
-    const fromSource = getValueByPath(fromObject, ['source']);
-    if (fromSource != null) {
-        setValueByPath(toObject, ['source'], fromSource);
-    }
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], fromVideoMetadata);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fileStatusFromMldev(fromError));
+        listFilesConfigToMldev(fromConfig, toObject);
     }
     return toObject;
 }
 function listFilesResponseFromMldev(fromObject) {
     const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
     const fromNextPageToken = getValueByPath(fromObject, [
         'nextPageToken',
     ]);
@@ -10704,14 +7685,6 @@ function listFilesResponseFromMldev(fromObject) {
         }
         setValueByPath(toObject, ['files'], transformedList);
     }
-    return toObject;
-}
-function createFileResponseFromMldev() {
-    const toObject = {};
-    return toObject;
-}
-function deleteFileResponseFromMldev() {
-    const toObject = {};
     return toObject;
 }
 
@@ -10830,7 +7803,6 @@ class Files extends BaseModule {
             const body = listFilesParametersToMldev(params);
             path = formatMap('files', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10843,7 +7815,13 @@ class Files extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listFilesResponseFromMldev(apiResponse);
@@ -10865,7 +7843,6 @@ class Files extends BaseModule {
             const body = createFileParametersToMldev(params);
             path = formatMap('upload/v1beta/files', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10880,8 +7857,8 @@ class Files extends BaseModule {
                 .then((httpResponse) => {
                 return httpResponse.json();
             });
-            return response.then(() => {
-                const resp = createFileResponseFromMldev();
+            return response.then((apiResponse) => {
+                const resp = createFileResponseFromMldev(apiResponse);
                 const typedResp = new CreateFileResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -10915,7 +7892,6 @@ class Files extends BaseModule {
             const body = getFileParametersToMldev(params);
             path = formatMap('files/{file}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10961,7 +7937,6 @@ class Files extends BaseModule {
             const body = deleteFileParametersToMldev(params);
             path = formatMap('files/{file}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -10974,10 +7949,16 @@ class Files extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
-            return response.then(() => {
-                const resp = deleteFileResponseFromMldev();
+            return response.then((apiResponse) => {
+                const resp = deleteFileResponseFromMldev(apiResponse);
                 const typedResp = new DeleteFileResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -10991,132 +7972,177 @@ class Files extends BaseModule {
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-function prebuiltVoiceConfigToMldev$2(fromObject) {
+function activityEndToMldev() {
     const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    return toObject;
+}
+function activityEndToVertex() {
+    const toObject = {};
+    return toObject;
+}
+function activityStartToMldev() {
+    const toObject = {};
+    return toObject;
+}
+function activityStartToVertex() {
+    const toObject = {};
+    return toObject;
+}
+function apiKeyConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
+    if (fromApiKeyString != null) {
+        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
     }
     return toObject;
 }
-function prebuiltVoiceConfigToVertex$1(fromObject) {
+function audioChunkFromMldev(fromObject) {
     const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
     }
-    return toObject;
-}
-function voiceConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    const fromSourceMetadata = getValueByPath(fromObject, [
+        'sourceMetadata',
     ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$2(fromPrebuiltVoiceConfig));
+    if (fromSourceMetadata != null) {
+        setValueByPath(toObject, ['sourceMetadata'], liveMusicSourceMetadataFromMldev(fromSourceMetadata));
     }
     return toObject;
 }
-function voiceConfigToVertex$1(fromObject) {
+function audioTranscriptionConfigToMldev$1() {
     const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
+    return toObject;
+}
+function audioTranscriptionConfigToVertex() {
+    const toObject = {};
+    return toObject;
+}
+function authConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
+    if (fromApiKeyConfig != null) {
+        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex$1(fromApiKeyConfig));
+    }
+    const fromAuthType = getValueByPath(fromObject, ['authType']);
+    if (fromAuthType != null) {
+        setValueByPath(toObject, ['authType'], fromAuthType);
+    }
+    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
+        'googleServiceAccountConfig',
     ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToVertex$1(fromPrebuiltVoiceConfig));
+    if (fromGoogleServiceAccountConfig != null) {
+        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
     }
-    return toObject;
-}
-function speakerVoiceConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
-    if (fromSpeaker != null) {
-        setValueByPath(toObject, ['speaker'], fromSpeaker);
-    }
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$2(fromVoiceConfig));
-    }
-    return toObject;
-}
-function multiSpeakerVoiceConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
-        'speakerVoiceConfigs',
+    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
+        'httpBasicAuthConfig',
     ]);
-    if (fromSpeakerVoiceConfigs != null) {
-        let transformedList = fromSpeakerVoiceConfigs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return speakerVoiceConfigToMldev$2(item);
-            });
-        }
-        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
+    if (fromHttpBasicAuthConfig != null) {
+        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
+    }
+    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
+    if (fromOauthConfig != null) {
+        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
+    }
+    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
+    if (fromOidcConfig != null) {
+        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
     }
     return toObject;
 }
-function speechConfigToMldev$2(fromObject) {
+function automaticActivityDetectionToMldev$1(fromObject) {
     const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$2(fromVoiceConfig));
+    const fromDisabled = getValueByPath(fromObject, ['disabled']);
+    if (fromDisabled != null) {
+        setValueByPath(toObject, ['disabled'], fromDisabled);
     }
-    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
-        'multiSpeakerVoiceConfig',
+    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
+        'startOfSpeechSensitivity',
     ]);
-    if (fromMultiSpeakerVoiceConfig != null) {
-        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$2(fromMultiSpeakerVoiceConfig));
+    if (fromStartOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
     }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
+        'endOfSpeechSensitivity',
+    ]);
+    if (fromEndOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
     }
-    return toObject;
-}
-function speechConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToVertex$1(fromVoiceConfig));
+    const fromPrefixPaddingMs = getValueByPath(fromObject, [
+        'prefixPaddingMs',
+    ]);
+    if (fromPrefixPaddingMs != null) {
+        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
     }
-    if (getValueByPath(fromObject, ['multiSpeakerVoiceConfig']) !== undefined) {
-        throw new Error('multiSpeakerVoiceConfig parameter is not supported in Vertex AI.');
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function videoMetadataToMldev$2(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    const fromSilenceDurationMs = getValueByPath(fromObject, [
+        'silenceDurationMs',
+    ]);
+    if (fromSilenceDurationMs != null) {
+        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
     }
     return toObject;
 }
-function videoMetadataToVertex$1(fromObject) {
+function automaticActivityDetectionToVertex(fromObject) {
     const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
+    const fromDisabled = getValueByPath(fromObject, ['disabled']);
+    if (fromDisabled != null) {
+        setValueByPath(toObject, ['disabled'], fromDisabled);
     }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
+        'startOfSpeechSensitivity',
+    ]);
+    if (fromStartOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
     }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
+        'endOfSpeechSensitivity',
+    ]);
+    if (fromEndOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
+    }
+    const fromPrefixPaddingMs = getValueByPath(fromObject, [
+        'prefixPaddingMs',
+    ]);
+    if (fromPrefixPaddingMs != null) {
+        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
+    }
+    const fromSilenceDurationMs = getValueByPath(fromObject, [
+        'silenceDurationMs',
+    ]);
+    if (fromSilenceDurationMs != null) {
+        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
+    }
+    return toObject;
+}
+function blobFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function blobFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
     }
     return toObject;
 }
@@ -11144,6 +8170,176 @@ function blobToVertex$1(fromObject) {
     const fromData = getValueByPath(fromObject, ['data']);
     if (fromData != null) {
         setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function contentFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partFromMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partFromVertex$1(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentToMldev$2(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partToMldev$2(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentToVertex$1(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partToVertex$1(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contextWindowCompressionConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromTriggerTokens = getValueByPath(fromObject, [
+        'triggerTokens',
+    ]);
+    if (fromTriggerTokens != null) {
+        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
+    }
+    const fromSlidingWindow = getValueByPath(fromObject, [
+        'slidingWindow',
+    ]);
+    if (fromSlidingWindow != null) {
+        setValueByPath(toObject, ['slidingWindow'], slidingWindowToMldev$1(fromSlidingWindow));
+    }
+    return toObject;
+}
+function contextWindowCompressionConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromTriggerTokens = getValueByPath(fromObject, [
+        'triggerTokens',
+    ]);
+    if (fromTriggerTokens != null) {
+        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
+    }
+    const fromSlidingWindow = getValueByPath(fromObject, [
+        'slidingWindow',
+    ]);
+    if (fromSlidingWindow != null) {
+        setValueByPath(toObject, ['slidingWindow'], slidingWindowToVertex(fromSlidingWindow));
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function enterpriseWebSearchToVertex$1(fromObject) {
+    const toObject = {};
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
+    }
+    return toObject;
+}
+function fileDataFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function fileDataFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
     }
     const fromMimeType = getValueByPath(fromObject, ['mimeType']);
     if (fromMimeType != null) {
@@ -11182,147 +8378,67 @@ function fileDataToVertex$1(fromObject) {
     }
     return toObject;
 }
-function partToMldev$2(fromObject) {
+function functionCallFromMldev$1(fromObject) {
     const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$2(fromVideoMetadata));
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
     }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToMldev$2(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToMldev$2(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function partToVertex$1(fromObject) {
+function functionCallFromVertex$1(fromObject) {
     const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex$1(fromVideoMetadata));
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
     }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToVertex$1(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToVertex$1(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function contentToMldev$2(fromObject) {
+function functionCallToMldev$2(fromObject) {
     const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToMldev$2(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function contentToVertex$1(fromObject) {
+function functionCallToVertex$1(fromObject) {
     const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToVertex$1(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
@@ -11397,75 +8513,11 @@ function functionDeclarationToVertex$1(fromObject) {
     }
     return toObject;
 }
-function intervalToMldev$2(fromObject) {
+function googleMapsToVertex$1(fromObject) {
     const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function intervalToVertex$1(fromObject) {
-    const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function googleSearchToMldev$2(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$2(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function googleSearchToVertex$1(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex$1(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToMldev$2(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
+    if (fromAuthConfig != null) {
+        setValueByPath(toObject, ['authConfig'], authConfigToVertex$1(fromAuthConfig));
     }
     return toObject;
 }
@@ -11489,369 +8541,56 @@ function googleSearchRetrievalToVertex$1(fromObject) {
     }
     return toObject;
 }
-function enterpriseWebSearchToVertex$1() {
+function googleSearchToMldev$2(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function apiKeyConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
-    if (fromApiKeyString != null) {
-        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
-    }
-    return toObject;
-}
-function authConfigToVertex$1(fromObject) {
-    const toObject = {};
-    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
-    if (fromApiKeyConfig != null) {
-        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex$1(fromApiKeyConfig));
-    }
-    const fromAuthType = getValueByPath(fromObject, ['authType']);
-    if (fromAuthType != null) {
-        setValueByPath(toObject, ['authType'], fromAuthType);
-    }
-    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
-        'googleServiceAccountConfig',
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
     ]);
-    if (fromGoogleServiceAccountConfig != null) {
-        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$2(fromTimeRangeFilter));
     }
-    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
-        'httpBasicAuthConfig',
-    ]);
-    if (fromHttpBasicAuthConfig != null) {
-        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
-    }
-    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
-    if (fromOauthConfig != null) {
-        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
-    }
-    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
-    if (fromOidcConfig != null) {
-        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
+    if (getValueByPath(fromObject, ['excludeDomains']) !== undefined) {
+        throw new Error('excludeDomains parameter is not supported in Gemini API.');
     }
     return toObject;
 }
-function googleMapsToVertex$1(fromObject) {
+function googleSearchToVertex$1(fromObject) {
     const toObject = {};
-    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
-    if (fromAuthConfig != null) {
-        setValueByPath(toObject, ['authConfig'], authConfigToVertex$1(fromAuthConfig));
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex$1(fromTimeRangeFilter));
+    }
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
     }
     return toObject;
 }
-function urlContextToMldev$2() {
+function intervalToMldev$2(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function urlContextToVertex$1() {
-    const toObject = {};
-    return toObject;
-}
-function toolToMldev$2(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToMldev$2(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
     }
-    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
-        throw new Error('retrieval parameter is not supported in Gemini API.');
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$2(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$2(fromGoogleSearchRetrieval));
-    }
-    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
-        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
-        throw new Error('googleMaps parameter is not supported in Gemini API.');
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToMldev$2());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
     }
     return toObject;
 }
-function toolToVertex$1(fromObject) {
+function intervalToVertex$1(fromObject) {
     const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToVertex$1(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
     }
-    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
-    if (fromRetrieval != null) {
-        setValueByPath(toObject, ['retrieval'], fromRetrieval);
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex$1(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex$1(fromGoogleSearchRetrieval));
-    }
-    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
-        'enterpriseWebSearch',
-    ]);
-    if (fromEnterpriseWebSearch != null) {
-        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex$1());
-    }
-    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
-    if (fromGoogleMaps != null) {
-        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex$1(fromGoogleMaps));
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToVertex$1());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function sessionResumptionConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromHandle = getValueByPath(fromObject, ['handle']);
-    if (fromHandle != null) {
-        setValueByPath(toObject, ['handle'], fromHandle);
-    }
-    if (getValueByPath(fromObject, ['transparent']) !== undefined) {
-        throw new Error('transparent parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function sessionResumptionConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromHandle = getValueByPath(fromObject, ['handle']);
-    if (fromHandle != null) {
-        setValueByPath(toObject, ['handle'], fromHandle);
-    }
-    const fromTransparent = getValueByPath(fromObject, ['transparent']);
-    if (fromTransparent != null) {
-        setValueByPath(toObject, ['transparent'], fromTransparent);
-    }
-    return toObject;
-}
-function audioTranscriptionConfigToMldev$1() {
-    const toObject = {};
-    return toObject;
-}
-function audioTranscriptionConfigToVertex() {
-    const toObject = {};
-    return toObject;
-}
-function automaticActivityDetectionToMldev$1(fromObject) {
-    const toObject = {};
-    const fromDisabled = getValueByPath(fromObject, ['disabled']);
-    if (fromDisabled != null) {
-        setValueByPath(toObject, ['disabled'], fromDisabled);
-    }
-    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
-        'startOfSpeechSensitivity',
-    ]);
-    if (fromStartOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
-    }
-    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
-        'endOfSpeechSensitivity',
-    ]);
-    if (fromEndOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
-    }
-    const fromPrefixPaddingMs = getValueByPath(fromObject, [
-        'prefixPaddingMs',
-    ]);
-    if (fromPrefixPaddingMs != null) {
-        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
-    }
-    const fromSilenceDurationMs = getValueByPath(fromObject, [
-        'silenceDurationMs',
-    ]);
-    if (fromSilenceDurationMs != null) {
-        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
-    }
-    return toObject;
-}
-function automaticActivityDetectionToVertex(fromObject) {
-    const toObject = {};
-    const fromDisabled = getValueByPath(fromObject, ['disabled']);
-    if (fromDisabled != null) {
-        setValueByPath(toObject, ['disabled'], fromDisabled);
-    }
-    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
-        'startOfSpeechSensitivity',
-    ]);
-    if (fromStartOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
-    }
-    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
-        'endOfSpeechSensitivity',
-    ]);
-    if (fromEndOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
-    }
-    const fromPrefixPaddingMs = getValueByPath(fromObject, [
-        'prefixPaddingMs',
-    ]);
-    if (fromPrefixPaddingMs != null) {
-        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
-    }
-    const fromSilenceDurationMs = getValueByPath(fromObject, [
-        'silenceDurationMs',
-    ]);
-    if (fromSilenceDurationMs != null) {
-        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
-    }
-    return toObject;
-}
-function realtimeInputConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
-        'automaticActivityDetection',
-    ]);
-    if (fromAutomaticActivityDetection != null) {
-        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToMldev$1(fromAutomaticActivityDetection));
-    }
-    const fromActivityHandling = getValueByPath(fromObject, [
-        'activityHandling',
-    ]);
-    if (fromActivityHandling != null) {
-        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
-    }
-    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
-    if (fromTurnCoverage != null) {
-        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
-    }
-    return toObject;
-}
-function realtimeInputConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
-        'automaticActivityDetection',
-    ]);
-    if (fromAutomaticActivityDetection != null) {
-        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToVertex(fromAutomaticActivityDetection));
-    }
-    const fromActivityHandling = getValueByPath(fromObject, [
-        'activityHandling',
-    ]);
-    if (fromActivityHandling != null) {
-        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
-    }
-    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
-    if (fromTurnCoverage != null) {
-        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
-    }
-    return toObject;
-}
-function slidingWindowToMldev$1(fromObject) {
-    const toObject = {};
-    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
-    if (fromTargetTokens != null) {
-        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
-    }
-    return toObject;
-}
-function slidingWindowToVertex(fromObject) {
-    const toObject = {};
-    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
-    if (fromTargetTokens != null) {
-        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
-    }
-    return toObject;
-}
-function contextWindowCompressionConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromTriggerTokens = getValueByPath(fromObject, [
-        'triggerTokens',
-    ]);
-    if (fromTriggerTokens != null) {
-        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
-    }
-    const fromSlidingWindow = getValueByPath(fromObject, [
-        'slidingWindow',
-    ]);
-    if (fromSlidingWindow != null) {
-        setValueByPath(toObject, ['slidingWindow'], slidingWindowToMldev$1(fromSlidingWindow));
-    }
-    return toObject;
-}
-function contextWindowCompressionConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromTriggerTokens = getValueByPath(fromObject, [
-        'triggerTokens',
-    ]);
-    if (fromTriggerTokens != null) {
-        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
-    }
-    const fromSlidingWindow = getValueByPath(fromObject, [
-        'slidingWindow',
-    ]);
-    if (fromSlidingWindow != null) {
-        setValueByPath(toObject, ['slidingWindow'], slidingWindowToVertex(fromSlidingWindow));
-    }
-    return toObject;
-}
-function proactivityConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromProactiveAudio = getValueByPath(fromObject, [
-        'proactiveAudio',
-    ]);
-    if (fromProactiveAudio != null) {
-        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
-    }
-    return toObject;
-}
-function proactivityConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromProactiveAudio = getValueByPath(fromObject, [
-        'proactiveAudio',
-    ]);
-    if (fromProactiveAudio != null) {
-        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
     }
     return toObject;
 }
@@ -12087,107 +8826,23 @@ function liveConnectParametersToVertex(apiClient, fromObject) {
     }
     return toObject;
 }
-function activityStartToMldev() {
+function liveMusicClientContentFromMldev(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function activityStartToVertex() {
-    const toObject = {};
-    return toObject;
-}
-function activityEndToMldev() {
-    const toObject = {};
-    return toObject;
-}
-function activityEndToVertex() {
-    const toObject = {};
-    return toObject;
-}
-function liveSendRealtimeInputParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromMedia = getValueByPath(fromObject, ['media']);
-    if (fromMedia != null) {
-        setValueByPath(toObject, ['mediaChunks'], tBlobs(fromMedia));
-    }
-    const fromAudio = getValueByPath(fromObject, ['audio']);
-    if (fromAudio != null) {
-        setValueByPath(toObject, ['audio'], tAudioBlob(fromAudio));
-    }
-    const fromAudioStreamEnd = getValueByPath(fromObject, [
-        'audioStreamEnd',
+    const fromWeightedPrompts = getValueByPath(fromObject, [
+        'weightedPrompts',
     ]);
-    if (fromAudioStreamEnd != null) {
-        setValueByPath(toObject, ['audioStreamEnd'], fromAudioStreamEnd);
-    }
-    const fromVideo = getValueByPath(fromObject, ['video']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], tImageBlob(fromVideo));
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromActivityStart = getValueByPath(fromObject, [
-        'activityStart',
-    ]);
-    if (fromActivityStart != null) {
-        setValueByPath(toObject, ['activityStart'], activityStartToMldev());
-    }
-    const fromActivityEnd = getValueByPath(fromObject, ['activityEnd']);
-    if (fromActivityEnd != null) {
-        setValueByPath(toObject, ['activityEnd'], activityEndToMldev());
+    if (fromWeightedPrompts != null) {
+        let transformedList = fromWeightedPrompts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return weightedPromptFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['weightedPrompts'], transformedList);
     }
     return toObject;
 }
-function liveSendRealtimeInputParametersToVertex(fromObject) {
-    const toObject = {};
-    const fromMedia = getValueByPath(fromObject, ['media']);
-    if (fromMedia != null) {
-        setValueByPath(toObject, ['mediaChunks'], tBlobs(fromMedia));
-    }
-    const fromAudio = getValueByPath(fromObject, ['audio']);
-    if (fromAudio != null) {
-        setValueByPath(toObject, ['audio'], tAudioBlob(fromAudio));
-    }
-    const fromAudioStreamEnd = getValueByPath(fromObject, [
-        'audioStreamEnd',
-    ]);
-    if (fromAudioStreamEnd != null) {
-        setValueByPath(toObject, ['audioStreamEnd'], fromAudioStreamEnd);
-    }
-    const fromVideo = getValueByPath(fromObject, ['video']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], tImageBlob(fromVideo));
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromActivityStart = getValueByPath(fromObject, [
-        'activityStart',
-    ]);
-    if (fromActivityStart != null) {
-        setValueByPath(toObject, ['activityStart'], activityStartToVertex());
-    }
-    const fromActivityEnd = getValueByPath(fromObject, ['activityEnd']);
-    if (fromActivityEnd != null) {
-        setValueByPath(toObject, ['activityEnd'], activityEndToVertex());
-    }
-    return toObject;
-}
-function weightedPromptToMldev(fromObject) {
-    const toObject = {};
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromWeight = getValueByPath(fromObject, ['weight']);
-    if (fromWeight != null) {
-        setValueByPath(toObject, ['weight'], fromWeight);
-    }
-    return toObject;
-}
-function liveMusicSetWeightedPromptsParametersToMldev(fromObject) {
+function liveMusicClientContentToMldev(fromObject) {
     const toObject = {};
     const fromWeightedPrompts = getValueByPath(fromObject, [
         'weightedPrompts',
@@ -12200,6 +8855,110 @@ function liveMusicSetWeightedPromptsParametersToMldev(fromObject) {
             });
         }
         setValueByPath(toObject, ['weightedPrompts'], transformedList);
+    }
+    return toObject;
+}
+function liveMusicClientMessageToMldev(fromObject) {
+    const toObject = {};
+    const fromSetup = getValueByPath(fromObject, ['setup']);
+    if (fromSetup != null) {
+        setValueByPath(toObject, ['setup'], liveMusicClientSetupToMldev(fromSetup));
+    }
+    const fromClientContent = getValueByPath(fromObject, [
+        'clientContent',
+    ]);
+    if (fromClientContent != null) {
+        setValueByPath(toObject, ['clientContent'], liveMusicClientContentToMldev(fromClientContent));
+    }
+    const fromMusicGenerationConfig = getValueByPath(fromObject, [
+        'musicGenerationConfig',
+    ]);
+    if (fromMusicGenerationConfig != null) {
+        setValueByPath(toObject, ['musicGenerationConfig'], liveMusicGenerationConfigToMldev(fromMusicGenerationConfig));
+    }
+    const fromPlaybackControl = getValueByPath(fromObject, [
+        'playbackControl',
+    ]);
+    if (fromPlaybackControl != null) {
+        setValueByPath(toObject, ['playbackControl'], fromPlaybackControl);
+    }
+    return toObject;
+}
+function liveMusicClientSetupToMldev(fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
+    }
+    return toObject;
+}
+function liveMusicFilteredPromptFromMldev(fromObject) {
+    const toObject = {};
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromFilteredReason = getValueByPath(fromObject, [
+        'filteredReason',
+    ]);
+    if (fromFilteredReason != null) {
+        setValueByPath(toObject, ['filteredReason'], fromFilteredReason);
+    }
+    return toObject;
+}
+function liveMusicGenerationConfigFromMldev(fromObject) {
+    const toObject = {};
+    const fromTemperature = getValueByPath(fromObject, ['temperature']);
+    if (fromTemperature != null) {
+        setValueByPath(toObject, ['temperature'], fromTemperature);
+    }
+    const fromTopK = getValueByPath(fromObject, ['topK']);
+    if (fromTopK != null) {
+        setValueByPath(toObject, ['topK'], fromTopK);
+    }
+    const fromSeed = getValueByPath(fromObject, ['seed']);
+    if (fromSeed != null) {
+        setValueByPath(toObject, ['seed'], fromSeed);
+    }
+    const fromGuidance = getValueByPath(fromObject, ['guidance']);
+    if (fromGuidance != null) {
+        setValueByPath(toObject, ['guidance'], fromGuidance);
+    }
+    const fromBpm = getValueByPath(fromObject, ['bpm']);
+    if (fromBpm != null) {
+        setValueByPath(toObject, ['bpm'], fromBpm);
+    }
+    const fromDensity = getValueByPath(fromObject, ['density']);
+    if (fromDensity != null) {
+        setValueByPath(toObject, ['density'], fromDensity);
+    }
+    const fromBrightness = getValueByPath(fromObject, ['brightness']);
+    if (fromBrightness != null) {
+        setValueByPath(toObject, ['brightness'], fromBrightness);
+    }
+    const fromScale = getValueByPath(fromObject, ['scale']);
+    if (fromScale != null) {
+        setValueByPath(toObject, ['scale'], fromScale);
+    }
+    const fromMuteBass = getValueByPath(fromObject, ['muteBass']);
+    if (fromMuteBass != null) {
+        setValueByPath(toObject, ['muteBass'], fromMuteBass);
+    }
+    const fromMuteDrums = getValueByPath(fromObject, ['muteDrums']);
+    if (fromMuteDrums != null) {
+        setValueByPath(toObject, ['muteDrums'], fromMuteDrums);
+    }
+    const fromOnlyBassAndDrums = getValueByPath(fromObject, [
+        'onlyBassAndDrums',
+    ]);
+    if (fromOnlyBassAndDrums != null) {
+        setValueByPath(toObject, ['onlyBassAndDrums'], fromOnlyBassAndDrums);
+    }
+    const fromMusicGenerationMode = getValueByPath(fromObject, [
+        'musicGenerationMode',
+    ]);
+    if (fromMusicGenerationMode != null) {
+        setValueByPath(toObject, ['musicGenerationMode'], fromMusicGenerationMode);
     }
     return toObject;
 }
@@ -12251,6 +9010,52 @@ function liveMusicGenerationConfigToMldev(fromObject) {
     if (fromOnlyBassAndDrums != null) {
         setValueByPath(toObject, ['onlyBassAndDrums'], fromOnlyBassAndDrums);
     }
+    const fromMusicGenerationMode = getValueByPath(fromObject, [
+        'musicGenerationMode',
+    ]);
+    if (fromMusicGenerationMode != null) {
+        setValueByPath(toObject, ['musicGenerationMode'], fromMusicGenerationMode);
+    }
+    return toObject;
+}
+function liveMusicServerContentFromMldev(fromObject) {
+    const toObject = {};
+    const fromAudioChunks = getValueByPath(fromObject, ['audioChunks']);
+    if (fromAudioChunks != null) {
+        let transformedList = fromAudioChunks;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return audioChunkFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['audioChunks'], transformedList);
+    }
+    return toObject;
+}
+function liveMusicServerMessageFromMldev(fromObject) {
+    const toObject = {};
+    const fromSetupComplete = getValueByPath(fromObject, [
+        'setupComplete',
+    ]);
+    if (fromSetupComplete != null) {
+        setValueByPath(toObject, ['setupComplete'], liveMusicServerSetupCompleteFromMldev());
+    }
+    const fromServerContent = getValueByPath(fromObject, [
+        'serverContent',
+    ]);
+    if (fromServerContent != null) {
+        setValueByPath(toObject, ['serverContent'], liveMusicServerContentFromMldev(fromServerContent));
+    }
+    const fromFilteredPrompt = getValueByPath(fromObject, [
+        'filteredPrompt',
+    ]);
+    if (fromFilteredPrompt != null) {
+        setValueByPath(toObject, ['filteredPrompt'], liveMusicFilteredPromptFromMldev(fromFilteredPrompt));
+    }
+    return toObject;
+}
+function liveMusicServerSetupCompleteFromMldev() {
+    const toObject = {};
     return toObject;
 }
 function liveMusicSetConfigParametersToMldev(fromObject) {
@@ -12263,15 +9068,7 @@ function liveMusicSetConfigParametersToMldev(fromObject) {
     }
     return toObject;
 }
-function liveMusicClientSetupToMldev(fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    return toObject;
-}
-function liveMusicClientContentToMldev(fromObject) {
+function liveMusicSetWeightedPromptsParametersToMldev(fromObject) {
     const toObject = {};
     const fromWeightedPrompts = getValueByPath(fromObject, [
         'weightedPrompts',
@@ -12287,325 +9084,103 @@ function liveMusicClientContentToMldev(fromObject) {
     }
     return toObject;
 }
-function liveMusicClientMessageToMldev(fromObject) {
+function liveMusicSourceMetadataFromMldev(fromObject) {
     const toObject = {};
-    const fromSetup = getValueByPath(fromObject, ['setup']);
-    if (fromSetup != null) {
-        setValueByPath(toObject, ['setup'], liveMusicClientSetupToMldev(fromSetup));
-    }
     const fromClientContent = getValueByPath(fromObject, [
         'clientContent',
     ]);
     if (fromClientContent != null) {
-        setValueByPath(toObject, ['clientContent'], liveMusicClientContentToMldev(fromClientContent));
+        setValueByPath(toObject, ['clientContent'], liveMusicClientContentFromMldev(fromClientContent));
     }
     const fromMusicGenerationConfig = getValueByPath(fromObject, [
         'musicGenerationConfig',
     ]);
     if (fromMusicGenerationConfig != null) {
-        setValueByPath(toObject, ['musicGenerationConfig'], liveMusicGenerationConfigToMldev(fromMusicGenerationConfig));
-    }
-    const fromPlaybackControl = getValueByPath(fromObject, [
-        'playbackControl',
-    ]);
-    if (fromPlaybackControl != null) {
-        setValueByPath(toObject, ['playbackControl'], fromPlaybackControl);
+        setValueByPath(toObject, ['musicGenerationConfig'], liveMusicGenerationConfigFromMldev(fromMusicGenerationConfig));
     }
     return toObject;
 }
-function liveServerSetupCompleteFromMldev() {
+function liveSendRealtimeInputParametersToMldev(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function liveServerSetupCompleteFromVertex(fromObject) {
-    const toObject = {};
-    const fromSessionId = getValueByPath(fromObject, ['sessionId']);
-    if (fromSessionId != null) {
-        setValueByPath(toObject, ['sessionId'], fromSessionId);
-    }
-    return toObject;
-}
-function videoMetadataFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function videoMetadataFromVertex$1(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function blobFromVertex$1(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataFromVertex$1(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromMldev$1(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobFromMldev$1(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataFromMldev$1(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function partFromVertex$1(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromVertex$1(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobFromVertex$1(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataFromVertex$1(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function contentFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
+    const fromMedia = getValueByPath(fromObject, ['media']);
+    if (fromMedia != null) {
+        let transformedList = tBlobs(fromMedia);
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return partFromMldev$1(item);
+                return item;
             });
         }
-        setValueByPath(toObject, ['parts'], transformedList);
+        setValueByPath(toObject, ['mediaChunks'], transformedList);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    const fromAudio = getValueByPath(fromObject, ['audio']);
+    if (fromAudio != null) {
+        setValueByPath(toObject, ['audio'], tAudioBlob(fromAudio));
     }
-    return toObject;
-}
-function contentFromVertex$1(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partFromVertex$1(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
-    }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
-    }
-    return toObject;
-}
-function transcriptionFromMldev(fromObject) {
-    const toObject = {};
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromFinished = getValueByPath(fromObject, ['finished']);
-    if (fromFinished != null) {
-        setValueByPath(toObject, ['finished'], fromFinished);
-    }
-    return toObject;
-}
-function transcriptionFromVertex(fromObject) {
-    const toObject = {};
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromFinished = getValueByPath(fromObject, ['finished']);
-    if (fromFinished != null) {
-        setValueByPath(toObject, ['finished'], fromFinished);
-    }
-    return toObject;
-}
-function urlMetadataFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
-    if (fromRetrievedUrl != null) {
-        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
-    }
-    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
-        'urlRetrievalStatus',
+    const fromAudioStreamEnd = getValueByPath(fromObject, [
+        'audioStreamEnd',
     ]);
-    if (fromUrlRetrievalStatus != null) {
-        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
+    if (fromAudioStreamEnd != null) {
+        setValueByPath(toObject, ['audioStreamEnd'], fromAudioStreamEnd);
+    }
+    const fromVideo = getValueByPath(fromObject, ['video']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], tImageBlob(fromVideo));
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromActivityStart = getValueByPath(fromObject, [
+        'activityStart',
+    ]);
+    if (fromActivityStart != null) {
+        setValueByPath(toObject, ['activityStart'], activityStartToMldev());
+    }
+    const fromActivityEnd = getValueByPath(fromObject, ['activityEnd']);
+    if (fromActivityEnd != null) {
+        setValueByPath(toObject, ['activityEnd'], activityEndToMldev());
     }
     return toObject;
 }
-function urlContextMetadataFromMldev$1(fromObject) {
+function liveSendRealtimeInputParametersToVertex(fromObject) {
     const toObject = {};
-    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
-    if (fromUrlMetadata != null) {
-        let transformedList = fromUrlMetadata;
+    const fromMedia = getValueByPath(fromObject, ['media']);
+    if (fromMedia != null) {
+        let transformedList = tBlobs(fromMedia);
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return urlMetadataFromMldev$1(item);
+                return item;
             });
         }
-        setValueByPath(toObject, ['urlMetadata'], transformedList);
+        setValueByPath(toObject, ['mediaChunks'], transformedList);
+    }
+    const fromAudio = getValueByPath(fromObject, ['audio']);
+    if (fromAudio != null) {
+        setValueByPath(toObject, ['audio'], tAudioBlob(fromAudio));
+    }
+    const fromAudioStreamEnd = getValueByPath(fromObject, [
+        'audioStreamEnd',
+    ]);
+    if (fromAudioStreamEnd != null) {
+        setValueByPath(toObject, ['audioStreamEnd'], fromAudioStreamEnd);
+    }
+    const fromVideo = getValueByPath(fromObject, ['video']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], tImageBlob(fromVideo));
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromActivityStart = getValueByPath(fromObject, [
+        'activityStart',
+    ]);
+    if (fromActivityStart != null) {
+        setValueByPath(toObject, ['activityStart'], activityStartToVertex());
+    }
+    const fromActivityEnd = getValueByPath(fromObject, ['activityEnd']);
+    if (fromActivityEnd != null) {
+        setValueByPath(toObject, ['activityEnd'], activityEndToVertex());
     }
     return toObject;
 }
@@ -12653,6 +9228,18 @@ function liveServerContentFromMldev(fromObject) {
     if (fromUrlContextMetadata != null) {
         setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromMldev$1(fromUrlContextMetadata));
     }
+    const fromTurnCompleteReason = getValueByPath(fromObject, [
+        'turnCompleteReason',
+    ]);
+    if (fromTurnCompleteReason != null) {
+        setValueByPath(toObject, ['turnCompleteReason'], fromTurnCompleteReason);
+    }
+    const fromWaitingForInput = getValueByPath(fromObject, [
+        'waitingForInput',
+    ]);
+    if (fromWaitingForInput != null) {
+        setValueByPath(toObject, ['waitingForInput'], fromWaitingForInput);
+    }
     return toObject;
 }
 function liveServerContentFromVertex(fromObject) {
@@ -12693,65 +9280,165 @@ function liveServerContentFromVertex(fromObject) {
     if (fromOutputTranscription != null) {
         setValueByPath(toObject, ['outputTranscription'], transcriptionFromVertex(fromOutputTranscription));
     }
-    return toObject;
-}
-function functionCallFromMldev(fromObject) {
-    const toObject = {};
-    const fromId = getValueByPath(fromObject, ['id']);
-    if (fromId != null) {
-        setValueByPath(toObject, ['id'], fromId);
-    }
-    const fromArgs = getValueByPath(fromObject, ['args']);
-    if (fromArgs != null) {
-        setValueByPath(toObject, ['args'], fromArgs);
-    }
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    return toObject;
-}
-function functionCallFromVertex(fromObject) {
-    const toObject = {};
-    const fromArgs = getValueByPath(fromObject, ['args']);
-    if (fromArgs != null) {
-        setValueByPath(toObject, ['args'], fromArgs);
-    }
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    return toObject;
-}
-function liveServerToolCallFromMldev(fromObject) {
-    const toObject = {};
-    const fromFunctionCalls = getValueByPath(fromObject, [
-        'functionCalls',
+    const fromTurnCompleteReason = getValueByPath(fromObject, [
+        'turnCompleteReason',
     ]);
-    if (fromFunctionCalls != null) {
-        let transformedList = fromFunctionCalls;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionCallFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['functionCalls'], transformedList);
+    if (fromTurnCompleteReason != null) {
+        setValueByPath(toObject, ['turnCompleteReason'], fromTurnCompleteReason);
+    }
+    const fromWaitingForInput = getValueByPath(fromObject, [
+        'waitingForInput',
+    ]);
+    if (fromWaitingForInput != null) {
+        setValueByPath(toObject, ['waitingForInput'], fromWaitingForInput);
     }
     return toObject;
 }
-function liveServerToolCallFromVertex(fromObject) {
+function liveServerGoAwayFromMldev(fromObject) {
     const toObject = {};
-    const fromFunctionCalls = getValueByPath(fromObject, [
-        'functionCalls',
+    const fromTimeLeft = getValueByPath(fromObject, ['timeLeft']);
+    if (fromTimeLeft != null) {
+        setValueByPath(toObject, ['timeLeft'], fromTimeLeft);
+    }
+    return toObject;
+}
+function liveServerGoAwayFromVertex(fromObject) {
+    const toObject = {};
+    const fromTimeLeft = getValueByPath(fromObject, ['timeLeft']);
+    if (fromTimeLeft != null) {
+        setValueByPath(toObject, ['timeLeft'], fromTimeLeft);
+    }
+    return toObject;
+}
+function liveServerMessageFromMldev(fromObject) {
+    const toObject = {};
+    const fromSetupComplete = getValueByPath(fromObject, [
+        'setupComplete',
     ]);
-    if (fromFunctionCalls != null) {
-        let transformedList = fromFunctionCalls;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionCallFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['functionCalls'], transformedList);
+    if (fromSetupComplete != null) {
+        setValueByPath(toObject, ['setupComplete'], liveServerSetupCompleteFromMldev());
+    }
+    const fromServerContent = getValueByPath(fromObject, [
+        'serverContent',
+    ]);
+    if (fromServerContent != null) {
+        setValueByPath(toObject, ['serverContent'], liveServerContentFromMldev(fromServerContent));
+    }
+    const fromToolCall = getValueByPath(fromObject, ['toolCall']);
+    if (fromToolCall != null) {
+        setValueByPath(toObject, ['toolCall'], liveServerToolCallFromMldev(fromToolCall));
+    }
+    const fromToolCallCancellation = getValueByPath(fromObject, [
+        'toolCallCancellation',
+    ]);
+    if (fromToolCallCancellation != null) {
+        setValueByPath(toObject, ['toolCallCancellation'], liveServerToolCallCancellationFromMldev(fromToolCallCancellation));
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
+    ]);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], usageMetadataFromMldev(fromUsageMetadata));
+    }
+    const fromGoAway = getValueByPath(fromObject, ['goAway']);
+    if (fromGoAway != null) {
+        setValueByPath(toObject, ['goAway'], liveServerGoAwayFromMldev(fromGoAway));
+    }
+    const fromSessionResumptionUpdate = getValueByPath(fromObject, [
+        'sessionResumptionUpdate',
+    ]);
+    if (fromSessionResumptionUpdate != null) {
+        setValueByPath(toObject, ['sessionResumptionUpdate'], liveServerSessionResumptionUpdateFromMldev(fromSessionResumptionUpdate));
+    }
+    return toObject;
+}
+function liveServerMessageFromVertex(fromObject) {
+    const toObject = {};
+    const fromSetupComplete = getValueByPath(fromObject, [
+        'setupComplete',
+    ]);
+    if (fromSetupComplete != null) {
+        setValueByPath(toObject, ['setupComplete'], liveServerSetupCompleteFromVertex(fromSetupComplete));
+    }
+    const fromServerContent = getValueByPath(fromObject, [
+        'serverContent',
+    ]);
+    if (fromServerContent != null) {
+        setValueByPath(toObject, ['serverContent'], liveServerContentFromVertex(fromServerContent));
+    }
+    const fromToolCall = getValueByPath(fromObject, ['toolCall']);
+    if (fromToolCall != null) {
+        setValueByPath(toObject, ['toolCall'], liveServerToolCallFromVertex(fromToolCall));
+    }
+    const fromToolCallCancellation = getValueByPath(fromObject, [
+        'toolCallCancellation',
+    ]);
+    if (fromToolCallCancellation != null) {
+        setValueByPath(toObject, ['toolCallCancellation'], liveServerToolCallCancellationFromVertex(fromToolCallCancellation));
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
+    ]);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], usageMetadataFromVertex(fromUsageMetadata));
+    }
+    const fromGoAway = getValueByPath(fromObject, ['goAway']);
+    if (fromGoAway != null) {
+        setValueByPath(toObject, ['goAway'], liveServerGoAwayFromVertex(fromGoAway));
+    }
+    const fromSessionResumptionUpdate = getValueByPath(fromObject, [
+        'sessionResumptionUpdate',
+    ]);
+    if (fromSessionResumptionUpdate != null) {
+        setValueByPath(toObject, ['sessionResumptionUpdate'], liveServerSessionResumptionUpdateFromVertex(fromSessionResumptionUpdate));
+    }
+    return toObject;
+}
+function liveServerSessionResumptionUpdateFromMldev(fromObject) {
+    const toObject = {};
+    const fromNewHandle = getValueByPath(fromObject, ['newHandle']);
+    if (fromNewHandle != null) {
+        setValueByPath(toObject, ['newHandle'], fromNewHandle);
+    }
+    const fromResumable = getValueByPath(fromObject, ['resumable']);
+    if (fromResumable != null) {
+        setValueByPath(toObject, ['resumable'], fromResumable);
+    }
+    const fromLastConsumedClientMessageIndex = getValueByPath(fromObject, [
+        'lastConsumedClientMessageIndex',
+    ]);
+    if (fromLastConsumedClientMessageIndex != null) {
+        setValueByPath(toObject, ['lastConsumedClientMessageIndex'], fromLastConsumedClientMessageIndex);
+    }
+    return toObject;
+}
+function liveServerSessionResumptionUpdateFromVertex(fromObject) {
+    const toObject = {};
+    const fromNewHandle = getValueByPath(fromObject, ['newHandle']);
+    if (fromNewHandle != null) {
+        setValueByPath(toObject, ['newHandle'], fromNewHandle);
+    }
+    const fromResumable = getValueByPath(fromObject, ['resumable']);
+    if (fromResumable != null) {
+        setValueByPath(toObject, ['resumable'], fromResumable);
+    }
+    const fromLastConsumedClientMessageIndex = getValueByPath(fromObject, [
+        'lastConsumedClientMessageIndex',
+    ]);
+    if (fromLastConsumedClientMessageIndex != null) {
+        setValueByPath(toObject, ['lastConsumedClientMessageIndex'], fromLastConsumedClientMessageIndex);
+    }
+    return toObject;
+}
+function liveServerSetupCompleteFromMldev() {
+    const toObject = {};
+    return toObject;
+}
+function liveServerSetupCompleteFromVertex(fromObject) {
+    const toObject = {};
+    const fromSessionId = getValueByPath(fromObject, ['sessionId']);
+    if (fromSessionId != null) {
+        setValueByPath(toObject, ['sessionId'], fromSessionId);
     }
     return toObject;
 }
@@ -12768,6 +9455,38 @@ function liveServerToolCallCancellationFromVertex(fromObject) {
     const fromIds = getValueByPath(fromObject, ['ids']);
     if (fromIds != null) {
         setValueByPath(toObject, ['ids'], fromIds);
+    }
+    return toObject;
+}
+function liveServerToolCallFromMldev(fromObject) {
+    const toObject = {};
+    const fromFunctionCalls = getValueByPath(fromObject, [
+        'functionCalls',
+    ]);
+    if (fromFunctionCalls != null) {
+        let transformedList = fromFunctionCalls;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionCallFromMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['functionCalls'], transformedList);
+    }
+    return toObject;
+}
+function liveServerToolCallFromVertex(fromObject) {
+    const toObject = {};
+    const fromFunctionCalls = getValueByPath(fromObject, [
+        'functionCalls',
+    ]);
+    if (fromFunctionCalls != null) {
+        let transformedList = fromFunctionCalls;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionCallFromVertex$1(item);
+            });
+        }
+        setValueByPath(toObject, ['functionCalls'], transformedList);
     }
     return toObject;
 }
@@ -12792,6 +9511,589 @@ function modalityTokenCountFromVertex(fromObject) {
     const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
     if (fromTokenCount != null) {
         setValueByPath(toObject, ['tokenCount'], fromTokenCount);
+    }
+    return toObject;
+}
+function multiSpeakerVoiceConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
+        'speakerVoiceConfigs',
+    ]);
+    if (fromSpeakerVoiceConfigs != null) {
+        let transformedList = fromSpeakerVoiceConfigs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return speakerVoiceConfigToMldev$2(item);
+            });
+        }
+        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
+    }
+    return toObject;
+}
+function partFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromMldev$1(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobFromMldev$1(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataFromMldev$1(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallFromMldev$1(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function partFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromVertex$1(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobFromVertex$1(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataFromVertex$1(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallFromVertex$1(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function partToMldev$2(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$2(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToMldev$2(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToMldev$2(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToMldev$2(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function partToVertex$1(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex$1(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToVertex$1(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToVertex$1(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToVertex$1(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function prebuiltVoiceConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function prebuiltVoiceConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function proactivityConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromProactiveAudio = getValueByPath(fromObject, [
+        'proactiveAudio',
+    ]);
+    if (fromProactiveAudio != null) {
+        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
+    }
+    return toObject;
+}
+function proactivityConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromProactiveAudio = getValueByPath(fromObject, [
+        'proactiveAudio',
+    ]);
+    if (fromProactiveAudio != null) {
+        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
+    }
+    return toObject;
+}
+function realtimeInputConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
+        'automaticActivityDetection',
+    ]);
+    if (fromAutomaticActivityDetection != null) {
+        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToMldev$1(fromAutomaticActivityDetection));
+    }
+    const fromActivityHandling = getValueByPath(fromObject, [
+        'activityHandling',
+    ]);
+    if (fromActivityHandling != null) {
+        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
+    }
+    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
+    if (fromTurnCoverage != null) {
+        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
+    }
+    return toObject;
+}
+function realtimeInputConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
+        'automaticActivityDetection',
+    ]);
+    if (fromAutomaticActivityDetection != null) {
+        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToVertex(fromAutomaticActivityDetection));
+    }
+    const fromActivityHandling = getValueByPath(fromObject, [
+        'activityHandling',
+    ]);
+    if (fromActivityHandling != null) {
+        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
+    }
+    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
+    if (fromTurnCoverage != null) {
+        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
+    }
+    return toObject;
+}
+function sessionResumptionConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromHandle = getValueByPath(fromObject, ['handle']);
+    if (fromHandle != null) {
+        setValueByPath(toObject, ['handle'], fromHandle);
+    }
+    if (getValueByPath(fromObject, ['transparent']) !== undefined) {
+        throw new Error('transparent parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function sessionResumptionConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromHandle = getValueByPath(fromObject, ['handle']);
+    if (fromHandle != null) {
+        setValueByPath(toObject, ['handle'], fromHandle);
+    }
+    const fromTransparent = getValueByPath(fromObject, ['transparent']);
+    if (fromTransparent != null) {
+        setValueByPath(toObject, ['transparent'], fromTransparent);
+    }
+    return toObject;
+}
+function slidingWindowToMldev$1(fromObject) {
+    const toObject = {};
+    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
+    if (fromTargetTokens != null) {
+        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
+    }
+    return toObject;
+}
+function slidingWindowToVertex(fromObject) {
+    const toObject = {};
+    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
+    if (fromTargetTokens != null) {
+        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
+    }
+    return toObject;
+}
+function speakerVoiceConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
+    if (fromSpeaker != null) {
+        setValueByPath(toObject, ['speaker'], fromSpeaker);
+    }
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$2(fromVoiceConfig));
+    }
+    return toObject;
+}
+function speechConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$2(fromVoiceConfig));
+    }
+    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
+        'multiSpeakerVoiceConfig',
+    ]);
+    if (fromMultiSpeakerVoiceConfig != null) {
+        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$2(fromMultiSpeakerVoiceConfig));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function speechConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToVertex$1(fromVoiceConfig));
+    }
+    if (getValueByPath(fromObject, ['multiSpeakerVoiceConfig']) !== undefined) {
+        throw new Error('multiSpeakerVoiceConfig parameter is not supported in Vertex AI.');
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function toolComputerUseToMldev$2(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolComputerUseToVertex$1(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolToMldev$2(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToMldev$2(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
+        throw new Error('retrieval parameter is not supported in Gemini API.');
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$2(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$2(fromGoogleSearchRetrieval));
+    }
+    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
+        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
+        throw new Error('googleMaps parameter is not supported in Gemini API.');
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToMldev$2());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToMldev$2(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function toolToVertex$1(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToVertex$1(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
+    if (fromRetrieval != null) {
+        setValueByPath(toObject, ['retrieval'], fromRetrieval);
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex$1(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex$1(fromGoogleSearchRetrieval));
+    }
+    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
+        'enterpriseWebSearch',
+    ]);
+    if (fromEnterpriseWebSearch != null) {
+        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex$1(fromEnterpriseWebSearch));
+    }
+    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
+    if (fromGoogleMaps != null) {
+        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex$1(fromGoogleMaps));
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToVertex$1());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToVertex$1(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function transcriptionFromMldev(fromObject) {
+    const toObject = {};
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromFinished = getValueByPath(fromObject, ['finished']);
+    if (fromFinished != null) {
+        setValueByPath(toObject, ['finished'], fromFinished);
+    }
+    return toObject;
+}
+function transcriptionFromVertex(fromObject) {
+    const toObject = {};
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromFinished = getValueByPath(fromObject, ['finished']);
+    if (fromFinished != null) {
+        setValueByPath(toObject, ['finished'], fromFinished);
+    }
+    return toObject;
+}
+function urlContextMetadataFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
+    if (fromUrlMetadata != null) {
+        let transformedList = fromUrlMetadata;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return urlMetadataFromMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['urlMetadata'], transformedList);
+    }
+    return toObject;
+}
+function urlContextToMldev$2() {
+    const toObject = {};
+    return toObject;
+}
+function urlContextToVertex$1() {
+    const toObject = {};
+    return toObject;
+}
+function urlMetadataFromMldev$1(fromObject) {
+    const toObject = {};
+    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
+    if (fromRetrievedUrl != null) {
+        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
+    }
+    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
+        'urlRetrievalStatus',
+    ]);
+    if (fromUrlRetrievalStatus != null) {
+        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
     }
     return toObject;
 }
@@ -12975,315 +10277,7 @@ function usageMetadataFromVertex(fromObject) {
     }
     return toObject;
 }
-function liveServerGoAwayFromMldev(fromObject) {
-    const toObject = {};
-    const fromTimeLeft = getValueByPath(fromObject, ['timeLeft']);
-    if (fromTimeLeft != null) {
-        setValueByPath(toObject, ['timeLeft'], fromTimeLeft);
-    }
-    return toObject;
-}
-function liveServerGoAwayFromVertex(fromObject) {
-    const toObject = {};
-    const fromTimeLeft = getValueByPath(fromObject, ['timeLeft']);
-    if (fromTimeLeft != null) {
-        setValueByPath(toObject, ['timeLeft'], fromTimeLeft);
-    }
-    return toObject;
-}
-function liveServerSessionResumptionUpdateFromMldev(fromObject) {
-    const toObject = {};
-    const fromNewHandle = getValueByPath(fromObject, ['newHandle']);
-    if (fromNewHandle != null) {
-        setValueByPath(toObject, ['newHandle'], fromNewHandle);
-    }
-    const fromResumable = getValueByPath(fromObject, ['resumable']);
-    if (fromResumable != null) {
-        setValueByPath(toObject, ['resumable'], fromResumable);
-    }
-    const fromLastConsumedClientMessageIndex = getValueByPath(fromObject, [
-        'lastConsumedClientMessageIndex',
-    ]);
-    if (fromLastConsumedClientMessageIndex != null) {
-        setValueByPath(toObject, ['lastConsumedClientMessageIndex'], fromLastConsumedClientMessageIndex);
-    }
-    return toObject;
-}
-function liveServerSessionResumptionUpdateFromVertex(fromObject) {
-    const toObject = {};
-    const fromNewHandle = getValueByPath(fromObject, ['newHandle']);
-    if (fromNewHandle != null) {
-        setValueByPath(toObject, ['newHandle'], fromNewHandle);
-    }
-    const fromResumable = getValueByPath(fromObject, ['resumable']);
-    if (fromResumable != null) {
-        setValueByPath(toObject, ['resumable'], fromResumable);
-    }
-    const fromLastConsumedClientMessageIndex = getValueByPath(fromObject, [
-        'lastConsumedClientMessageIndex',
-    ]);
-    if (fromLastConsumedClientMessageIndex != null) {
-        setValueByPath(toObject, ['lastConsumedClientMessageIndex'], fromLastConsumedClientMessageIndex);
-    }
-    return toObject;
-}
-function liveServerMessageFromMldev(fromObject) {
-    const toObject = {};
-    const fromSetupComplete = getValueByPath(fromObject, [
-        'setupComplete',
-    ]);
-    if (fromSetupComplete != null) {
-        setValueByPath(toObject, ['setupComplete'], liveServerSetupCompleteFromMldev());
-    }
-    const fromServerContent = getValueByPath(fromObject, [
-        'serverContent',
-    ]);
-    if (fromServerContent != null) {
-        setValueByPath(toObject, ['serverContent'], liveServerContentFromMldev(fromServerContent));
-    }
-    const fromToolCall = getValueByPath(fromObject, ['toolCall']);
-    if (fromToolCall != null) {
-        setValueByPath(toObject, ['toolCall'], liveServerToolCallFromMldev(fromToolCall));
-    }
-    const fromToolCallCancellation = getValueByPath(fromObject, [
-        'toolCallCancellation',
-    ]);
-    if (fromToolCallCancellation != null) {
-        setValueByPath(toObject, ['toolCallCancellation'], liveServerToolCallCancellationFromMldev(fromToolCallCancellation));
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], usageMetadataFromMldev(fromUsageMetadata));
-    }
-    const fromGoAway = getValueByPath(fromObject, ['goAway']);
-    if (fromGoAway != null) {
-        setValueByPath(toObject, ['goAway'], liveServerGoAwayFromMldev(fromGoAway));
-    }
-    const fromSessionResumptionUpdate = getValueByPath(fromObject, [
-        'sessionResumptionUpdate',
-    ]);
-    if (fromSessionResumptionUpdate != null) {
-        setValueByPath(toObject, ['sessionResumptionUpdate'], liveServerSessionResumptionUpdateFromMldev(fromSessionResumptionUpdate));
-    }
-    return toObject;
-}
-function liveServerMessageFromVertex(fromObject) {
-    const toObject = {};
-    const fromSetupComplete = getValueByPath(fromObject, [
-        'setupComplete',
-    ]);
-    if (fromSetupComplete != null) {
-        setValueByPath(toObject, ['setupComplete'], liveServerSetupCompleteFromVertex(fromSetupComplete));
-    }
-    const fromServerContent = getValueByPath(fromObject, [
-        'serverContent',
-    ]);
-    if (fromServerContent != null) {
-        setValueByPath(toObject, ['serverContent'], liveServerContentFromVertex(fromServerContent));
-    }
-    const fromToolCall = getValueByPath(fromObject, ['toolCall']);
-    if (fromToolCall != null) {
-        setValueByPath(toObject, ['toolCall'], liveServerToolCallFromVertex(fromToolCall));
-    }
-    const fromToolCallCancellation = getValueByPath(fromObject, [
-        'toolCallCancellation',
-    ]);
-    if (fromToolCallCancellation != null) {
-        setValueByPath(toObject, ['toolCallCancellation'], liveServerToolCallCancellationFromVertex(fromToolCallCancellation));
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], usageMetadataFromVertex(fromUsageMetadata));
-    }
-    const fromGoAway = getValueByPath(fromObject, ['goAway']);
-    if (fromGoAway != null) {
-        setValueByPath(toObject, ['goAway'], liveServerGoAwayFromVertex(fromGoAway));
-    }
-    const fromSessionResumptionUpdate = getValueByPath(fromObject, [
-        'sessionResumptionUpdate',
-    ]);
-    if (fromSessionResumptionUpdate != null) {
-        setValueByPath(toObject, ['sessionResumptionUpdate'], liveServerSessionResumptionUpdateFromVertex(fromSessionResumptionUpdate));
-    }
-    return toObject;
-}
-function liveMusicServerSetupCompleteFromMldev() {
-    const toObject = {};
-    return toObject;
-}
-function weightedPromptFromMldev(fromObject) {
-    const toObject = {};
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromWeight = getValueByPath(fromObject, ['weight']);
-    if (fromWeight != null) {
-        setValueByPath(toObject, ['weight'], fromWeight);
-    }
-    return toObject;
-}
-function liveMusicClientContentFromMldev(fromObject) {
-    const toObject = {};
-    const fromWeightedPrompts = getValueByPath(fromObject, [
-        'weightedPrompts',
-    ]);
-    if (fromWeightedPrompts != null) {
-        let transformedList = fromWeightedPrompts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return weightedPromptFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['weightedPrompts'], transformedList);
-    }
-    return toObject;
-}
-function liveMusicGenerationConfigFromMldev(fromObject) {
-    const toObject = {};
-    const fromTemperature = getValueByPath(fromObject, ['temperature']);
-    if (fromTemperature != null) {
-        setValueByPath(toObject, ['temperature'], fromTemperature);
-    }
-    const fromTopK = getValueByPath(fromObject, ['topK']);
-    if (fromTopK != null) {
-        setValueByPath(toObject, ['topK'], fromTopK);
-    }
-    const fromSeed = getValueByPath(fromObject, ['seed']);
-    if (fromSeed != null) {
-        setValueByPath(toObject, ['seed'], fromSeed);
-    }
-    const fromGuidance = getValueByPath(fromObject, ['guidance']);
-    if (fromGuidance != null) {
-        setValueByPath(toObject, ['guidance'], fromGuidance);
-    }
-    const fromBpm = getValueByPath(fromObject, ['bpm']);
-    if (fromBpm != null) {
-        setValueByPath(toObject, ['bpm'], fromBpm);
-    }
-    const fromDensity = getValueByPath(fromObject, ['density']);
-    if (fromDensity != null) {
-        setValueByPath(toObject, ['density'], fromDensity);
-    }
-    const fromBrightness = getValueByPath(fromObject, ['brightness']);
-    if (fromBrightness != null) {
-        setValueByPath(toObject, ['brightness'], fromBrightness);
-    }
-    const fromScale = getValueByPath(fromObject, ['scale']);
-    if (fromScale != null) {
-        setValueByPath(toObject, ['scale'], fromScale);
-    }
-    const fromMuteBass = getValueByPath(fromObject, ['muteBass']);
-    if (fromMuteBass != null) {
-        setValueByPath(toObject, ['muteBass'], fromMuteBass);
-    }
-    const fromMuteDrums = getValueByPath(fromObject, ['muteDrums']);
-    if (fromMuteDrums != null) {
-        setValueByPath(toObject, ['muteDrums'], fromMuteDrums);
-    }
-    const fromOnlyBassAndDrums = getValueByPath(fromObject, [
-        'onlyBassAndDrums',
-    ]);
-    if (fromOnlyBassAndDrums != null) {
-        setValueByPath(toObject, ['onlyBassAndDrums'], fromOnlyBassAndDrums);
-    }
-    return toObject;
-}
-function liveMusicSourceMetadataFromMldev(fromObject) {
-    const toObject = {};
-    const fromClientContent = getValueByPath(fromObject, [
-        'clientContent',
-    ]);
-    if (fromClientContent != null) {
-        setValueByPath(toObject, ['clientContent'], liveMusicClientContentFromMldev(fromClientContent));
-    }
-    const fromMusicGenerationConfig = getValueByPath(fromObject, [
-        'musicGenerationConfig',
-    ]);
-    if (fromMusicGenerationConfig != null) {
-        setValueByPath(toObject, ['musicGenerationConfig'], liveMusicGenerationConfigFromMldev(fromMusicGenerationConfig));
-    }
-    return toObject;
-}
-function audioChunkFromMldev(fromObject) {
-    const toObject = {};
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    const fromSourceMetadata = getValueByPath(fromObject, [
-        'sourceMetadata',
-    ]);
-    if (fromSourceMetadata != null) {
-        setValueByPath(toObject, ['sourceMetadata'], liveMusicSourceMetadataFromMldev(fromSourceMetadata));
-    }
-    return toObject;
-}
-function liveMusicServerContentFromMldev(fromObject) {
-    const toObject = {};
-    const fromAudioChunks = getValueByPath(fromObject, ['audioChunks']);
-    if (fromAudioChunks != null) {
-        let transformedList = fromAudioChunks;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return audioChunkFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['audioChunks'], transformedList);
-    }
-    return toObject;
-}
-function liveMusicFilteredPromptFromMldev(fromObject) {
-    const toObject = {};
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    const fromFilteredReason = getValueByPath(fromObject, [
-        'filteredReason',
-    ]);
-    if (fromFilteredReason != null) {
-        setValueByPath(toObject, ['filteredReason'], fromFilteredReason);
-    }
-    return toObject;
-}
-function liveMusicServerMessageFromMldev(fromObject) {
-    const toObject = {};
-    const fromSetupComplete = getValueByPath(fromObject, [
-        'setupComplete',
-    ]);
-    if (fromSetupComplete != null) {
-        setValueByPath(toObject, ['setupComplete'], liveMusicServerSetupCompleteFromMldev());
-    }
-    const fromServerContent = getValueByPath(fromObject, [
-        'serverContent',
-    ]);
-    if (fromServerContent != null) {
-        setValueByPath(toObject, ['serverContent'], liveMusicServerContentFromMldev(fromServerContent));
-    }
-    const fromFilteredPrompt = getValueByPath(fromObject, [
-        'filteredPrompt',
-    ]);
-    if (fromFilteredPrompt != null) {
-        setValueByPath(toObject, ['filteredPrompt'], liveMusicFilteredPromptFromMldev(fromFilteredPrompt));
-    }
-    return toObject;
-}
-
-/**
- * @license
- * Copyright 2025 Google LLC
- * SPDX-License-Identifier: Apache-2.0
- */
-function videoMetadataToMldev$1(fromObject) {
+function videoMetadataFromMldev$1(fromObject) {
     const toObject = {};
     const fromFps = getValueByPath(fromObject, ['fps']);
     if (fromFps != null) {
@@ -13299,6 +10293,172 @@ function videoMetadataToMldev$1(fromObject) {
     }
     return toObject;
 }
+function videoMetadataFromVertex$1(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoMetadataToMldev$2(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoMetadataToVertex$1(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function voiceConfigToMldev$2(fromObject) {
+    const toObject = {};
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
+    ]);
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$2(fromPrebuiltVoiceConfig));
+    }
+    return toObject;
+}
+function voiceConfigToVertex$1(fromObject) {
+    const toObject = {};
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
+    ]);
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToVertex$1(fromPrebuiltVoiceConfig));
+    }
+    return toObject;
+}
+function weightedPromptFromMldev(fromObject) {
+    const toObject = {};
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromWeight = getValueByPath(fromObject, ['weight']);
+    if (fromWeight != null) {
+        setValueByPath(toObject, ['weight'], fromWeight);
+    }
+    return toObject;
+}
+function weightedPromptToMldev(fromObject) {
+    const toObject = {};
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    const fromWeight = getValueByPath(fromObject, ['weight']);
+    if (fromWeight != null) {
+        setValueByPath(toObject, ['weight'], fromWeight);
+    }
+    return toObject;
+}
+
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+function apiKeyConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
+    if (fromApiKeyString != null) {
+        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
+    }
+    return toObject;
+}
+function authConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
+    if (fromApiKeyConfig != null) {
+        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex(fromApiKeyConfig));
+    }
+    const fromAuthType = getValueByPath(fromObject, ['authType']);
+    if (fromAuthType != null) {
+        setValueByPath(toObject, ['authType'], fromAuthType);
+    }
+    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
+        'googleServiceAccountConfig',
+    ]);
+    if (fromGoogleServiceAccountConfig != null) {
+        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
+    }
+    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
+        'httpBasicAuthConfig',
+    ]);
+    if (fromHttpBasicAuthConfig != null) {
+        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
+    }
+    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
+    if (fromOauthConfig != null) {
+        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
+    }
+    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
+    if (fromOidcConfig != null) {
+        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
+    }
+    return toObject;
+}
+function blobFromMldev(fromObject) {
+    const toObject = {};
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function blobFromVertex(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
 function blobToMldev$1(fromObject) {
     const toObject = {};
     if (getValueByPath(fromObject, ['displayName']) !== undefined) {
@@ -13307,6 +10467,846 @@ function blobToMldev$1(fromObject) {
     const fromData = getValueByPath(fromObject, ['data']);
     if (fromData != null) {
         setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function blobToVertex(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromData = getValueByPath(fromObject, ['data']);
+    if (fromData != null) {
+        setValueByPath(toObject, ['data'], fromData);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function candidateFromMldev(fromObject) {
+    const toObject = {};
+    const fromContent = getValueByPath(fromObject, ['content']);
+    if (fromContent != null) {
+        setValueByPath(toObject, ['content'], contentFromMldev(fromContent));
+    }
+    const fromCitationMetadata = getValueByPath(fromObject, [
+        'citationMetadata',
+    ]);
+    if (fromCitationMetadata != null) {
+        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromMldev(fromCitationMetadata));
+    }
+    const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
+    if (fromTokenCount != null) {
+        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
+    }
+    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
+    if (fromFinishReason != null) {
+        setValueByPath(toObject, ['finishReason'], fromFinishReason);
+    }
+    const fromUrlContextMetadata = getValueByPath(fromObject, [
+        'urlContextMetadata',
+    ]);
+    if (fromUrlContextMetadata != null) {
+        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromMldev(fromUrlContextMetadata));
+    }
+    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
+    if (fromAvgLogprobs != null) {
+        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
+    }
+    const fromGroundingMetadata = getValueByPath(fromObject, [
+        'groundingMetadata',
+    ]);
+    if (fromGroundingMetadata != null) {
+        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
+    }
+    const fromIndex = getValueByPath(fromObject, ['index']);
+    if (fromIndex != null) {
+        setValueByPath(toObject, ['index'], fromIndex);
+    }
+    const fromLogprobsResult = getValueByPath(fromObject, [
+        'logprobsResult',
+    ]);
+    if (fromLogprobsResult != null) {
+        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
+    }
+    const fromSafetyRatings = getValueByPath(fromObject, [
+        'safetyRatings',
+    ]);
+    if (fromSafetyRatings != null) {
+        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
+    }
+    return toObject;
+}
+function candidateFromVertex(fromObject) {
+    const toObject = {};
+    const fromContent = getValueByPath(fromObject, ['content']);
+    if (fromContent != null) {
+        setValueByPath(toObject, ['content'], contentFromVertex(fromContent));
+    }
+    const fromCitationMetadata = getValueByPath(fromObject, [
+        'citationMetadata',
+    ]);
+    if (fromCitationMetadata != null) {
+        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromVertex(fromCitationMetadata));
+    }
+    const fromFinishMessage = getValueByPath(fromObject, [
+        'finishMessage',
+    ]);
+    if (fromFinishMessage != null) {
+        setValueByPath(toObject, ['finishMessage'], fromFinishMessage);
+    }
+    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
+    if (fromFinishReason != null) {
+        setValueByPath(toObject, ['finishReason'], fromFinishReason);
+    }
+    const fromUrlContextMetadata = getValueByPath(fromObject, [
+        'urlContextMetadata',
+    ]);
+    if (fromUrlContextMetadata != null) {
+        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromVertex(fromUrlContextMetadata));
+    }
+    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
+    if (fromAvgLogprobs != null) {
+        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
+    }
+    const fromGroundingMetadata = getValueByPath(fromObject, [
+        'groundingMetadata',
+    ]);
+    if (fromGroundingMetadata != null) {
+        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
+    }
+    const fromIndex = getValueByPath(fromObject, ['index']);
+    if (fromIndex != null) {
+        setValueByPath(toObject, ['index'], fromIndex);
+    }
+    const fromLogprobsResult = getValueByPath(fromObject, [
+        'logprobsResult',
+    ]);
+    if (fromLogprobsResult != null) {
+        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
+    }
+    const fromSafetyRatings = getValueByPath(fromObject, [
+        'safetyRatings',
+    ]);
+    if (fromSafetyRatings != null) {
+        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
+    }
+    return toObject;
+}
+function checkpointFromVertex(fromObject) {
+    const toObject = {};
+    const fromCheckpointId = getValueByPath(fromObject, ['checkpointId']);
+    if (fromCheckpointId != null) {
+        setValueByPath(toObject, ['checkpointId'], fromCheckpointId);
+    }
+    const fromEpoch = getValueByPath(fromObject, ['epoch']);
+    if (fromEpoch != null) {
+        setValueByPath(toObject, ['epoch'], fromEpoch);
+    }
+    const fromStep = getValueByPath(fromObject, ['step']);
+    if (fromStep != null) {
+        setValueByPath(toObject, ['step'], fromStep);
+    }
+    return toObject;
+}
+function citationMetadataFromMldev(fromObject) {
+    const toObject = {};
+    const fromCitations = getValueByPath(fromObject, ['citationSources']);
+    if (fromCitations != null) {
+        setValueByPath(toObject, ['citations'], fromCitations);
+    }
+    return toObject;
+}
+function citationMetadataFromVertex(fromObject) {
+    const toObject = {};
+    const fromCitations = getValueByPath(fromObject, ['citations']);
+    if (fromCitations != null) {
+        setValueByPath(toObject, ['citations'], fromCitations);
+    }
+    return toObject;
+}
+function computeTokensParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        let transformedList = tContents(fromContents);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentToVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['contents'], transformedList);
+    }
+    return toObject;
+}
+function computeTokensResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromTokensInfo = getValueByPath(fromObject, ['tokensInfo']);
+    if (fromTokensInfo != null) {
+        setValueByPath(toObject, ['tokensInfo'], fromTokensInfo);
+    }
+    return toObject;
+}
+function contentEmbeddingFromMldev(fromObject) {
+    const toObject = {};
+    const fromValues = getValueByPath(fromObject, ['values']);
+    if (fromValues != null) {
+        setValueByPath(toObject, ['values'], fromValues);
+    }
+    return toObject;
+}
+function contentEmbeddingFromVertex(fromObject) {
+    const toObject = {};
+    const fromValues = getValueByPath(fromObject, ['values']);
+    if (fromValues != null) {
+        setValueByPath(toObject, ['values'], fromValues);
+    }
+    const fromStatistics = getValueByPath(fromObject, ['statistics']);
+    if (fromStatistics != null) {
+        setValueByPath(toObject, ['statistics'], contentEmbeddingStatisticsFromVertex(fromStatistics));
+    }
+    return toObject;
+}
+function contentEmbeddingStatisticsFromVertex(fromObject) {
+    const toObject = {};
+    const fromTruncated = getValueByPath(fromObject, ['truncated']);
+    if (fromTruncated != null) {
+        setValueByPath(toObject, ['truncated'], fromTruncated);
+    }
+    const fromTokenCount = getValueByPath(fromObject, ['token_count']);
+    if (fromTokenCount != null) {
+        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
+    }
+    return toObject;
+}
+function contentFromMldev(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentFromVertex(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentToMldev$1(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partToMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contentToVertex(fromObject) {
+    const toObject = {};
+    const fromParts = getValueByPath(fromObject, ['parts']);
+    if (fromParts != null) {
+        let transformedList = fromParts;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return partToVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['parts'], transformedList);
+    }
+    const fromRole = getValueByPath(fromObject, ['role']);
+    if (fromRole != null) {
+        setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function controlReferenceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromControlType = getValueByPath(fromObject, ['controlType']);
+    if (fromControlType != null) {
+        setValueByPath(toObject, ['controlType'], fromControlType);
+    }
+    const fromEnableControlImageComputation = getValueByPath(fromObject, [
+        'enableControlImageComputation',
+    ]);
+    if (fromEnableControlImageComputation != null) {
+        setValueByPath(toObject, ['computeControl'], fromEnableControlImageComputation);
+    }
+    return toObject;
+}
+function countTokensConfigToMldev(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['systemInstruction']) !== undefined) {
+        throw new Error('systemInstruction parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['tools']) !== undefined) {
+        throw new Error('tools parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['generationConfig']) !== undefined) {
+        throw new Error('generationConfig parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function countTokensConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromSystemInstruction = getValueByPath(fromObject, [
+        'systemInstruction',
+    ]);
+    if (parentObject !== undefined && fromSystemInstruction != null) {
+        setValueByPath(parentObject, ['systemInstruction'], contentToVertex(tContent(fromSystemInstruction)));
+    }
+    const fromTools = getValueByPath(fromObject, ['tools']);
+    if (parentObject !== undefined && fromTools != null) {
+        let transformedList = fromTools;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return toolToVertex(item);
+            });
+        }
+        setValueByPath(parentObject, ['tools'], transformedList);
+    }
+    const fromGenerationConfig = getValueByPath(fromObject, [
+        'generationConfig',
+    ]);
+    if (parentObject !== undefined && fromGenerationConfig != null) {
+        setValueByPath(parentObject, ['generationConfig'], fromGenerationConfig);
+    }
+    return toObject;
+}
+function countTokensParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        let transformedList = tContents(fromContents);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentToMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['contents'], transformedList);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        countTokensConfigToMldev(fromConfig);
+    }
+    return toObject;
+}
+function countTokensParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        let transformedList = tContents(fromContents);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentToVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['contents'], transformedList);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        countTokensConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function countTokensResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromTotalTokens = getValueByPath(fromObject, ['totalTokens']);
+    if (fromTotalTokens != null) {
+        setValueByPath(toObject, ['totalTokens'], fromTotalTokens);
+    }
+    const fromCachedContentTokenCount = getValueByPath(fromObject, [
+        'cachedContentTokenCount',
+    ]);
+    if (fromCachedContentTokenCount != null) {
+        setValueByPath(toObject, ['cachedContentTokenCount'], fromCachedContentTokenCount);
+    }
+    return toObject;
+}
+function countTokensResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromTotalTokens = getValueByPath(fromObject, ['totalTokens']);
+    if (fromTotalTokens != null) {
+        setValueByPath(toObject, ['totalTokens'], fromTotalTokens);
+    }
+    return toObject;
+}
+function deleteModelParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
+    }
+    return toObject;
+}
+function deleteModelParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
+    }
+    return toObject;
+}
+function deleteModelResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    return toObject;
+}
+function deleteModelResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function editImageConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromOutputGcsUri = getValueByPath(fromObject, ['outputGcsUri']);
+    if (parentObject !== undefined && fromOutputGcsUri != null) {
+        setValueByPath(parentObject, ['parameters', 'storageUri'], fromOutputGcsUri);
+    }
+    const fromNegativePrompt = getValueByPath(fromObject, [
+        'negativePrompt',
+    ]);
+    if (parentObject !== undefined && fromNegativePrompt != null) {
+        setValueByPath(parentObject, ['parameters', 'negativePrompt'], fromNegativePrompt);
+    }
+    const fromNumberOfImages = getValueByPath(fromObject, [
+        'numberOfImages',
+    ]);
+    if (parentObject !== undefined && fromNumberOfImages != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
+    }
+    const fromAspectRatio = getValueByPath(fromObject, ['aspectRatio']);
+    if (parentObject !== undefined && fromAspectRatio != null) {
+        setValueByPath(parentObject, ['parameters', 'aspectRatio'], fromAspectRatio);
+    }
+    const fromGuidanceScale = getValueByPath(fromObject, [
+        'guidanceScale',
+    ]);
+    if (parentObject !== undefined && fromGuidanceScale != null) {
+        setValueByPath(parentObject, ['parameters', 'guidanceScale'], fromGuidanceScale);
+    }
+    const fromSeed = getValueByPath(fromObject, ['seed']);
+    if (parentObject !== undefined && fromSeed != null) {
+        setValueByPath(parentObject, ['parameters', 'seed'], fromSeed);
+    }
+    const fromSafetyFilterLevel = getValueByPath(fromObject, [
+        'safetyFilterLevel',
+    ]);
+    if (parentObject !== undefined && fromSafetyFilterLevel != null) {
+        setValueByPath(parentObject, ['parameters', 'safetySetting'], fromSafetyFilterLevel);
+    }
+    const fromPersonGeneration = getValueByPath(fromObject, [
+        'personGeneration',
+    ]);
+    if (parentObject !== undefined && fromPersonGeneration != null) {
+        setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
+    }
+    const fromIncludeSafetyAttributes = getValueByPath(fromObject, [
+        'includeSafetyAttributes',
+    ]);
+    if (parentObject !== undefined && fromIncludeSafetyAttributes != null) {
+        setValueByPath(parentObject, ['parameters', 'includeSafetyAttributes'], fromIncludeSafetyAttributes);
+    }
+    const fromIncludeRaiReason = getValueByPath(fromObject, [
+        'includeRaiReason',
+    ]);
+    if (parentObject !== undefined && fromIncludeRaiReason != null) {
+        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
+    }
+    const fromLanguage = getValueByPath(fromObject, ['language']);
+    if (parentObject !== undefined && fromLanguage != null) {
+        setValueByPath(parentObject, ['parameters', 'language'], fromLanguage);
+    }
+    const fromOutputMimeType = getValueByPath(fromObject, [
+        'outputMimeType',
+    ]);
+    if (parentObject !== undefined && fromOutputMimeType != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
+    }
+    const fromOutputCompressionQuality = getValueByPath(fromObject, [
+        'outputCompressionQuality',
+    ]);
+    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
+    }
+    const fromAddWatermark = getValueByPath(fromObject, ['addWatermark']);
+    if (parentObject !== undefined && fromAddWatermark != null) {
+        setValueByPath(parentObject, ['parameters', 'addWatermark'], fromAddWatermark);
+    }
+    const fromEditMode = getValueByPath(fromObject, ['editMode']);
+    if (parentObject !== undefined && fromEditMode != null) {
+        setValueByPath(parentObject, ['parameters', 'editMode'], fromEditMode);
+    }
+    const fromBaseSteps = getValueByPath(fromObject, ['baseSteps']);
+    if (parentObject !== undefined && fromBaseSteps != null) {
+        setValueByPath(parentObject, ['parameters', 'editConfig', 'baseSteps'], fromBaseSteps);
+    }
+    return toObject;
+}
+function editImageParametersInternalToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (fromPrompt != null) {
+        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
+    }
+    const fromReferenceImages = getValueByPath(fromObject, [
+        'referenceImages',
+    ]);
+    if (fromReferenceImages != null) {
+        let transformedList = fromReferenceImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return referenceImageAPIInternalToVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['instances[0]', 'referenceImages'], transformedList);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        editImageConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function editImageResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromGeneratedImages = getValueByPath(fromObject, [
+        'predictions',
+    ]);
+    if (fromGeneratedImages != null) {
+        let transformedList = fromGeneratedImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedImages'], transformedList);
+    }
+    return toObject;
+}
+function embedContentConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromTaskType = getValueByPath(fromObject, ['taskType']);
+    if (parentObject !== undefined && fromTaskType != null) {
+        setValueByPath(parentObject, ['requests[]', 'taskType'], fromTaskType);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (parentObject !== undefined && fromTitle != null) {
+        setValueByPath(parentObject, ['requests[]', 'title'], fromTitle);
+    }
+    const fromOutputDimensionality = getValueByPath(fromObject, [
+        'outputDimensionality',
+    ]);
+    if (parentObject !== undefined && fromOutputDimensionality != null) {
+        setValueByPath(parentObject, ['requests[]', 'outputDimensionality'], fromOutputDimensionality);
+    }
+    if (getValueByPath(fromObject, ['mimeType']) !== undefined) {
+        throw new Error('mimeType parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['autoTruncate']) !== undefined) {
+        throw new Error('autoTruncate parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function embedContentConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromTaskType = getValueByPath(fromObject, ['taskType']);
+    if (parentObject !== undefined && fromTaskType != null) {
+        setValueByPath(parentObject, ['instances[]', 'task_type'], fromTaskType);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (parentObject !== undefined && fromTitle != null) {
+        setValueByPath(parentObject, ['instances[]', 'title'], fromTitle);
+    }
+    const fromOutputDimensionality = getValueByPath(fromObject, [
+        'outputDimensionality',
+    ]);
+    if (parentObject !== undefined && fromOutputDimensionality != null) {
+        setValueByPath(parentObject, ['parameters', 'outputDimensionality'], fromOutputDimensionality);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (parentObject !== undefined && fromMimeType != null) {
+        setValueByPath(parentObject, ['instances[]', 'mimeType'], fromMimeType);
+    }
+    const fromAutoTruncate = getValueByPath(fromObject, ['autoTruncate']);
+    if (parentObject !== undefined && fromAutoTruncate != null) {
+        setValueByPath(parentObject, ['parameters', 'autoTruncate'], fromAutoTruncate);
+    }
+    return toObject;
+}
+function embedContentMetadataFromMldev() {
+    const toObject = {};
+    return toObject;
+}
+function embedContentMetadataFromVertex(fromObject) {
+    const toObject = {};
+    const fromBillableCharacterCount = getValueByPath(fromObject, [
+        'billableCharacterCount',
+    ]);
+    if (fromBillableCharacterCount != null) {
+        setValueByPath(toObject, ['billableCharacterCount'], fromBillableCharacterCount);
+    }
+    return toObject;
+}
+function embedContentParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        setValueByPath(toObject, ['requests[]', 'content'], tContentsForEmbed(apiClient, fromContents));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        embedContentConfigToMldev(fromConfig, toObject);
+    }
+    const fromModelForEmbedContent = getValueByPath(fromObject, ['model']);
+    if (fromModelForEmbedContent !== undefined) {
+        setValueByPath(toObject, ['requests[]', 'model'], tModel(apiClient, fromModelForEmbedContent));
+    }
+    return toObject;
+}
+function embedContentParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        setValueByPath(toObject, ['instances[]', 'content'], tContentsForEmbed(apiClient, fromContents));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        embedContentConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function embedContentResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromEmbeddings = getValueByPath(fromObject, ['embeddings']);
+    if (fromEmbeddings != null) {
+        let transformedList = fromEmbeddings;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentEmbeddingFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['embeddings'], transformedList);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], embedContentMetadataFromMldev());
+    }
+    return toObject;
+}
+function embedContentResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromEmbeddings = getValueByPath(fromObject, [
+        'predictions[]',
+        'embeddings',
+    ]);
+    if (fromEmbeddings != null) {
+        let transformedList = fromEmbeddings;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentEmbeddingFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['embeddings'], transformedList);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], embedContentMetadataFromVertex(fromMetadata));
+    }
+    return toObject;
+}
+function endpointFromVertex(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['endpoint']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromDeployedModelId = getValueByPath(fromObject, [
+        'deployedModelId',
+    ]);
+    if (fromDeployedModelId != null) {
+        setValueByPath(toObject, ['deployedModelId'], fromDeployedModelId);
+    }
+    return toObject;
+}
+function enterpriseWebSearchToVertex(fromObject) {
+    const toObject = {};
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
+    }
+    return toObject;
+}
+function entityLabelFromVertex(fromObject) {
+    const toObject = {};
+    const fromLabel = getValueByPath(fromObject, ['label']);
+    if (fromLabel != null) {
+        setValueByPath(toObject, ['label'], fromLabel);
+    }
+    const fromScore = getValueByPath(fromObject, ['score']);
+    if (fromScore != null) {
+        setValueByPath(toObject, ['score'], fromScore);
+    }
+    return toObject;
+}
+function fileDataFromMldev(fromObject) {
+    const toObject = {};
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function fileDataFromVertex(fromObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
+    }
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
     }
     const fromMimeType = getValueByPath(fromObject, ['mimeType']);
     if (fromMimeType != null) {
@@ -13329,188 +11329,111 @@ function fileDataToMldev$1(fromObject) {
     }
     return toObject;
 }
-function partToMldev$1(fromObject) {
+function fileDataToVertex(fromObject) {
     const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$1(fromVideoMetadata));
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (fromDisplayName != null) {
+        setValueByPath(toObject, ['displayName'], fromDisplayName);
     }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
     }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToMldev$1(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToMldev$1(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
     }
     return toObject;
 }
-function contentToMldev$1(fromObject) {
+function functionCallFromMldev(fromObject) {
     const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function schemaToMldev(fromObject) {
+function functionCallFromVertex(fromObject) {
     const toObject = {};
-    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
-    if (fromAnyOf != null) {
-        setValueByPath(toObject, ['anyOf'], fromAnyOf);
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromDefault = getValueByPath(fromObject, ['default']);
-    if (fromDefault != null) {
-        setValueByPath(toObject, ['default'], fromDefault);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
     }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromEnum = getValueByPath(fromObject, ['enum']);
-    if (fromEnum != null) {
-        setValueByPath(toObject, ['enum'], fromEnum);
-    }
-    const fromExample = getValueByPath(fromObject, ['example']);
-    if (fromExample != null) {
-        setValueByPath(toObject, ['example'], fromExample);
-    }
-    const fromFormat = getValueByPath(fromObject, ['format']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['format'], fromFormat);
-    }
-    const fromItems = getValueByPath(fromObject, ['items']);
-    if (fromItems != null) {
-        setValueByPath(toObject, ['items'], fromItems);
-    }
-    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
-    if (fromMaxItems != null) {
-        setValueByPath(toObject, ['maxItems'], fromMaxItems);
-    }
-    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
-    if (fromMaxLength != null) {
-        setValueByPath(toObject, ['maxLength'], fromMaxLength);
-    }
-    const fromMaxProperties = getValueByPath(fromObject, [
-        'maxProperties',
-    ]);
-    if (fromMaxProperties != null) {
-        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
-    }
-    const fromMaximum = getValueByPath(fromObject, ['maximum']);
-    if (fromMaximum != null) {
-        setValueByPath(toObject, ['maximum'], fromMaximum);
-    }
-    const fromMinItems = getValueByPath(fromObject, ['minItems']);
-    if (fromMinItems != null) {
-        setValueByPath(toObject, ['minItems'], fromMinItems);
-    }
-    const fromMinLength = getValueByPath(fromObject, ['minLength']);
-    if (fromMinLength != null) {
-        setValueByPath(toObject, ['minLength'], fromMinLength);
-    }
-    const fromMinProperties = getValueByPath(fromObject, [
-        'minProperties',
-    ]);
-    if (fromMinProperties != null) {
-        setValueByPath(toObject, ['minProperties'], fromMinProperties);
-    }
-    const fromMinimum = getValueByPath(fromObject, ['minimum']);
-    if (fromMinimum != null) {
-        setValueByPath(toObject, ['minimum'], fromMinimum);
-    }
-    const fromNullable = getValueByPath(fromObject, ['nullable']);
-    if (fromNullable != null) {
-        setValueByPath(toObject, ['nullable'], fromNullable);
-    }
-    const fromPattern = getValueByPath(fromObject, ['pattern']);
-    if (fromPattern != null) {
-        setValueByPath(toObject, ['pattern'], fromPattern);
-    }
-    const fromProperties = getValueByPath(fromObject, ['properties']);
-    if (fromProperties != null) {
-        setValueByPath(toObject, ['properties'], fromProperties);
-    }
-    const fromPropertyOrdering = getValueByPath(fromObject, [
-        'propertyOrdering',
-    ]);
-    if (fromPropertyOrdering != null) {
-        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
-    }
-    const fromRequired = getValueByPath(fromObject, ['required']);
-    if (fromRequired != null) {
-        setValueByPath(toObject, ['required'], fromRequired);
-    }
-    const fromTitle = getValueByPath(fromObject, ['title']);
-    if (fromTitle != null) {
-        setValueByPath(toObject, ['title'], fromTitle);
-    }
-    const fromType = getValueByPath(fromObject, ['type']);
-    if (fromType != null) {
-        setValueByPath(toObject, ['type'], fromType);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function safetySettingToMldev(fromObject) {
+function functionCallToMldev$1(fromObject) {
     const toObject = {};
-    if (getValueByPath(fromObject, ['method']) !== undefined) {
-        throw new Error('method parameter is not supported in Gemini API.');
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
     }
-    const fromCategory = getValueByPath(fromObject, ['category']);
-    if (fromCategory != null) {
-        setValueByPath(toObject, ['category'], fromCategory);
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
     }
-    const fromThreshold = getValueByPath(fromObject, ['threshold']);
-    if (fromThreshold != null) {
-        setValueByPath(toObject, ['threshold'], fromThreshold);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    return toObject;
+}
+function functionCallToVertex(fromObject) {
+    const toObject = {};
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
+    }
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    return toObject;
+}
+function functionCallingConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromAllowedFunctionNames = getValueByPath(fromObject, [
+        'allowedFunctionNames',
+    ]);
+    if (fromAllowedFunctionNames != null) {
+        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
+    }
+    return toObject;
+}
+function functionCallingConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromAllowedFunctionNames = getValueByPath(fromObject, [
+        'allowedFunctionNames',
+    ]);
+    if (fromAllowedFunctionNames != null) {
+        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
     }
     return toObject;
 }
@@ -13550,236 +11473,38 @@ function functionDeclarationToMldev$1(fromObject) {
     }
     return toObject;
 }
-function intervalToMldev$1(fromObject) {
+function functionDeclarationToVertex(fromObject) {
     const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
+    if (getValueByPath(fromObject, ['behavior']) !== undefined) {
+        throw new Error('behavior parameter is not supported in Vertex AI.');
     }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
     }
-    return toObject;
-}
-function googleSearchToMldev$1(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromParameters = getValueByPath(fromObject, ['parameters']);
+    if (fromParameters != null) {
+        setValueByPath(toObject, ['parameters'], fromParameters);
+    }
+    const fromParametersJsonSchema = getValueByPath(fromObject, [
+        'parametersJsonSchema',
     ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$1(fromTimeRangeFilter));
+    if (fromParametersJsonSchema != null) {
+        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
     }
-    return toObject;
-}
-function dynamicRetrievalConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], fromResponse);
     }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
+    const fromResponseJsonSchema = getValueByPath(fromObject, [
+        'responseJsonSchema',
     ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function googleSearchRetrievalToMldev$1(fromObject) {
-    const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$1(fromDynamicRetrievalConfig));
-    }
-    return toObject;
-}
-function urlContextToMldev$1() {
-    const toObject = {};
-    return toObject;
-}
-function toolToMldev$1(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
-    }
-    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
-        throw new Error('retrieval parameter is not supported in Gemini API.');
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$1(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$1(fromGoogleSearchRetrieval));
-    }
-    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
-        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
-        throw new Error('googleMaps parameter is not supported in Gemini API.');
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToMldev$1());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function functionCallingConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromAllowedFunctionNames = getValueByPath(fromObject, [
-        'allowedFunctionNames',
-    ]);
-    if (fromAllowedFunctionNames != null) {
-        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
-    }
-    return toObject;
-}
-function latLngToMldev(fromObject) {
-    const toObject = {};
-    const fromLatitude = getValueByPath(fromObject, ['latitude']);
-    if (fromLatitude != null) {
-        setValueByPath(toObject, ['latitude'], fromLatitude);
-    }
-    const fromLongitude = getValueByPath(fromObject, ['longitude']);
-    if (fromLongitude != null) {
-        setValueByPath(toObject, ['longitude'], fromLongitude);
-    }
-    return toObject;
-}
-function retrievalConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromLatLng = getValueByPath(fromObject, ['latLng']);
-    if (fromLatLng != null) {
-        setValueByPath(toObject, ['latLng'], latLngToMldev(fromLatLng));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function toolConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromFunctionCallingConfig = getValueByPath(fromObject, [
-        'functionCallingConfig',
-    ]);
-    if (fromFunctionCallingConfig != null) {
-        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev(fromFunctionCallingConfig));
-    }
-    const fromRetrievalConfig = getValueByPath(fromObject, [
-        'retrievalConfig',
-    ]);
-    if (fromRetrievalConfig != null) {
-        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev(fromRetrievalConfig));
-    }
-    return toObject;
-}
-function prebuiltVoiceConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
-    }
-    return toObject;
-}
-function voiceConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
-    ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$1(fromPrebuiltVoiceConfig));
-    }
-    return toObject;
-}
-function speakerVoiceConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
-    if (fromSpeaker != null) {
-        setValueByPath(toObject, ['speaker'], fromSpeaker);
-    }
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$1(fromVoiceConfig));
-    }
-    return toObject;
-}
-function multiSpeakerVoiceConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
-        'speakerVoiceConfigs',
-    ]);
-    if (fromSpeakerVoiceConfigs != null) {
-        let transformedList = fromSpeakerVoiceConfigs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return speakerVoiceConfigToMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
-    }
-    return toObject;
-}
-function speechConfigToMldev$1(fromObject) {
-    const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$1(fromVoiceConfig));
-    }
-    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
-        'multiSpeakerVoiceConfig',
-    ]);
-    if (fromMultiSpeakerVoiceConfig != null) {
-        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$1(fromMultiSpeakerVoiceConfig));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function thinkingConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromIncludeThoughts = getValueByPath(fromObject, [
-        'includeThoughts',
-    ]);
-    if (fromIncludeThoughts != null) {
-        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
-    }
-    const fromThinkingBudget = getValueByPath(fromObject, [
-        'thinkingBudget',
-    ]);
-    if (fromThinkingBudget != null) {
-        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
+    if (fromResponseJsonSchema != null) {
+        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
     }
     return toObject;
 }
@@ -13930,918 +11655,6 @@ function generateContentConfigToMldev(apiClient, fromObject, parentObject) {
     ]);
     if (fromThinkingConfig != null) {
         setValueByPath(toObject, ['thinkingConfig'], thinkingConfigToMldev(fromThinkingConfig));
-    }
-    return toObject;
-}
-function generateContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        let transformedList = tContents(fromContents);
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentToMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['contents'], transformedList);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['generationConfig'], generateContentConfigToMldev(apiClient, fromConfig, toObject));
-    }
-    return toObject;
-}
-function embedContentConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    const fromTaskType = getValueByPath(fromObject, ['taskType']);
-    if (parentObject !== undefined && fromTaskType != null) {
-        setValueByPath(parentObject, ['requests[]', 'taskType'], fromTaskType);
-    }
-    const fromTitle = getValueByPath(fromObject, ['title']);
-    if (parentObject !== undefined && fromTitle != null) {
-        setValueByPath(parentObject, ['requests[]', 'title'], fromTitle);
-    }
-    const fromOutputDimensionality = getValueByPath(fromObject, [
-        'outputDimensionality',
-    ]);
-    if (parentObject !== undefined && fromOutputDimensionality != null) {
-        setValueByPath(parentObject, ['requests[]', 'outputDimensionality'], fromOutputDimensionality);
-    }
-    if (getValueByPath(fromObject, ['mimeType']) !== undefined) {
-        throw new Error('mimeType parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['autoTruncate']) !== undefined) {
-        throw new Error('autoTruncate parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function embedContentParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        setValueByPath(toObject, ['requests[]', 'content'], tContentsForEmbed(apiClient, fromContents));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], embedContentConfigToMldev(fromConfig, toObject));
-    }
-    const fromModelForEmbedContent = getValueByPath(fromObject, ['model']);
-    if (fromModelForEmbedContent !== undefined) {
-        setValueByPath(toObject, ['requests[]', 'model'], tModel(apiClient, fromModelForEmbedContent));
-    }
-    return toObject;
-}
-function generateImagesConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['outputGcsUri']) !== undefined) {
-        throw new Error('outputGcsUri parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['negativePrompt']) !== undefined) {
-        throw new Error('negativePrompt parameter is not supported in Gemini API.');
-    }
-    const fromNumberOfImages = getValueByPath(fromObject, [
-        'numberOfImages',
-    ]);
-    if (parentObject !== undefined && fromNumberOfImages != null) {
-        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
-    }
-    const fromAspectRatio = getValueByPath(fromObject, ['aspectRatio']);
-    if (parentObject !== undefined && fromAspectRatio != null) {
-        setValueByPath(parentObject, ['parameters', 'aspectRatio'], fromAspectRatio);
-    }
-    const fromGuidanceScale = getValueByPath(fromObject, [
-        'guidanceScale',
-    ]);
-    if (parentObject !== undefined && fromGuidanceScale != null) {
-        setValueByPath(parentObject, ['parameters', 'guidanceScale'], fromGuidanceScale);
-    }
-    if (getValueByPath(fromObject, ['seed']) !== undefined) {
-        throw new Error('seed parameter is not supported in Gemini API.');
-    }
-    const fromSafetyFilterLevel = getValueByPath(fromObject, [
-        'safetyFilterLevel',
-    ]);
-    if (parentObject !== undefined && fromSafetyFilterLevel != null) {
-        setValueByPath(parentObject, ['parameters', 'safetySetting'], fromSafetyFilterLevel);
-    }
-    const fromPersonGeneration = getValueByPath(fromObject, [
-        'personGeneration',
-    ]);
-    if (parentObject !== undefined && fromPersonGeneration != null) {
-        setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
-    }
-    const fromIncludeSafetyAttributes = getValueByPath(fromObject, [
-        'includeSafetyAttributes',
-    ]);
-    if (parentObject !== undefined && fromIncludeSafetyAttributes != null) {
-        setValueByPath(parentObject, ['parameters', 'includeSafetyAttributes'], fromIncludeSafetyAttributes);
-    }
-    const fromIncludeRaiReason = getValueByPath(fromObject, [
-        'includeRaiReason',
-    ]);
-    if (parentObject !== undefined && fromIncludeRaiReason != null) {
-        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
-    }
-    const fromLanguage = getValueByPath(fromObject, ['language']);
-    if (parentObject !== undefined && fromLanguage != null) {
-        setValueByPath(parentObject, ['parameters', 'language'], fromLanguage);
-    }
-    const fromOutputMimeType = getValueByPath(fromObject, [
-        'outputMimeType',
-    ]);
-    if (parentObject !== undefined && fromOutputMimeType != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
-    }
-    const fromOutputCompressionQuality = getValueByPath(fromObject, [
-        'outputCompressionQuality',
-    ]);
-    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
-    }
-    if (getValueByPath(fromObject, ['addWatermark']) !== undefined) {
-        throw new Error('addWatermark parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['enhancePrompt']) !== undefined) {
-        throw new Error('enhancePrompt parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function generateImagesParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromPrompt = getValueByPath(fromObject, ['prompt']);
-    if (fromPrompt != null) {
-        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], generateImagesConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function getModelParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function listModelsConfigToMldev(apiClient, fromObject, parentObject) {
-    const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
-    }
-    const fromFilter = getValueByPath(fromObject, ['filter']);
-    if (parentObject !== undefined && fromFilter != null) {
-        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
-    }
-    const fromQueryBase = getValueByPath(fromObject, ['queryBase']);
-    if (parentObject !== undefined && fromQueryBase != null) {
-        setValueByPath(parentObject, ['_url', 'models_url'], tModelsUrl(apiClient, fromQueryBase));
-    }
-    return toObject;
-}
-function listModelsParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listModelsConfigToMldev(apiClient, fromConfig, toObject));
-    }
-    return toObject;
-}
-function updateModelConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (parentObject !== undefined && fromDisplayName != null) {
-        setValueByPath(parentObject, ['displayName'], fromDisplayName);
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (parentObject !== undefined && fromDescription != null) {
-        setValueByPath(parentObject, ['description'], fromDescription);
-    }
-    const fromDefaultCheckpointId = getValueByPath(fromObject, [
-        'defaultCheckpointId',
-    ]);
-    if (parentObject !== undefined && fromDefaultCheckpointId != null) {
-        setValueByPath(parentObject, ['defaultCheckpointId'], fromDefaultCheckpointId);
-    }
-    return toObject;
-}
-function updateModelParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], updateModelConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function deleteModelParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function countTokensConfigToMldev(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['systemInstruction']) !== undefined) {
-        throw new Error('systemInstruction parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['tools']) !== undefined) {
-        throw new Error('tools parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['generationConfig']) !== undefined) {
-        throw new Error('generationConfig parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function countTokensParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        let transformedList = tContents(fromContents);
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentToMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['contents'], transformedList);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], countTokensConfigToMldev(fromConfig));
-    }
-    return toObject;
-}
-function imageToMldev(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
-        throw new Error('gcsUri parameter is not supported in Gemini API.');
-    }
-    const fromImageBytes = getValueByPath(fromObject, ['imageBytes']);
-    if (fromImageBytes != null) {
-        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromImageBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function generateVideosConfigToMldev(fromObject, parentObject) {
-    const toObject = {};
-    const fromNumberOfVideos = getValueByPath(fromObject, [
-        'numberOfVideos',
-    ]);
-    if (parentObject !== undefined && fromNumberOfVideos != null) {
-        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfVideos);
-    }
-    if (getValueByPath(fromObject, ['outputGcsUri']) !== undefined) {
-        throw new Error('outputGcsUri parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['fps']) !== undefined) {
-        throw new Error('fps parameter is not supported in Gemini API.');
-    }
-    const fromDurationSeconds = getValueByPath(fromObject, [
-        'durationSeconds',
-    ]);
-    if (parentObject !== undefined && fromDurationSeconds != null) {
-        setValueByPath(parentObject, ['parameters', 'durationSeconds'], fromDurationSeconds);
-    }
-    if (getValueByPath(fromObject, ['seed']) !== undefined) {
-        throw new Error('seed parameter is not supported in Gemini API.');
-    }
-    const fromAspectRatio = getValueByPath(fromObject, ['aspectRatio']);
-    if (parentObject !== undefined && fromAspectRatio != null) {
-        setValueByPath(parentObject, ['parameters', 'aspectRatio'], fromAspectRatio);
-    }
-    if (getValueByPath(fromObject, ['resolution']) !== undefined) {
-        throw new Error('resolution parameter is not supported in Gemini API.');
-    }
-    const fromPersonGeneration = getValueByPath(fromObject, [
-        'personGeneration',
-    ]);
-    if (parentObject !== undefined && fromPersonGeneration != null) {
-        setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
-    }
-    if (getValueByPath(fromObject, ['pubsubTopic']) !== undefined) {
-        throw new Error('pubsubTopic parameter is not supported in Gemini API.');
-    }
-    const fromNegativePrompt = getValueByPath(fromObject, [
-        'negativePrompt',
-    ]);
-    if (parentObject !== undefined && fromNegativePrompt != null) {
-        setValueByPath(parentObject, ['parameters', 'negativePrompt'], fromNegativePrompt);
-    }
-    const fromEnhancePrompt = getValueByPath(fromObject, [
-        'enhancePrompt',
-    ]);
-    if (parentObject !== undefined && fromEnhancePrompt != null) {
-        setValueByPath(parentObject, ['parameters', 'enhancePrompt'], fromEnhancePrompt);
-    }
-    if (getValueByPath(fromObject, ['generateAudio']) !== undefined) {
-        throw new Error('generateAudio parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['lastFrame']) !== undefined) {
-        throw new Error('lastFrame parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['compressionQuality']) !== undefined) {
-        throw new Error('compressionQuality parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function generateVideosParametersToMldev(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromPrompt = getValueByPath(fromObject, ['prompt']);
-    if (fromPrompt != null) {
-        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
-    }
-    const fromImage = getValueByPath(fromObject, ['image']);
-    if (fromImage != null) {
-        setValueByPath(toObject, ['instances[0]', 'image'], imageToMldev(fromImage));
-    }
-    if (getValueByPath(fromObject, ['video']) !== undefined) {
-        throw new Error('video parameter is not supported in Gemini API.');
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], generateVideosConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function videoMetadataToVertex(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobToVertex(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataToVertex(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partToVertex(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToVertex(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToVertex(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function contentToVertex(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partToVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
-    }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
-    }
-    return toObject;
-}
-function schemaToVertex(fromObject) {
-    const toObject = {};
-    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
-    if (fromAnyOf != null) {
-        setValueByPath(toObject, ['anyOf'], fromAnyOf);
-    }
-    const fromDefault = getValueByPath(fromObject, ['default']);
-    if (fromDefault != null) {
-        setValueByPath(toObject, ['default'], fromDefault);
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromEnum = getValueByPath(fromObject, ['enum']);
-    if (fromEnum != null) {
-        setValueByPath(toObject, ['enum'], fromEnum);
-    }
-    const fromExample = getValueByPath(fromObject, ['example']);
-    if (fromExample != null) {
-        setValueByPath(toObject, ['example'], fromExample);
-    }
-    const fromFormat = getValueByPath(fromObject, ['format']);
-    if (fromFormat != null) {
-        setValueByPath(toObject, ['format'], fromFormat);
-    }
-    const fromItems = getValueByPath(fromObject, ['items']);
-    if (fromItems != null) {
-        setValueByPath(toObject, ['items'], fromItems);
-    }
-    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
-    if (fromMaxItems != null) {
-        setValueByPath(toObject, ['maxItems'], fromMaxItems);
-    }
-    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
-    if (fromMaxLength != null) {
-        setValueByPath(toObject, ['maxLength'], fromMaxLength);
-    }
-    const fromMaxProperties = getValueByPath(fromObject, [
-        'maxProperties',
-    ]);
-    if (fromMaxProperties != null) {
-        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
-    }
-    const fromMaximum = getValueByPath(fromObject, ['maximum']);
-    if (fromMaximum != null) {
-        setValueByPath(toObject, ['maximum'], fromMaximum);
-    }
-    const fromMinItems = getValueByPath(fromObject, ['minItems']);
-    if (fromMinItems != null) {
-        setValueByPath(toObject, ['minItems'], fromMinItems);
-    }
-    const fromMinLength = getValueByPath(fromObject, ['minLength']);
-    if (fromMinLength != null) {
-        setValueByPath(toObject, ['minLength'], fromMinLength);
-    }
-    const fromMinProperties = getValueByPath(fromObject, [
-        'minProperties',
-    ]);
-    if (fromMinProperties != null) {
-        setValueByPath(toObject, ['minProperties'], fromMinProperties);
-    }
-    const fromMinimum = getValueByPath(fromObject, ['minimum']);
-    if (fromMinimum != null) {
-        setValueByPath(toObject, ['minimum'], fromMinimum);
-    }
-    const fromNullable = getValueByPath(fromObject, ['nullable']);
-    if (fromNullable != null) {
-        setValueByPath(toObject, ['nullable'], fromNullable);
-    }
-    const fromPattern = getValueByPath(fromObject, ['pattern']);
-    if (fromPattern != null) {
-        setValueByPath(toObject, ['pattern'], fromPattern);
-    }
-    const fromProperties = getValueByPath(fromObject, ['properties']);
-    if (fromProperties != null) {
-        setValueByPath(toObject, ['properties'], fromProperties);
-    }
-    const fromPropertyOrdering = getValueByPath(fromObject, [
-        'propertyOrdering',
-    ]);
-    if (fromPropertyOrdering != null) {
-        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
-    }
-    const fromRequired = getValueByPath(fromObject, ['required']);
-    if (fromRequired != null) {
-        setValueByPath(toObject, ['required'], fromRequired);
-    }
-    const fromTitle = getValueByPath(fromObject, ['title']);
-    if (fromTitle != null) {
-        setValueByPath(toObject, ['title'], fromTitle);
-    }
-    const fromType = getValueByPath(fromObject, ['type']);
-    if (fromType != null) {
-        setValueByPath(toObject, ['type'], fromType);
-    }
-    return toObject;
-}
-function modelSelectionConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromFeatureSelectionPreference = getValueByPath(fromObject, [
-        'featureSelectionPreference',
-    ]);
-    if (fromFeatureSelectionPreference != null) {
-        setValueByPath(toObject, ['featureSelectionPreference'], fromFeatureSelectionPreference);
-    }
-    return toObject;
-}
-function safetySettingToVertex(fromObject) {
-    const toObject = {};
-    const fromMethod = getValueByPath(fromObject, ['method']);
-    if (fromMethod != null) {
-        setValueByPath(toObject, ['method'], fromMethod);
-    }
-    const fromCategory = getValueByPath(fromObject, ['category']);
-    if (fromCategory != null) {
-        setValueByPath(toObject, ['category'], fromCategory);
-    }
-    const fromThreshold = getValueByPath(fromObject, ['threshold']);
-    if (fromThreshold != null) {
-        setValueByPath(toObject, ['threshold'], fromThreshold);
-    }
-    return toObject;
-}
-function functionDeclarationToVertex(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['behavior']) !== undefined) {
-        throw new Error('behavior parameter is not supported in Vertex AI.');
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (fromDescription != null) {
-        setValueByPath(toObject, ['description'], fromDescription);
-    }
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromParameters = getValueByPath(fromObject, ['parameters']);
-    if (fromParameters != null) {
-        setValueByPath(toObject, ['parameters'], fromParameters);
-    }
-    const fromParametersJsonSchema = getValueByPath(fromObject, [
-        'parametersJsonSchema',
-    ]);
-    if (fromParametersJsonSchema != null) {
-        setValueByPath(toObject, ['parametersJsonSchema'], fromParametersJsonSchema);
-    }
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], fromResponse);
-    }
-    const fromResponseJsonSchema = getValueByPath(fromObject, [
-        'responseJsonSchema',
-    ]);
-    if (fromResponseJsonSchema != null) {
-        setValueByPath(toObject, ['responseJsonSchema'], fromResponseJsonSchema);
-    }
-    return toObject;
-}
-function intervalToVertex(fromObject) {
-    const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
-    }
-    return toObject;
-}
-function googleSearchToVertex(fromObject) {
-    const toObject = {};
-    const fromTimeRangeFilter = getValueByPath(fromObject, [
-        'timeRangeFilter',
-    ]);
-    if (fromTimeRangeFilter != null) {
-        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex(fromTimeRangeFilter));
-    }
-    return toObject;
-}
-function dynamicRetrievalConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
-    }
-    return toObject;
-}
-function googleSearchRetrievalToVertex(fromObject) {
-    const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToVertex(fromDynamicRetrievalConfig));
-    }
-    return toObject;
-}
-function enterpriseWebSearchToVertex() {
-    const toObject = {};
-    return toObject;
-}
-function apiKeyConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromApiKeyString = getValueByPath(fromObject, ['apiKeyString']);
-    if (fromApiKeyString != null) {
-        setValueByPath(toObject, ['apiKeyString'], fromApiKeyString);
-    }
-    return toObject;
-}
-function authConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromApiKeyConfig = getValueByPath(fromObject, ['apiKeyConfig']);
-    if (fromApiKeyConfig != null) {
-        setValueByPath(toObject, ['apiKeyConfig'], apiKeyConfigToVertex(fromApiKeyConfig));
-    }
-    const fromAuthType = getValueByPath(fromObject, ['authType']);
-    if (fromAuthType != null) {
-        setValueByPath(toObject, ['authType'], fromAuthType);
-    }
-    const fromGoogleServiceAccountConfig = getValueByPath(fromObject, [
-        'googleServiceAccountConfig',
-    ]);
-    if (fromGoogleServiceAccountConfig != null) {
-        setValueByPath(toObject, ['googleServiceAccountConfig'], fromGoogleServiceAccountConfig);
-    }
-    const fromHttpBasicAuthConfig = getValueByPath(fromObject, [
-        'httpBasicAuthConfig',
-    ]);
-    if (fromHttpBasicAuthConfig != null) {
-        setValueByPath(toObject, ['httpBasicAuthConfig'], fromHttpBasicAuthConfig);
-    }
-    const fromOauthConfig = getValueByPath(fromObject, ['oauthConfig']);
-    if (fromOauthConfig != null) {
-        setValueByPath(toObject, ['oauthConfig'], fromOauthConfig);
-    }
-    const fromOidcConfig = getValueByPath(fromObject, ['oidcConfig']);
-    if (fromOidcConfig != null) {
-        setValueByPath(toObject, ['oidcConfig'], fromOidcConfig);
-    }
-    return toObject;
-}
-function googleMapsToVertex(fromObject) {
-    const toObject = {};
-    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
-    if (fromAuthConfig != null) {
-        setValueByPath(toObject, ['authConfig'], authConfigToVertex(fromAuthConfig));
-    }
-    return toObject;
-}
-function urlContextToVertex() {
-    const toObject = {};
-    return toObject;
-}
-function toolToVertex(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
-    }
-    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
-    if (fromRetrieval != null) {
-        setValueByPath(toObject, ['retrieval'], fromRetrieval);
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex(fromGoogleSearchRetrieval));
-    }
-    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
-        'enterpriseWebSearch',
-    ]);
-    if (fromEnterpriseWebSearch != null) {
-        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex());
-    }
-    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
-    if (fromGoogleMaps != null) {
-        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex(fromGoogleMaps));
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToVertex());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function functionCallingConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromAllowedFunctionNames = getValueByPath(fromObject, [
-        'allowedFunctionNames',
-    ]);
-    if (fromAllowedFunctionNames != null) {
-        setValueByPath(toObject, ['allowedFunctionNames'], fromAllowedFunctionNames);
-    }
-    return toObject;
-}
-function latLngToVertex(fromObject) {
-    const toObject = {};
-    const fromLatitude = getValueByPath(fromObject, ['latitude']);
-    if (fromLatitude != null) {
-        setValueByPath(toObject, ['latitude'], fromLatitude);
-    }
-    const fromLongitude = getValueByPath(fromObject, ['longitude']);
-    if (fromLongitude != null) {
-        setValueByPath(toObject, ['longitude'], fromLongitude);
-    }
-    return toObject;
-}
-function retrievalConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromLatLng = getValueByPath(fromObject, ['latLng']);
-    if (fromLatLng != null) {
-        setValueByPath(toObject, ['latLng'], latLngToVertex(fromLatLng));
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function toolConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromFunctionCallingConfig = getValueByPath(fromObject, [
-        'functionCallingConfig',
-    ]);
-    if (fromFunctionCallingConfig != null) {
-        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToVertex(fromFunctionCallingConfig));
-    }
-    const fromRetrievalConfig = getValueByPath(fromObject, [
-        'retrievalConfig',
-    ]);
-    if (fromRetrievalConfig != null) {
-        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToVertex(fromRetrievalConfig));
-    }
-    return toObject;
-}
-function prebuiltVoiceConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
-    }
-    return toObject;
-}
-function voiceConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
-    ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToVertex(fromPrebuiltVoiceConfig));
-    }
-    return toObject;
-}
-function speechConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToVertex(fromVoiceConfig));
-    }
-    if (getValueByPath(fromObject, ['multiSpeakerVoiceConfig']) !== undefined) {
-        throw new Error('multiSpeakerVoiceConfig parameter is not supported in Vertex AI.');
-    }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function thinkingConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromIncludeThoughts = getValueByPath(fromObject, [
-        'includeThoughts',
-    ]);
-    if (fromIncludeThoughts != null) {
-        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
-    }
-    const fromThinkingBudget = getValueByPath(fromObject, [
-        'thinkingBudget',
-    ]);
-    if (fromThinkingBudget != null) {
-        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
     }
     return toObject;
 }
@@ -15005,6 +11818,28 @@ function generateContentConfigToVertex(apiClient, fromObject, parentObject) {
     }
     return toObject;
 }
+function generateContentParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromContents = getValueByPath(fromObject, ['contents']);
+    if (fromContents != null) {
+        let transformedList = tContents(fromContents);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return contentToMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['contents'], transformedList);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        setValueByPath(toObject, ['generationConfig'], generateContentConfigToMldev(apiClient, fromConfig, toObject));
+    }
+    return toObject;
+}
 function generateContentParametersToVertex(apiClient, fromObject) {
     const toObject = {};
     const fromModel = getValueByPath(fromObject, ['model']);
@@ -15027,45 +11862,166 @@ function generateContentParametersToVertex(apiClient, fromObject) {
     }
     return toObject;
 }
-function embedContentConfigToVertex(fromObject, parentObject) {
+function generateContentResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromTaskType = getValueByPath(fromObject, ['taskType']);
-    if (parentObject !== undefined && fromTaskType != null) {
-        setValueByPath(parentObject, ['instances[]', 'task_type'], fromTaskType);
-    }
-    const fromTitle = getValueByPath(fromObject, ['title']);
-    if (parentObject !== undefined && fromTitle != null) {
-        setValueByPath(parentObject, ['instances[]', 'title'], fromTitle);
-    }
-    const fromOutputDimensionality = getValueByPath(fromObject, [
-        'outputDimensionality',
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
     ]);
-    if (parentObject !== undefined && fromOutputDimensionality != null) {
-        setValueByPath(parentObject, ['parameters', 'outputDimensionality'], fromOutputDimensionality);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (parentObject !== undefined && fromMimeType != null) {
-        setValueByPath(parentObject, ['instances[]', 'mimeType'], fromMimeType);
+    const fromCandidates = getValueByPath(fromObject, ['candidates']);
+    if (fromCandidates != null) {
+        let transformedList = fromCandidates;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return candidateFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['candidates'], transformedList);
     }
-    const fromAutoTruncate = getValueByPath(fromObject, ['autoTruncate']);
-    if (parentObject !== undefined && fromAutoTruncate != null) {
-        setValueByPath(parentObject, ['parameters', 'autoTruncate'], fromAutoTruncate);
+    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
+    if (fromModelVersion != null) {
+        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
+    }
+    const fromPromptFeedback = getValueByPath(fromObject, [
+        'promptFeedback',
+    ]);
+    if (fromPromptFeedback != null) {
+        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
+    }
+    const fromResponseId = getValueByPath(fromObject, ['responseId']);
+    if (fromResponseId != null) {
+        setValueByPath(toObject, ['responseId'], fromResponseId);
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
+    ]);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
     }
     return toObject;
 }
-function embedContentParametersToVertex(apiClient, fromObject) {
+function generateContentResponseFromVertex(fromObject) {
     const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        setValueByPath(toObject, ['instances[]', 'content'], tContentsForEmbed(apiClient, fromContents));
+    const fromCandidates = getValueByPath(fromObject, ['candidates']);
+    if (fromCandidates != null) {
+        let transformedList = fromCandidates;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return candidateFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['candidates'], transformedList);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], embedContentConfigToVertex(fromConfig, toObject));
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
+    if (fromModelVersion != null) {
+        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
+    }
+    const fromPromptFeedback = getValueByPath(fromObject, [
+        'promptFeedback',
+    ]);
+    if (fromPromptFeedback != null) {
+        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
+    }
+    const fromResponseId = getValueByPath(fromObject, ['responseId']);
+    if (fromResponseId != null) {
+        setValueByPath(toObject, ['responseId'], fromResponseId);
+    }
+    const fromUsageMetadata = getValueByPath(fromObject, [
+        'usageMetadata',
+    ]);
+    if (fromUsageMetadata != null) {
+        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
+    }
+    return toObject;
+}
+function generateImagesConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['outputGcsUri']) !== undefined) {
+        throw new Error('outputGcsUri parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['negativePrompt']) !== undefined) {
+        throw new Error('negativePrompt parameter is not supported in Gemini API.');
+    }
+    const fromNumberOfImages = getValueByPath(fromObject, [
+        'numberOfImages',
+    ]);
+    if (parentObject !== undefined && fromNumberOfImages != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
+    }
+    const fromAspectRatio = getValueByPath(fromObject, ['aspectRatio']);
+    if (parentObject !== undefined && fromAspectRatio != null) {
+        setValueByPath(parentObject, ['parameters', 'aspectRatio'], fromAspectRatio);
+    }
+    const fromGuidanceScale = getValueByPath(fromObject, [
+        'guidanceScale',
+    ]);
+    if (parentObject !== undefined && fromGuidanceScale != null) {
+        setValueByPath(parentObject, ['parameters', 'guidanceScale'], fromGuidanceScale);
+    }
+    if (getValueByPath(fromObject, ['seed']) !== undefined) {
+        throw new Error('seed parameter is not supported in Gemini API.');
+    }
+    const fromSafetyFilterLevel = getValueByPath(fromObject, [
+        'safetyFilterLevel',
+    ]);
+    if (parentObject !== undefined && fromSafetyFilterLevel != null) {
+        setValueByPath(parentObject, ['parameters', 'safetySetting'], fromSafetyFilterLevel);
+    }
+    const fromPersonGeneration = getValueByPath(fromObject, [
+        'personGeneration',
+    ]);
+    if (parentObject !== undefined && fromPersonGeneration != null) {
+        setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
+    }
+    const fromIncludeSafetyAttributes = getValueByPath(fromObject, [
+        'includeSafetyAttributes',
+    ]);
+    if (parentObject !== undefined && fromIncludeSafetyAttributes != null) {
+        setValueByPath(parentObject, ['parameters', 'includeSafetyAttributes'], fromIncludeSafetyAttributes);
+    }
+    const fromIncludeRaiReason = getValueByPath(fromObject, [
+        'includeRaiReason',
+    ]);
+    if (parentObject !== undefined && fromIncludeRaiReason != null) {
+        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
+    }
+    const fromLanguage = getValueByPath(fromObject, ['language']);
+    if (parentObject !== undefined && fromLanguage != null) {
+        setValueByPath(parentObject, ['parameters', 'language'], fromLanguage);
+    }
+    const fromOutputMimeType = getValueByPath(fromObject, [
+        'outputMimeType',
+    ]);
+    if (parentObject !== undefined && fromOutputMimeType != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
+    }
+    const fromOutputCompressionQuality = getValueByPath(fromObject, [
+        'outputCompressionQuality',
+    ]);
+    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
+    }
+    if (getValueByPath(fromObject, ['addWatermark']) !== undefined) {
+        throw new Error('addWatermark parameter is not supported in Gemini API.');
+    }
+    const fromImageSize = getValueByPath(fromObject, ['imageSize']);
+    if (parentObject !== undefined && fromImageSize != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleImageSize'], fromImageSize);
+    }
+    if (getValueByPath(fromObject, ['enhancePrompt']) !== undefined) {
+        throw new Error('enhancePrompt parameter is not supported in Gemini API.');
     }
     return toObject;
 }
@@ -15145,11 +12101,31 @@ function generateImagesConfigToVertex(fromObject, parentObject) {
     if (parentObject !== undefined && fromAddWatermark != null) {
         setValueByPath(parentObject, ['parameters', 'addWatermark'], fromAddWatermark);
     }
+    const fromImageSize = getValueByPath(fromObject, ['imageSize']);
+    if (parentObject !== undefined && fromImageSize != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleImageSize'], fromImageSize);
+    }
     const fromEnhancePrompt = getValueByPath(fromObject, [
         'enhancePrompt',
     ]);
     if (parentObject !== undefined && fromEnhancePrompt != null) {
         setValueByPath(parentObject, ['parameters', 'enhancePrompt'], fromEnhancePrompt);
+    }
+    return toObject;
+}
+function generateImagesParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (fromPrompt != null) {
+        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        generateImagesConfigToMldev(fromConfig, toObject);
     }
     return toObject;
 }
@@ -15165,163 +12141,96 @@ function generateImagesParametersToVertex(apiClient, fromObject) {
     }
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], generateImagesConfigToVertex(fromConfig, toObject));
+        generateImagesConfigToVertex(fromConfig, toObject);
     }
     return toObject;
 }
-function imageToVertex(fromObject) {
+function generateImagesResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromImageBytes = getValueByPath(fromObject, ['imageBytes']);
-    if (fromImageBytes != null) {
-        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromImageBytes));
+    const fromGeneratedImages = getValueByPath(fromObject, [
+        'predictions',
+    ]);
+    if (fromGeneratedImages != null) {
+        let transformedList = fromGeneratedImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedImages'], transformedList);
     }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    const fromPositivePromptSafetyAttributes = getValueByPath(fromObject, [
+        'positivePromptSafetyAttributes',
+    ]);
+    if (fromPositivePromptSafetyAttributes != null) {
+        setValueByPath(toObject, ['positivePromptSafetyAttributes'], safetyAttributesFromMldev(fromPositivePromptSafetyAttributes));
     }
     return toObject;
 }
-function maskReferenceConfigToVertex(fromObject) {
+function generateImagesResponseFromVertex(fromObject) {
     const toObject = {};
-    const fromMaskMode = getValueByPath(fromObject, ['maskMode']);
-    if (fromMaskMode != null) {
-        setValueByPath(toObject, ['maskMode'], fromMaskMode);
-    }
-    const fromSegmentationClasses = getValueByPath(fromObject, [
-        'segmentationClasses',
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
     ]);
-    if (fromSegmentationClasses != null) {
-        setValueByPath(toObject, ['maskClasses'], fromSegmentationClasses);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromMaskDilation = getValueByPath(fromObject, ['maskDilation']);
-    if (fromMaskDilation != null) {
-        setValueByPath(toObject, ['dilation'], fromMaskDilation);
+    const fromGeneratedImages = getValueByPath(fromObject, [
+        'predictions',
+    ]);
+    if (fromGeneratedImages != null) {
+        let transformedList = fromGeneratedImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedImages'], transformedList);
+    }
+    const fromPositivePromptSafetyAttributes = getValueByPath(fromObject, [
+        'positivePromptSafetyAttributes',
+    ]);
+    if (fromPositivePromptSafetyAttributes != null) {
+        setValueByPath(toObject, ['positivePromptSafetyAttributes'], safetyAttributesFromVertex(fromPositivePromptSafetyAttributes));
     }
     return toObject;
 }
-function controlReferenceConfigToVertex(fromObject) {
+function generateVideosConfigToMldev(fromObject, parentObject) {
     const toObject = {};
-    const fromControlType = getValueByPath(fromObject, ['controlType']);
-    if (fromControlType != null) {
-        setValueByPath(toObject, ['controlType'], fromControlType);
-    }
-    const fromEnableControlImageComputation = getValueByPath(fromObject, [
-        'enableControlImageComputation',
+    const fromNumberOfVideos = getValueByPath(fromObject, [
+        'numberOfVideos',
     ]);
-    if (fromEnableControlImageComputation != null) {
-        setValueByPath(toObject, ['computeControl'], fromEnableControlImageComputation);
+    if (parentObject !== undefined && fromNumberOfVideos != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfVideos);
     }
-    return toObject;
-}
-function styleReferenceConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromStyleDescription = getValueByPath(fromObject, [
-        'styleDescription',
+    if (getValueByPath(fromObject, ['outputGcsUri']) !== undefined) {
+        throw new Error('outputGcsUri parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['fps']) !== undefined) {
+        throw new Error('fps parameter is not supported in Gemini API.');
+    }
+    const fromDurationSeconds = getValueByPath(fromObject, [
+        'durationSeconds',
     ]);
-    if (fromStyleDescription != null) {
-        setValueByPath(toObject, ['styleDescription'], fromStyleDescription);
+    if (parentObject !== undefined && fromDurationSeconds != null) {
+        setValueByPath(parentObject, ['parameters', 'durationSeconds'], fromDurationSeconds);
     }
-    return toObject;
-}
-function subjectReferenceConfigToVertex(fromObject) {
-    const toObject = {};
-    const fromSubjectType = getValueByPath(fromObject, ['subjectType']);
-    if (fromSubjectType != null) {
-        setValueByPath(toObject, ['subjectType'], fromSubjectType);
-    }
-    const fromSubjectDescription = getValueByPath(fromObject, [
-        'subjectDescription',
-    ]);
-    if (fromSubjectDescription != null) {
-        setValueByPath(toObject, ['subjectDescription'], fromSubjectDescription);
-    }
-    return toObject;
-}
-function referenceImageAPIInternalToVertex(fromObject) {
-    const toObject = {};
-    const fromReferenceImage = getValueByPath(fromObject, [
-        'referenceImage',
-    ]);
-    if (fromReferenceImage != null) {
-        setValueByPath(toObject, ['referenceImage'], imageToVertex(fromReferenceImage));
-    }
-    const fromReferenceId = getValueByPath(fromObject, ['referenceId']);
-    if (fromReferenceId != null) {
-        setValueByPath(toObject, ['referenceId'], fromReferenceId);
-    }
-    const fromReferenceType = getValueByPath(fromObject, [
-        'referenceType',
-    ]);
-    if (fromReferenceType != null) {
-        setValueByPath(toObject, ['referenceType'], fromReferenceType);
-    }
-    const fromMaskImageConfig = getValueByPath(fromObject, [
-        'maskImageConfig',
-    ]);
-    if (fromMaskImageConfig != null) {
-        setValueByPath(toObject, ['maskImageConfig'], maskReferenceConfigToVertex(fromMaskImageConfig));
-    }
-    const fromControlImageConfig = getValueByPath(fromObject, [
-        'controlImageConfig',
-    ]);
-    if (fromControlImageConfig != null) {
-        setValueByPath(toObject, ['controlImageConfig'], controlReferenceConfigToVertex(fromControlImageConfig));
-    }
-    const fromStyleImageConfig = getValueByPath(fromObject, [
-        'styleImageConfig',
-    ]);
-    if (fromStyleImageConfig != null) {
-        setValueByPath(toObject, ['styleImageConfig'], styleReferenceConfigToVertex(fromStyleImageConfig));
-    }
-    const fromSubjectImageConfig = getValueByPath(fromObject, [
-        'subjectImageConfig',
-    ]);
-    if (fromSubjectImageConfig != null) {
-        setValueByPath(toObject, ['subjectImageConfig'], subjectReferenceConfigToVertex(fromSubjectImageConfig));
-    }
-    return toObject;
-}
-function editImageConfigToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromOutputGcsUri = getValueByPath(fromObject, ['outputGcsUri']);
-    if (parentObject !== undefined && fromOutputGcsUri != null) {
-        setValueByPath(parentObject, ['parameters', 'storageUri'], fromOutputGcsUri);
-    }
-    const fromNegativePrompt = getValueByPath(fromObject, [
-        'negativePrompt',
-    ]);
-    if (parentObject !== undefined && fromNegativePrompt != null) {
-        setValueByPath(parentObject, ['parameters', 'negativePrompt'], fromNegativePrompt);
-    }
-    const fromNumberOfImages = getValueByPath(fromObject, [
-        'numberOfImages',
-    ]);
-    if (parentObject !== undefined && fromNumberOfImages != null) {
-        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
+    if (getValueByPath(fromObject, ['seed']) !== undefined) {
+        throw new Error('seed parameter is not supported in Gemini API.');
     }
     const fromAspectRatio = getValueByPath(fromObject, ['aspectRatio']);
     if (parentObject !== undefined && fromAspectRatio != null) {
         setValueByPath(parentObject, ['parameters', 'aspectRatio'], fromAspectRatio);
     }
-    const fromGuidanceScale = getValueByPath(fromObject, [
-        'guidanceScale',
-    ]);
-    if (parentObject !== undefined && fromGuidanceScale != null) {
-        setValueByPath(parentObject, ['parameters', 'guidanceScale'], fromGuidanceScale);
-    }
-    const fromSeed = getValueByPath(fromObject, ['seed']);
-    if (parentObject !== undefined && fromSeed != null) {
-        setValueByPath(parentObject, ['parameters', 'seed'], fromSeed);
-    }
-    const fromSafetyFilterLevel = getValueByPath(fromObject, [
-        'safetyFilterLevel',
-    ]);
-    if (parentObject !== undefined && fromSafetyFilterLevel != null) {
-        setValueByPath(parentObject, ['parameters', 'safetySetting'], fromSafetyFilterLevel);
+    const fromResolution = getValueByPath(fromObject, ['resolution']);
+    if (parentObject !== undefined && fromResolution != null) {
+        setValueByPath(parentObject, ['parameters', 'resolution'], fromResolution);
     }
     const fromPersonGeneration = getValueByPath(fromObject, [
         'personGeneration',
@@ -15329,303 +12238,35 @@ function editImageConfigToVertex(fromObject, parentObject) {
     if (parentObject !== undefined && fromPersonGeneration != null) {
         setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
     }
-    const fromIncludeSafetyAttributes = getValueByPath(fromObject, [
-        'includeSafetyAttributes',
+    if (getValueByPath(fromObject, ['pubsubTopic']) !== undefined) {
+        throw new Error('pubsubTopic parameter is not supported in Gemini API.');
+    }
+    const fromNegativePrompt = getValueByPath(fromObject, [
+        'negativePrompt',
     ]);
-    if (parentObject !== undefined && fromIncludeSafetyAttributes != null) {
-        setValueByPath(parentObject, ['parameters', 'includeSafetyAttributes'], fromIncludeSafetyAttributes);
+    if (parentObject !== undefined && fromNegativePrompt != null) {
+        setValueByPath(parentObject, ['parameters', 'negativePrompt'], fromNegativePrompt);
     }
-    const fromIncludeRaiReason = getValueByPath(fromObject, [
-        'includeRaiReason',
+    const fromEnhancePrompt = getValueByPath(fromObject, [
+        'enhancePrompt',
     ]);
-    if (parentObject !== undefined && fromIncludeRaiReason != null) {
-        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
+    if (parentObject !== undefined && fromEnhancePrompt != null) {
+        setValueByPath(parentObject, ['parameters', 'enhancePrompt'], fromEnhancePrompt);
     }
-    const fromLanguage = getValueByPath(fromObject, ['language']);
-    if (parentObject !== undefined && fromLanguage != null) {
-        setValueByPath(parentObject, ['parameters', 'language'], fromLanguage);
+    if (getValueByPath(fromObject, ['generateAudio']) !== undefined) {
+        throw new Error('generateAudio parameter is not supported in Gemini API.');
     }
-    const fromOutputMimeType = getValueByPath(fromObject, [
-        'outputMimeType',
-    ]);
-    if (parentObject !== undefined && fromOutputMimeType != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
+    if (getValueByPath(fromObject, ['lastFrame']) !== undefined) {
+        throw new Error('lastFrame parameter is not supported in Gemini API.');
     }
-    const fromOutputCompressionQuality = getValueByPath(fromObject, [
-        'outputCompressionQuality',
-    ]);
-    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
+    if (getValueByPath(fromObject, ['referenceImages']) !== undefined) {
+        throw new Error('referenceImages parameter is not supported in Gemini API.');
     }
-    const fromEditMode = getValueByPath(fromObject, ['editMode']);
-    if (parentObject !== undefined && fromEditMode != null) {
-        setValueByPath(parentObject, ['parameters', 'editMode'], fromEditMode);
+    if (getValueByPath(fromObject, ['mask']) !== undefined) {
+        throw new Error('mask parameter is not supported in Gemini API.');
     }
-    const fromBaseSteps = getValueByPath(fromObject, ['baseSteps']);
-    if (parentObject !== undefined && fromBaseSteps != null) {
-        setValueByPath(parentObject, ['parameters', 'editConfig', 'baseSteps'], fromBaseSteps);
-    }
-    return toObject;
-}
-function editImageParametersInternalToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromPrompt = getValueByPath(fromObject, ['prompt']);
-    if (fromPrompt != null) {
-        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
-    }
-    const fromReferenceImages = getValueByPath(fromObject, [
-        'referenceImages',
-    ]);
-    if (fromReferenceImages != null) {
-        let transformedList = fromReferenceImages;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return referenceImageAPIInternalToVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['instances[0]', 'referenceImages'], transformedList);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], editImageConfigToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function upscaleImageAPIConfigInternalToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromIncludeRaiReason = getValueByPath(fromObject, [
-        'includeRaiReason',
-    ]);
-    if (parentObject !== undefined && fromIncludeRaiReason != null) {
-        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
-    }
-    const fromOutputMimeType = getValueByPath(fromObject, [
-        'outputMimeType',
-    ]);
-    if (parentObject !== undefined && fromOutputMimeType != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
-    }
-    const fromOutputCompressionQuality = getValueByPath(fromObject, [
-        'outputCompressionQuality',
-    ]);
-    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
-        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
-    }
-    const fromEnhanceInputImage = getValueByPath(fromObject, [
-        'enhanceInputImage',
-    ]);
-    if (parentObject !== undefined && fromEnhanceInputImage != null) {
-        setValueByPath(parentObject, ['parameters', 'upscaleConfig', 'enhanceInputImage'], fromEnhanceInputImage);
-    }
-    const fromImagePreservationFactor = getValueByPath(fromObject, [
-        'imagePreservationFactor',
-    ]);
-    if (parentObject !== undefined && fromImagePreservationFactor != null) {
-        setValueByPath(parentObject, ['parameters', 'upscaleConfig', 'imagePreservationFactor'], fromImagePreservationFactor);
-    }
-    const fromNumberOfImages = getValueByPath(fromObject, [
-        'numberOfImages',
-    ]);
-    if (parentObject !== undefined && fromNumberOfImages != null) {
-        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
-    }
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (parentObject !== undefined && fromMode != null) {
-        setValueByPath(parentObject, ['parameters', 'mode'], fromMode);
-    }
-    return toObject;
-}
-function upscaleImageAPIParametersInternalToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromImage = getValueByPath(fromObject, ['image']);
-    if (fromImage != null) {
-        setValueByPath(toObject, ['instances[0]', 'image'], imageToVertex(fromImage));
-    }
-    const fromUpscaleFactor = getValueByPath(fromObject, [
-        'upscaleFactor',
-    ]);
-    if (fromUpscaleFactor != null) {
-        setValueByPath(toObject, ['parameters', 'upscaleConfig', 'upscaleFactor'], fromUpscaleFactor);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], upscaleImageAPIConfigInternalToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function getModelParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function listModelsConfigToVertex(apiClient, fromObject, parentObject) {
-    const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
-    }
-    const fromFilter = getValueByPath(fromObject, ['filter']);
-    if (parentObject !== undefined && fromFilter != null) {
-        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
-    }
-    const fromQueryBase = getValueByPath(fromObject, ['queryBase']);
-    if (parentObject !== undefined && fromQueryBase != null) {
-        setValueByPath(parentObject, ['_url', 'models_url'], tModelsUrl(apiClient, fromQueryBase));
-    }
-    return toObject;
-}
-function listModelsParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listModelsConfigToVertex(apiClient, fromConfig, toObject));
-    }
-    return toObject;
-}
-function updateModelConfigToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (parentObject !== undefined && fromDisplayName != null) {
-        setValueByPath(parentObject, ['displayName'], fromDisplayName);
-    }
-    const fromDescription = getValueByPath(fromObject, ['description']);
-    if (parentObject !== undefined && fromDescription != null) {
-        setValueByPath(parentObject, ['description'], fromDescription);
-    }
-    const fromDefaultCheckpointId = getValueByPath(fromObject, [
-        'defaultCheckpointId',
-    ]);
-    if (parentObject !== undefined && fromDefaultCheckpointId != null) {
-        setValueByPath(parentObject, ['defaultCheckpointId'], fromDefaultCheckpointId);
-    }
-    return toObject;
-}
-function updateModelParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], updateModelConfigToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function deleteModelParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function countTokensConfigToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromSystemInstruction = getValueByPath(fromObject, [
-        'systemInstruction',
-    ]);
-    if (parentObject !== undefined && fromSystemInstruction != null) {
-        setValueByPath(parentObject, ['systemInstruction'], contentToVertex(tContent(fromSystemInstruction)));
-    }
-    const fromTools = getValueByPath(fromObject, ['tools']);
-    if (parentObject !== undefined && fromTools != null) {
-        let transformedList = fromTools;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return toolToVertex(item);
-            });
-        }
-        setValueByPath(parentObject, ['tools'], transformedList);
-    }
-    const fromGenerationConfig = getValueByPath(fromObject, [
-        'generationConfig',
-    ]);
-    if (parentObject !== undefined && fromGenerationConfig != null) {
-        setValueByPath(parentObject, ['generationConfig'], fromGenerationConfig);
-    }
-    return toObject;
-}
-function countTokensParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        let transformedList = tContents(fromContents);
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentToVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['contents'], transformedList);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], countTokensConfigToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function computeTokensParametersToVertex(apiClient, fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
-    }
-    const fromContents = getValueByPath(fromObject, ['contents']);
-    if (fromContents != null) {
-        let transformedList = tContents(fromContents);
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentToVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['contents'], transformedList);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function videoToVertex(fromObject) {
-    const toObject = {};
-    const fromUri = getValueByPath(fromObject, ['uri']);
-    if (fromUri != null) {
-        setValueByPath(toObject, ['gcsUri'], fromUri);
-    }
-    const fromVideoBytes = getValueByPath(fromObject, ['videoBytes']);
-    if (fromVideoBytes != null) {
-        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromVideoBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    if (getValueByPath(fromObject, ['compressionQuality']) !== undefined) {
+        throw new Error('compressionQuality parameter is not supported in Gemini API.');
     }
     return toObject;
 }
@@ -15695,11 +12336,105 @@ function generateVideosConfigToVertex(fromObject, parentObject) {
     if (parentObject !== undefined && fromLastFrame != null) {
         setValueByPath(parentObject, ['instances[0]', 'lastFrame'], imageToVertex(fromLastFrame));
     }
+    const fromReferenceImages = getValueByPath(fromObject, [
+        'referenceImages',
+    ]);
+    if (parentObject !== undefined && fromReferenceImages != null) {
+        let transformedList = fromReferenceImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return videoGenerationReferenceImageToVertex(item);
+            });
+        }
+        setValueByPath(parentObject, ['instances[0]', 'referenceImages'], transformedList);
+    }
+    const fromMask = getValueByPath(fromObject, ['mask']);
+    if (parentObject !== undefined && fromMask != null) {
+        setValueByPath(parentObject, ['instances[0]', 'mask'], videoGenerationMaskToVertex(fromMask));
+    }
     const fromCompressionQuality = getValueByPath(fromObject, [
         'compressionQuality',
     ]);
     if (parentObject !== undefined && fromCompressionQuality != null) {
         setValueByPath(parentObject, ['parameters', 'compressionQuality'], fromCompressionQuality);
+    }
+    return toObject;
+}
+function generateVideosOperationFromMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], fromMetadata);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fromError);
+    }
+    const fromResponse = getValueByPath(fromObject, [
+        'response',
+        'generateVideoResponse',
+    ]);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], generateVideosResponseFromMldev(fromResponse));
+    }
+    return toObject;
+}
+function generateVideosOperationFromVertex(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], fromMetadata);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fromError);
+    }
+    const fromResponse = getValueByPath(fromObject, ['response']);
+    if (fromResponse != null) {
+        setValueByPath(toObject, ['response'], generateVideosResponseFromVertex(fromResponse));
+    }
+    return toObject;
+}
+function generateVideosParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (fromPrompt != null) {
+        setValueByPath(toObject, ['instances[0]', 'prompt'], fromPrompt);
+    }
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['instances[0]', 'image'], imageToMldev(fromImage));
+    }
+    if (getValueByPath(fromObject, ['video']) !== undefined) {
+        throw new Error('video parameter is not supported in Gemini API.');
+    }
+    const fromSource = getValueByPath(fromObject, ['source']);
+    if (fromSource != null) {
+        generateVideosSourceToMldev(fromSource, toObject);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        generateVideosConfigToMldev(fromConfig, toObject);
     }
     return toObject;
 }
@@ -15721,307 +12456,98 @@ function generateVideosParametersToVertex(apiClient, fromObject) {
     if (fromVideo != null) {
         setValueByPath(toObject, ['instances[0]', 'video'], videoToVertex(fromVideo));
     }
+    const fromSource = getValueByPath(fromObject, ['source']);
+    if (fromSource != null) {
+        generateVideosSourceToVertex(fromSource, toObject);
+    }
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], generateVideosConfigToVertex(fromConfig, toObject));
+        generateVideosConfigToVertex(fromConfig, toObject);
     }
     return toObject;
 }
-function videoMetadataFromMldev(fromObject) {
+function generateVideosResponseFromMldev(fromObject) {
     const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobFromMldev(fromObject) {
-    const toObject = {};
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataFromMldev(fromObject) {
-    const toObject = {};
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partFromMldev(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
+    const fromGeneratedVideos = getValueByPath(fromObject, [
+        'generatedSamples',
     ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromMldev(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobFromMldev(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataFromMldev(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function contentFromMldev(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
+    if (fromGeneratedVideos != null) {
+        let transformedList = fromGeneratedVideos;
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return partFromMldev(item);
+                return generatedVideoFromMldev(item);
             });
         }
-        setValueByPath(toObject, ['parts'], transformedList);
+        setValueByPath(toObject, ['generatedVideos'], transformedList);
     }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
-    }
-    return toObject;
-}
-function citationMetadataFromMldev(fromObject) {
-    const toObject = {};
-    const fromCitations = getValueByPath(fromObject, ['citationSources']);
-    if (fromCitations != null) {
-        setValueByPath(toObject, ['citations'], fromCitations);
-    }
-    return toObject;
-}
-function urlMetadataFromMldev(fromObject) {
-    const toObject = {};
-    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
-    if (fromRetrievedUrl != null) {
-        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
-    }
-    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
-        'urlRetrievalStatus',
+    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
+        'raiMediaFilteredCount',
     ]);
-    if (fromUrlRetrievalStatus != null) {
-        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
+    if (fromRaiMediaFilteredCount != null) {
+        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
+    }
+    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
+        'raiMediaFilteredReasons',
+    ]);
+    if (fromRaiMediaFilteredReasons != null) {
+        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
     }
     return toObject;
 }
-function urlContextMetadataFromMldev(fromObject) {
+function generateVideosResponseFromVertex(fromObject) {
     const toObject = {};
-    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
-    if (fromUrlMetadata != null) {
-        let transformedList = fromUrlMetadata;
+    const fromGeneratedVideos = getValueByPath(fromObject, ['videos']);
+    if (fromGeneratedVideos != null) {
+        let transformedList = fromGeneratedVideos;
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return urlMetadataFromMldev(item);
+                return generatedVideoFromVertex(item);
             });
         }
-        setValueByPath(toObject, ['urlMetadata'], transformedList);
+        setValueByPath(toObject, ['generatedVideos'], transformedList);
+    }
+    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
+        'raiMediaFilteredCount',
+    ]);
+    if (fromRaiMediaFilteredCount != null) {
+        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
+    }
+    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
+        'raiMediaFilteredReasons',
+    ]);
+    if (fromRaiMediaFilteredReasons != null) {
+        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
     }
     return toObject;
 }
-function candidateFromMldev(fromObject) {
+function generateVideosSourceToMldev(fromObject, parentObject) {
     const toObject = {};
-    const fromContent = getValueByPath(fromObject, ['content']);
-    if (fromContent != null) {
-        setValueByPath(toObject, ['content'], contentFromMldev(fromContent));
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (parentObject !== undefined && fromPrompt != null) {
+        setValueByPath(parentObject, ['instances[0]', 'prompt'], fromPrompt);
     }
-    const fromCitationMetadata = getValueByPath(fromObject, [
-        'citationMetadata',
-    ]);
-    if (fromCitationMetadata != null) {
-        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromMldev(fromCitationMetadata));
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (parentObject !== undefined && fromImage != null) {
+        setValueByPath(parentObject, ['instances[0]', 'image'], imageToMldev(fromImage));
     }
-    const fromTokenCount = getValueByPath(fromObject, ['tokenCount']);
-    if (fromTokenCount != null) {
-        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
-    }
-    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
-    if (fromFinishReason != null) {
-        setValueByPath(toObject, ['finishReason'], fromFinishReason);
-    }
-    const fromUrlContextMetadata = getValueByPath(fromObject, [
-        'urlContextMetadata',
-    ]);
-    if (fromUrlContextMetadata != null) {
-        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromMldev(fromUrlContextMetadata));
-    }
-    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
-    if (fromAvgLogprobs != null) {
-        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
-    }
-    const fromGroundingMetadata = getValueByPath(fromObject, [
-        'groundingMetadata',
-    ]);
-    if (fromGroundingMetadata != null) {
-        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
-    }
-    const fromIndex = getValueByPath(fromObject, ['index']);
-    if (fromIndex != null) {
-        setValueByPath(toObject, ['index'], fromIndex);
-    }
-    const fromLogprobsResult = getValueByPath(fromObject, [
-        'logprobsResult',
-    ]);
-    if (fromLogprobsResult != null) {
-        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
-    }
-    const fromSafetyRatings = getValueByPath(fromObject, [
-        'safetyRatings',
-    ]);
-    if (fromSafetyRatings != null) {
-        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
+    if (getValueByPath(fromObject, ['video']) !== undefined) {
+        throw new Error('video parameter is not supported in Gemini API.');
     }
     return toObject;
 }
-function generateContentResponseFromMldev(fromObject) {
+function generateVideosSourceToVertex(fromObject, parentObject) {
     const toObject = {};
-    const fromCandidates = getValueByPath(fromObject, ['candidates']);
-    if (fromCandidates != null) {
-        let transformedList = fromCandidates;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return candidateFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['candidates'], transformedList);
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (parentObject !== undefined && fromPrompt != null) {
+        setValueByPath(parentObject, ['instances[0]', 'prompt'], fromPrompt);
     }
-    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
-    if (fromModelVersion != null) {
-        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (parentObject !== undefined && fromImage != null) {
+        setValueByPath(parentObject, ['instances[0]', 'image'], imageToVertex(fromImage));
     }
-    const fromPromptFeedback = getValueByPath(fromObject, [
-        'promptFeedback',
-    ]);
-    if (fromPromptFeedback != null) {
-        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
-    }
-    return toObject;
-}
-function contentEmbeddingFromMldev(fromObject) {
-    const toObject = {};
-    const fromValues = getValueByPath(fromObject, ['values']);
-    if (fromValues != null) {
-        setValueByPath(toObject, ['values'], fromValues);
-    }
-    return toObject;
-}
-function embedContentMetadataFromMldev() {
-    const toObject = {};
-    return toObject;
-}
-function embedContentResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromEmbeddings = getValueByPath(fromObject, ['embeddings']);
-    if (fromEmbeddings != null) {
-        let transformedList = fromEmbeddings;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentEmbeddingFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['embeddings'], transformedList);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], embedContentMetadataFromMldev());
-    }
-    return toObject;
-}
-function imageFromMldev(fromObject) {
-    const toObject = {};
-    const fromImageBytes = getValueByPath(fromObject, [
-        'bytesBase64Encoded',
-    ]);
-    if (fromImageBytes != null) {
-        setValueByPath(toObject, ['imageBytes'], tBytes(fromImageBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function safetyAttributesFromMldev(fromObject) {
-    const toObject = {};
-    const fromCategories = getValueByPath(fromObject, [
-        'safetyAttributes',
-        'categories',
-    ]);
-    if (fromCategories != null) {
-        setValueByPath(toObject, ['categories'], fromCategories);
-    }
-    const fromScores = getValueByPath(fromObject, [
-        'safetyAttributes',
-        'scores',
-    ]);
-    if (fromScores != null) {
-        setValueByPath(toObject, ['scores'], fromScores);
-    }
-    const fromContentType = getValueByPath(fromObject, ['contentType']);
-    if (fromContentType != null) {
-        setValueByPath(toObject, ['contentType'], fromContentType);
+    const fromVideo = getValueByPath(fromObject, ['video']);
+    if (parentObject !== undefined && fromVideo != null) {
+        setValueByPath(parentObject, ['instances[0]', 'video'], videoToVertex(fromVideo));
     }
     return toObject;
 }
@@ -16043,41 +12569,369 @@ function generatedImageFromMldev(fromObject) {
     }
     return toObject;
 }
-function generateImagesResponseFromMldev(fromObject) {
+function generatedImageFromVertex(fromObject) {
     const toObject = {};
-    const fromGeneratedImages = getValueByPath(fromObject, [
-        'predictions',
-    ]);
-    if (fromGeneratedImages != null) {
-        let transformedList = fromGeneratedImages;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedImageFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedImages'], transformedList);
+    const fromImage = getValueByPath(fromObject, ['_self']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['image'], imageFromVertex(fromImage));
     }
-    const fromPositivePromptSafetyAttributes = getValueByPath(fromObject, [
-        'positivePromptSafetyAttributes',
+    const fromRaiFilteredReason = getValueByPath(fromObject, [
+        'raiFilteredReason',
     ]);
-    if (fromPositivePromptSafetyAttributes != null) {
-        setValueByPath(toObject, ['positivePromptSafetyAttributes'], safetyAttributesFromMldev(fromPositivePromptSafetyAttributes));
+    if (fromRaiFilteredReason != null) {
+        setValueByPath(toObject, ['raiFilteredReason'], fromRaiFilteredReason);
+    }
+    const fromSafetyAttributes = getValueByPath(fromObject, ['_self']);
+    if (fromSafetyAttributes != null) {
+        setValueByPath(toObject, ['safetyAttributes'], safetyAttributesFromVertex(fromSafetyAttributes));
+    }
+    const fromEnhancedPrompt = getValueByPath(fromObject, ['prompt']);
+    if (fromEnhancedPrompt != null) {
+        setValueByPath(toObject, ['enhancedPrompt'], fromEnhancedPrompt);
     }
     return toObject;
 }
-function tunedModelInfoFromMldev(fromObject) {
+function generatedImageMaskFromVertex(fromObject) {
     const toObject = {};
-    const fromBaseModel = getValueByPath(fromObject, ['baseModel']);
-    if (fromBaseModel != null) {
-        setValueByPath(toObject, ['baseModel'], fromBaseModel);
+    const fromMask = getValueByPath(fromObject, ['_self']);
+    if (fromMask != null) {
+        setValueByPath(toObject, ['mask'], imageFromVertex(fromMask));
     }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    const fromLabels = getValueByPath(fromObject, ['labels']);
+    if (fromLabels != null) {
+        let transformedList = fromLabels;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return entityLabelFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['labels'], transformedList);
     }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    return toObject;
+}
+function generatedVideoFromMldev(fromObject) {
+    const toObject = {};
+    const fromVideo = getValueByPath(fromObject, ['_self']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], videoFromMldev(fromVideo));
+    }
+    return toObject;
+}
+function generatedVideoFromVertex(fromObject) {
+    const toObject = {};
+    const fromVideo = getValueByPath(fromObject, ['_self']);
+    if (fromVideo != null) {
+        setValueByPath(toObject, ['video'], videoFromVertex(fromVideo));
+    }
+    return toObject;
+}
+function getModelParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
+    }
+    return toObject;
+}
+function getModelParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
+    }
+    return toObject;
+}
+function googleMapsToVertex(fromObject) {
+    const toObject = {};
+    const fromAuthConfig = getValueByPath(fromObject, ['authConfig']);
+    if (fromAuthConfig != null) {
+        setValueByPath(toObject, ['authConfig'], authConfigToVertex(fromAuthConfig));
+    }
+    return toObject;
+}
+function googleSearchRetrievalToMldev$1(fromObject) {
+    const toObject = {};
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev$1(fromDynamicRetrievalConfig));
+    }
+    return toObject;
+}
+function googleSearchRetrievalToVertex(fromObject) {
+    const toObject = {};
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToVertex(fromDynamicRetrievalConfig));
+    }
+    return toObject;
+}
+function googleSearchToMldev$1(fromObject) {
+    const toObject = {};
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev$1(fromTimeRangeFilter));
+    }
+    if (getValueByPath(fromObject, ['excludeDomains']) !== undefined) {
+        throw new Error('excludeDomains parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function googleSearchToVertex(fromObject) {
+    const toObject = {};
+    const fromTimeRangeFilter = getValueByPath(fromObject, [
+        'timeRangeFilter',
+    ]);
+    if (fromTimeRangeFilter != null) {
+        setValueByPath(toObject, ['timeRangeFilter'], intervalToVertex(fromTimeRangeFilter));
+    }
+    const fromExcludeDomains = getValueByPath(fromObject, [
+        'excludeDomains',
+    ]);
+    if (fromExcludeDomains != null) {
+        setValueByPath(toObject, ['excludeDomains'], fromExcludeDomains);
+    }
+    return toObject;
+}
+function imageFromMldev(fromObject) {
+    const toObject = {};
+    const fromImageBytes = getValueByPath(fromObject, [
+        'bytesBase64Encoded',
+    ]);
+    if (fromImageBytes != null) {
+        setValueByPath(toObject, ['imageBytes'], tBytes(fromImageBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function imageFromVertex(fromObject) {
+    const toObject = {};
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
+    }
+    const fromImageBytes = getValueByPath(fromObject, [
+        'bytesBase64Encoded',
+    ]);
+    if (fromImageBytes != null) {
+        setValueByPath(toObject, ['imageBytes'], tBytes(fromImageBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function imageToMldev(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
+        throw new Error('gcsUri parameter is not supported in Gemini API.');
+    }
+    const fromImageBytes = getValueByPath(fromObject, ['imageBytes']);
+    if (fromImageBytes != null) {
+        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromImageBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function imageToVertex(fromObject) {
+    const toObject = {};
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
+    }
+    const fromImageBytes = getValueByPath(fromObject, ['imageBytes']);
+    if (fromImageBytes != null) {
+        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromImageBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function intervalToMldev$1(fromObject) {
+    const toObject = {};
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    return toObject;
+}
+function intervalToVertex(fromObject) {
+    const toObject = {};
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
+    }
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
+    }
+    return toObject;
+}
+function latLngToMldev(fromObject) {
+    const toObject = {};
+    const fromLatitude = getValueByPath(fromObject, ['latitude']);
+    if (fromLatitude != null) {
+        setValueByPath(toObject, ['latitude'], fromLatitude);
+    }
+    const fromLongitude = getValueByPath(fromObject, ['longitude']);
+    if (fromLongitude != null) {
+        setValueByPath(toObject, ['longitude'], fromLongitude);
+    }
+    return toObject;
+}
+function latLngToVertex(fromObject) {
+    const toObject = {};
+    const fromLatitude = getValueByPath(fromObject, ['latitude']);
+    if (fromLatitude != null) {
+        setValueByPath(toObject, ['latitude'], fromLatitude);
+    }
+    const fromLongitude = getValueByPath(fromObject, ['longitude']);
+    if (fromLongitude != null) {
+        setValueByPath(toObject, ['longitude'], fromLongitude);
+    }
+    return toObject;
+}
+function listModelsConfigToMldev(apiClient, fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    }
+    const fromFilter = getValueByPath(fromObject, ['filter']);
+    if (parentObject !== undefined && fromFilter != null) {
+        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
+    }
+    const fromQueryBase = getValueByPath(fromObject, ['queryBase']);
+    if (parentObject !== undefined && fromQueryBase != null) {
+        setValueByPath(parentObject, ['_url', 'models_url'], tModelsUrl(apiClient, fromQueryBase));
+    }
+    return toObject;
+}
+function listModelsConfigToVertex(apiClient, fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    }
+    const fromFilter = getValueByPath(fromObject, ['filter']);
+    if (parentObject !== undefined && fromFilter != null) {
+        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
+    }
+    const fromQueryBase = getValueByPath(fromObject, ['queryBase']);
+    if (parentObject !== undefined && fromQueryBase != null) {
+        setValueByPath(parentObject, ['_url', 'models_url'], tModelsUrl(apiClient, fromQueryBase));
+    }
+    return toObject;
+}
+function listModelsParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listModelsConfigToMldev(apiClient, fromConfig, toObject);
+    }
+    return toObject;
+}
+function listModelsParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listModelsConfigToVertex(apiClient, fromConfig, toObject);
+    }
+    return toObject;
+}
+function listModelsResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    }
+    const fromModels = getValueByPath(fromObject, ['_self']);
+    if (fromModels != null) {
+        let transformedList = tExtractModels(fromModels);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return modelFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['models'], transformedList);
+    }
+    return toObject;
+}
+function listModelsResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    }
+    const fromModels = getValueByPath(fromObject, ['_self']);
+    if (fromModels != null) {
+        let transformedList = tExtractModels(fromModels);
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return modelFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['models'], transformedList);
+    }
+    return toObject;
+}
+function maskReferenceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromMaskMode = getValueByPath(fromObject, ['maskMode']);
+    if (fromMaskMode != null) {
+        setValueByPath(toObject, ['maskMode'], fromMaskMode);
+    }
+    const fromSegmentationClasses = getValueByPath(fromObject, [
+        'segmentationClasses',
+    ]);
+    if (fromSegmentationClasses != null) {
+        setValueByPath(toObject, ['maskClasses'], fromSegmentationClasses);
+    }
+    const fromMaskDilation = getValueByPath(fromObject, ['maskDilation']);
+    if (fromMaskDilation != null) {
+        setValueByPath(toObject, ['dilation'], fromMaskDilation);
     }
     return toObject;
 }
@@ -16120,596 +12974,6 @@ function modelFromMldev(fromObject) {
     ]);
     if (fromSupportedActions != null) {
         setValueByPath(toObject, ['supportedActions'], fromSupportedActions);
-    }
-    return toObject;
-}
-function listModelsResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
-    ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
-    }
-    const fromModels = getValueByPath(fromObject, ['_self']);
-    if (fromModels != null) {
-        let transformedList = tExtractModels(fromModels);
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return modelFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['models'], transformedList);
-    }
-    return toObject;
-}
-function deleteModelResponseFromMldev() {
-    const toObject = {};
-    return toObject;
-}
-function countTokensResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromTotalTokens = getValueByPath(fromObject, ['totalTokens']);
-    if (fromTotalTokens != null) {
-        setValueByPath(toObject, ['totalTokens'], fromTotalTokens);
-    }
-    const fromCachedContentTokenCount = getValueByPath(fromObject, [
-        'cachedContentTokenCount',
-    ]);
-    if (fromCachedContentTokenCount != null) {
-        setValueByPath(toObject, ['cachedContentTokenCount'], fromCachedContentTokenCount);
-    }
-    return toObject;
-}
-function videoFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromUri = getValueByPath(fromObject, ['video', 'uri']);
-    if (fromUri != null) {
-        setValueByPath(toObject, ['uri'], fromUri);
-    }
-    const fromVideoBytes = getValueByPath(fromObject, [
-        'video',
-        'encodedVideo',
-    ]);
-    if (fromVideoBytes != null) {
-        setValueByPath(toObject, ['videoBytes'], tBytes(fromVideoBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['encoding']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function generatedVideoFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromVideo = getValueByPath(fromObject, ['_self']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], videoFromMldev$1(fromVideo));
-    }
-    return toObject;
-}
-function generateVideosResponseFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromGeneratedVideos = getValueByPath(fromObject, [
-        'generatedSamples',
-    ]);
-    if (fromGeneratedVideos != null) {
-        let transformedList = fromGeneratedVideos;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedVideoFromMldev$1(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedVideos'], transformedList);
-    }
-    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
-        'raiMediaFilteredCount',
-    ]);
-    if (fromRaiMediaFilteredCount != null) {
-        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
-    }
-    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
-        'raiMediaFilteredReasons',
-    ]);
-    if (fromRaiMediaFilteredReasons != null) {
-        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
-    }
-    return toObject;
-}
-function generateVideosOperationFromMldev$1(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], fromMetadata);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fromError);
-    }
-    const fromResponse = getValueByPath(fromObject, [
-        'response',
-        'generateVideoResponse',
-    ]);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], generateVideosResponseFromMldev$1(fromResponse));
-    }
-    return toObject;
-}
-function videoMetadataFromVertex(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
-    }
-    return toObject;
-}
-function blobFromVertex(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromData = getValueByPath(fromObject, ['data']);
-    if (fromData != null) {
-        setValueByPath(toObject, ['data'], fromData);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function fileDataFromVertex(fromObject) {
-    const toObject = {};
-    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
-    if (fromDisplayName != null) {
-        setValueByPath(toObject, ['displayName'], fromDisplayName);
-    }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partFromVertex(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromVertex(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobFromVertex(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataFromVertex(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
-function contentFromVertex(fromObject) {
-    const toObject = {};
-    const fromParts = getValueByPath(fromObject, ['parts']);
-    if (fromParts != null) {
-        let transformedList = fromParts;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return partFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['parts'], transformedList);
-    }
-    const fromRole = getValueByPath(fromObject, ['role']);
-    if (fromRole != null) {
-        setValueByPath(toObject, ['role'], fromRole);
-    }
-    return toObject;
-}
-function citationMetadataFromVertex(fromObject) {
-    const toObject = {};
-    const fromCitations = getValueByPath(fromObject, ['citations']);
-    if (fromCitations != null) {
-        setValueByPath(toObject, ['citations'], fromCitations);
-    }
-    return toObject;
-}
-function urlMetadataFromVertex(fromObject) {
-    const toObject = {};
-    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
-    if (fromRetrievedUrl != null) {
-        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
-    }
-    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
-        'urlRetrievalStatus',
-    ]);
-    if (fromUrlRetrievalStatus != null) {
-        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
-    }
-    return toObject;
-}
-function urlContextMetadataFromVertex(fromObject) {
-    const toObject = {};
-    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
-    if (fromUrlMetadata != null) {
-        let transformedList = fromUrlMetadata;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return urlMetadataFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['urlMetadata'], transformedList);
-    }
-    return toObject;
-}
-function candidateFromVertex(fromObject) {
-    const toObject = {};
-    const fromContent = getValueByPath(fromObject, ['content']);
-    if (fromContent != null) {
-        setValueByPath(toObject, ['content'], contentFromVertex(fromContent));
-    }
-    const fromCitationMetadata = getValueByPath(fromObject, [
-        'citationMetadata',
-    ]);
-    if (fromCitationMetadata != null) {
-        setValueByPath(toObject, ['citationMetadata'], citationMetadataFromVertex(fromCitationMetadata));
-    }
-    const fromFinishMessage = getValueByPath(fromObject, [
-        'finishMessage',
-    ]);
-    if (fromFinishMessage != null) {
-        setValueByPath(toObject, ['finishMessage'], fromFinishMessage);
-    }
-    const fromFinishReason = getValueByPath(fromObject, ['finishReason']);
-    if (fromFinishReason != null) {
-        setValueByPath(toObject, ['finishReason'], fromFinishReason);
-    }
-    const fromUrlContextMetadata = getValueByPath(fromObject, [
-        'urlContextMetadata',
-    ]);
-    if (fromUrlContextMetadata != null) {
-        setValueByPath(toObject, ['urlContextMetadata'], urlContextMetadataFromVertex(fromUrlContextMetadata));
-    }
-    const fromAvgLogprobs = getValueByPath(fromObject, ['avgLogprobs']);
-    if (fromAvgLogprobs != null) {
-        setValueByPath(toObject, ['avgLogprobs'], fromAvgLogprobs);
-    }
-    const fromGroundingMetadata = getValueByPath(fromObject, [
-        'groundingMetadata',
-    ]);
-    if (fromGroundingMetadata != null) {
-        setValueByPath(toObject, ['groundingMetadata'], fromGroundingMetadata);
-    }
-    const fromIndex = getValueByPath(fromObject, ['index']);
-    if (fromIndex != null) {
-        setValueByPath(toObject, ['index'], fromIndex);
-    }
-    const fromLogprobsResult = getValueByPath(fromObject, [
-        'logprobsResult',
-    ]);
-    if (fromLogprobsResult != null) {
-        setValueByPath(toObject, ['logprobsResult'], fromLogprobsResult);
-    }
-    const fromSafetyRatings = getValueByPath(fromObject, [
-        'safetyRatings',
-    ]);
-    if (fromSafetyRatings != null) {
-        setValueByPath(toObject, ['safetyRatings'], fromSafetyRatings);
-    }
-    return toObject;
-}
-function generateContentResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromCandidates = getValueByPath(fromObject, ['candidates']);
-    if (fromCandidates != null) {
-        let transformedList = fromCandidates;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return candidateFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['candidates'], transformedList);
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromResponseId = getValueByPath(fromObject, ['responseId']);
-    if (fromResponseId != null) {
-        setValueByPath(toObject, ['responseId'], fromResponseId);
-    }
-    const fromModelVersion = getValueByPath(fromObject, ['modelVersion']);
-    if (fromModelVersion != null) {
-        setValueByPath(toObject, ['modelVersion'], fromModelVersion);
-    }
-    const fromPromptFeedback = getValueByPath(fromObject, [
-        'promptFeedback',
-    ]);
-    if (fromPromptFeedback != null) {
-        setValueByPath(toObject, ['promptFeedback'], fromPromptFeedback);
-    }
-    const fromUsageMetadata = getValueByPath(fromObject, [
-        'usageMetadata',
-    ]);
-    if (fromUsageMetadata != null) {
-        setValueByPath(toObject, ['usageMetadata'], fromUsageMetadata);
-    }
-    return toObject;
-}
-function contentEmbeddingStatisticsFromVertex(fromObject) {
-    const toObject = {};
-    const fromTruncated = getValueByPath(fromObject, ['truncated']);
-    if (fromTruncated != null) {
-        setValueByPath(toObject, ['truncated'], fromTruncated);
-    }
-    const fromTokenCount = getValueByPath(fromObject, ['token_count']);
-    if (fromTokenCount != null) {
-        setValueByPath(toObject, ['tokenCount'], fromTokenCount);
-    }
-    return toObject;
-}
-function contentEmbeddingFromVertex(fromObject) {
-    const toObject = {};
-    const fromValues = getValueByPath(fromObject, ['values']);
-    if (fromValues != null) {
-        setValueByPath(toObject, ['values'], fromValues);
-    }
-    const fromStatistics = getValueByPath(fromObject, ['statistics']);
-    if (fromStatistics != null) {
-        setValueByPath(toObject, ['statistics'], contentEmbeddingStatisticsFromVertex(fromStatistics));
-    }
-    return toObject;
-}
-function embedContentMetadataFromVertex(fromObject) {
-    const toObject = {};
-    const fromBillableCharacterCount = getValueByPath(fromObject, [
-        'billableCharacterCount',
-    ]);
-    if (fromBillableCharacterCount != null) {
-        setValueByPath(toObject, ['billableCharacterCount'], fromBillableCharacterCount);
-    }
-    return toObject;
-}
-function embedContentResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromEmbeddings = getValueByPath(fromObject, [
-        'predictions[]',
-        'embeddings',
-    ]);
-    if (fromEmbeddings != null) {
-        let transformedList = fromEmbeddings;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return contentEmbeddingFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['embeddings'], transformedList);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], embedContentMetadataFromVertex(fromMetadata));
-    }
-    return toObject;
-}
-function imageFromVertex(fromObject) {
-    const toObject = {};
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['gcsUri'], fromGcsUri);
-    }
-    const fromImageBytes = getValueByPath(fromObject, [
-        'bytesBase64Encoded',
-    ]);
-    if (fromImageBytes != null) {
-        setValueByPath(toObject, ['imageBytes'], tBytes(fromImageBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function safetyAttributesFromVertex(fromObject) {
-    const toObject = {};
-    const fromCategories = getValueByPath(fromObject, [
-        'safetyAttributes',
-        'categories',
-    ]);
-    if (fromCategories != null) {
-        setValueByPath(toObject, ['categories'], fromCategories);
-    }
-    const fromScores = getValueByPath(fromObject, [
-        'safetyAttributes',
-        'scores',
-    ]);
-    if (fromScores != null) {
-        setValueByPath(toObject, ['scores'], fromScores);
-    }
-    const fromContentType = getValueByPath(fromObject, ['contentType']);
-    if (fromContentType != null) {
-        setValueByPath(toObject, ['contentType'], fromContentType);
-    }
-    return toObject;
-}
-function generatedImageFromVertex(fromObject) {
-    const toObject = {};
-    const fromImage = getValueByPath(fromObject, ['_self']);
-    if (fromImage != null) {
-        setValueByPath(toObject, ['image'], imageFromVertex(fromImage));
-    }
-    const fromRaiFilteredReason = getValueByPath(fromObject, [
-        'raiFilteredReason',
-    ]);
-    if (fromRaiFilteredReason != null) {
-        setValueByPath(toObject, ['raiFilteredReason'], fromRaiFilteredReason);
-    }
-    const fromSafetyAttributes = getValueByPath(fromObject, ['_self']);
-    if (fromSafetyAttributes != null) {
-        setValueByPath(toObject, ['safetyAttributes'], safetyAttributesFromVertex(fromSafetyAttributes));
-    }
-    const fromEnhancedPrompt = getValueByPath(fromObject, ['prompt']);
-    if (fromEnhancedPrompt != null) {
-        setValueByPath(toObject, ['enhancedPrompt'], fromEnhancedPrompt);
-    }
-    return toObject;
-}
-function generateImagesResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromGeneratedImages = getValueByPath(fromObject, [
-        'predictions',
-    ]);
-    if (fromGeneratedImages != null) {
-        let transformedList = fromGeneratedImages;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedImageFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedImages'], transformedList);
-    }
-    const fromPositivePromptSafetyAttributes = getValueByPath(fromObject, [
-        'positivePromptSafetyAttributes',
-    ]);
-    if (fromPositivePromptSafetyAttributes != null) {
-        setValueByPath(toObject, ['positivePromptSafetyAttributes'], safetyAttributesFromVertex(fromPositivePromptSafetyAttributes));
-    }
-    return toObject;
-}
-function editImageResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromGeneratedImages = getValueByPath(fromObject, [
-        'predictions',
-    ]);
-    if (fromGeneratedImages != null) {
-        let transformedList = fromGeneratedImages;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedImageFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedImages'], transformedList);
-    }
-    return toObject;
-}
-function upscaleImageResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromGeneratedImages = getValueByPath(fromObject, [
-        'predictions',
-    ]);
-    if (fromGeneratedImages != null) {
-        let transformedList = fromGeneratedImages;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedImageFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedImages'], transformedList);
-    }
-    return toObject;
-}
-function endpointFromVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['endpoint']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromDeployedModelId = getValueByPath(fromObject, [
-        'deployedModelId',
-    ]);
-    if (fromDeployedModelId != null) {
-        setValueByPath(toObject, ['deployedModelId'], fromDeployedModelId);
-    }
-    return toObject;
-}
-function tunedModelInfoFromVertex(fromObject) {
-    const toObject = {};
-    const fromBaseModel = getValueByPath(fromObject, [
-        'labels',
-        'google-vertex-llm-tuning-base-model-id',
-    ]);
-    if (fromBaseModel != null) {
-        setValueByPath(toObject, ['baseModel'], fromBaseModel);
-    }
-    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
-    if (fromCreateTime != null) {
-        setValueByPath(toObject, ['createTime'], fromCreateTime);
-    }
-    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
-    if (fromUpdateTime != null) {
-        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
-    }
-    return toObject;
-}
-function checkpointFromVertex(fromObject) {
-    const toObject = {};
-    const fromCheckpointId = getValueByPath(fromObject, ['checkpointId']);
-    if (fromCheckpointId != null) {
-        setValueByPath(toObject, ['checkpointId'], fromCheckpointId);
-    }
-    const fromEpoch = getValueByPath(fromObject, ['epoch']);
-    if (fromEpoch != null) {
-        setValueByPath(toObject, ['epoch'], fromEpoch);
-    }
-    const fromStep = getValueByPath(fromObject, ['step']);
-    if (fromStep != null) {
-        setValueByPath(toObject, ['step'], fromStep);
     }
     return toObject;
 }
@@ -16767,47 +13031,1344 @@ function modelFromVertex(fromObject) {
     }
     return toObject;
 }
-function listModelsResponseFromVertex(fromObject) {
+function modelSelectionConfigToVertex(fromObject) {
     const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
+    const fromFeatureSelectionPreference = getValueByPath(fromObject, [
+        'featureSelectionPreference',
     ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    if (fromFeatureSelectionPreference != null) {
+        setValueByPath(toObject, ['featureSelectionPreference'], fromFeatureSelectionPreference);
     }
-    const fromModels = getValueByPath(fromObject, ['_self']);
-    if (fromModels != null) {
-        let transformedList = tExtractModels(fromModels);
+    return toObject;
+}
+function multiSpeakerVoiceConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
+        'speakerVoiceConfigs',
+    ]);
+    if (fromSpeakerVoiceConfigs != null) {
+        let transformedList = fromSpeakerVoiceConfigs;
         if (Array.isArray(transformedList)) {
             transformedList = transformedList.map((item) => {
-                return modelFromVertex(item);
+                return speakerVoiceConfigToMldev$1(item);
             });
         }
-        setValueByPath(toObject, ['models'], transformedList);
+        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
     }
     return toObject;
 }
-function deleteModelResponseFromVertex() {
+function partFromMldev(fromObject) {
     const toObject = {};
-    return toObject;
-}
-function countTokensResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromTotalTokens = getValueByPath(fromObject, ['totalTokens']);
-    if (fromTotalTokens != null) {
-        setValueByPath(toObject, ['totalTokens'], fromTotalTokens);
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromMldev(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobFromMldev(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataFromMldev(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallFromMldev(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
     }
     return toObject;
 }
-function computeTokensResponseFromVertex(fromObject) {
+function partFromVertex(fromObject) {
     const toObject = {};
-    const fromTokensInfo = getValueByPath(fromObject, ['tokensInfo']);
-    if (fromTokensInfo != null) {
-        setValueByPath(toObject, ['tokensInfo'], fromTokensInfo);
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataFromVertex(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobFromVertex(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataFromVertex(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallFromVertex(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
     }
     return toObject;
 }
-function videoFromVertex$1(fromObject) {
+function partToMldev$1(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev$1(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToMldev$1(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToMldev$1(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToMldev$1(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function partToVertex(fromObject) {
+    const toObject = {};
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToVertex(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToVertex(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToVertex(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToVertex(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
+    }
+    return toObject;
+}
+function prebuiltVoiceConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function prebuiltVoiceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function productImageToVertex(fromObject) {
+    const toObject = {};
+    const fromProductImage = getValueByPath(fromObject, ['productImage']);
+    if (fromProductImage != null) {
+        setValueByPath(toObject, ['image'], imageToVertex(fromProductImage));
+    }
+    return toObject;
+}
+function recontextImageConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromNumberOfImages = getValueByPath(fromObject, [
+        'numberOfImages',
+    ]);
+    if (parentObject !== undefined && fromNumberOfImages != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
+    }
+    const fromBaseSteps = getValueByPath(fromObject, ['baseSteps']);
+    if (parentObject !== undefined && fromBaseSteps != null) {
+        setValueByPath(parentObject, ['parameters', 'editConfig', 'baseSteps'], fromBaseSteps);
+    }
+    const fromOutputGcsUri = getValueByPath(fromObject, ['outputGcsUri']);
+    if (parentObject !== undefined && fromOutputGcsUri != null) {
+        setValueByPath(parentObject, ['parameters', 'storageUri'], fromOutputGcsUri);
+    }
+    const fromSeed = getValueByPath(fromObject, ['seed']);
+    if (parentObject !== undefined && fromSeed != null) {
+        setValueByPath(parentObject, ['parameters', 'seed'], fromSeed);
+    }
+    const fromSafetyFilterLevel = getValueByPath(fromObject, [
+        'safetyFilterLevel',
+    ]);
+    if (parentObject !== undefined && fromSafetyFilterLevel != null) {
+        setValueByPath(parentObject, ['parameters', 'safetySetting'], fromSafetyFilterLevel);
+    }
+    const fromPersonGeneration = getValueByPath(fromObject, [
+        'personGeneration',
+    ]);
+    if (parentObject !== undefined && fromPersonGeneration != null) {
+        setValueByPath(parentObject, ['parameters', 'personGeneration'], fromPersonGeneration);
+    }
+    const fromAddWatermark = getValueByPath(fromObject, ['addWatermark']);
+    if (parentObject !== undefined && fromAddWatermark != null) {
+        setValueByPath(parentObject, ['parameters', 'addWatermark'], fromAddWatermark);
+    }
+    const fromOutputMimeType = getValueByPath(fromObject, [
+        'outputMimeType',
+    ]);
+    if (parentObject !== undefined && fromOutputMimeType != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
+    }
+    const fromOutputCompressionQuality = getValueByPath(fromObject, [
+        'outputCompressionQuality',
+    ]);
+    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
+    }
+    const fromEnhancePrompt = getValueByPath(fromObject, [
+        'enhancePrompt',
+    ]);
+    if (parentObject !== undefined && fromEnhancePrompt != null) {
+        setValueByPath(parentObject, ['parameters', 'enhancePrompt'], fromEnhancePrompt);
+    }
+    return toObject;
+}
+function recontextImageParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromSource = getValueByPath(fromObject, ['source']);
+    if (fromSource != null) {
+        recontextImageSourceToVertex(fromSource, toObject);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        recontextImageConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function recontextImageResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromGeneratedImages = getValueByPath(fromObject, [
+        'predictions',
+    ]);
+    if (fromGeneratedImages != null) {
+        let transformedList = fromGeneratedImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedImages'], transformedList);
+    }
+    return toObject;
+}
+function recontextImageSourceToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (parentObject !== undefined && fromPrompt != null) {
+        setValueByPath(parentObject, ['instances[0]', 'prompt'], fromPrompt);
+    }
+    const fromPersonImage = getValueByPath(fromObject, ['personImage']);
+    if (parentObject !== undefined && fromPersonImage != null) {
+        setValueByPath(parentObject, ['instances[0]', 'personImage', 'image'], imageToVertex(fromPersonImage));
+    }
+    const fromProductImages = getValueByPath(fromObject, [
+        'productImages',
+    ]);
+    if (parentObject !== undefined && fromProductImages != null) {
+        let transformedList = fromProductImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return productImageToVertex(item);
+            });
+        }
+        setValueByPath(parentObject, ['instances[0]', 'productImages'], transformedList);
+    }
+    return toObject;
+}
+function referenceImageAPIInternalToVertex(fromObject) {
+    const toObject = {};
+    const fromReferenceImage = getValueByPath(fromObject, [
+        'referenceImage',
+    ]);
+    if (fromReferenceImage != null) {
+        setValueByPath(toObject, ['referenceImage'], imageToVertex(fromReferenceImage));
+    }
+    const fromReferenceId = getValueByPath(fromObject, ['referenceId']);
+    if (fromReferenceId != null) {
+        setValueByPath(toObject, ['referenceId'], fromReferenceId);
+    }
+    const fromReferenceType = getValueByPath(fromObject, [
+        'referenceType',
+    ]);
+    if (fromReferenceType != null) {
+        setValueByPath(toObject, ['referenceType'], fromReferenceType);
+    }
+    const fromMaskImageConfig = getValueByPath(fromObject, [
+        'maskImageConfig',
+    ]);
+    if (fromMaskImageConfig != null) {
+        setValueByPath(toObject, ['maskImageConfig'], maskReferenceConfigToVertex(fromMaskImageConfig));
+    }
+    const fromControlImageConfig = getValueByPath(fromObject, [
+        'controlImageConfig',
+    ]);
+    if (fromControlImageConfig != null) {
+        setValueByPath(toObject, ['controlImageConfig'], controlReferenceConfigToVertex(fromControlImageConfig));
+    }
+    const fromStyleImageConfig = getValueByPath(fromObject, [
+        'styleImageConfig',
+    ]);
+    if (fromStyleImageConfig != null) {
+        setValueByPath(toObject, ['styleImageConfig'], styleReferenceConfigToVertex(fromStyleImageConfig));
+    }
+    const fromSubjectImageConfig = getValueByPath(fromObject, [
+        'subjectImageConfig',
+    ]);
+    if (fromSubjectImageConfig != null) {
+        setValueByPath(toObject, ['subjectImageConfig'], subjectReferenceConfigToVertex(fromSubjectImageConfig));
+    }
+    return toObject;
+}
+function retrievalConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromLatLng = getValueByPath(fromObject, ['latLng']);
+    if (fromLatLng != null) {
+        setValueByPath(toObject, ['latLng'], latLngToMldev(fromLatLng));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function retrievalConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromLatLng = getValueByPath(fromObject, ['latLng']);
+    if (fromLatLng != null) {
+        setValueByPath(toObject, ['latLng'], latLngToVertex(fromLatLng));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function safetyAttributesFromMldev(fromObject) {
+    const toObject = {};
+    const fromCategories = getValueByPath(fromObject, [
+        'safetyAttributes',
+        'categories',
+    ]);
+    if (fromCategories != null) {
+        setValueByPath(toObject, ['categories'], fromCategories);
+    }
+    const fromScores = getValueByPath(fromObject, [
+        'safetyAttributes',
+        'scores',
+    ]);
+    if (fromScores != null) {
+        setValueByPath(toObject, ['scores'], fromScores);
+    }
+    const fromContentType = getValueByPath(fromObject, ['contentType']);
+    if (fromContentType != null) {
+        setValueByPath(toObject, ['contentType'], fromContentType);
+    }
+    return toObject;
+}
+function safetyAttributesFromVertex(fromObject) {
+    const toObject = {};
+    const fromCategories = getValueByPath(fromObject, [
+        'safetyAttributes',
+        'categories',
+    ]);
+    if (fromCategories != null) {
+        setValueByPath(toObject, ['categories'], fromCategories);
+    }
+    const fromScores = getValueByPath(fromObject, [
+        'safetyAttributes',
+        'scores',
+    ]);
+    if (fromScores != null) {
+        setValueByPath(toObject, ['scores'], fromScores);
+    }
+    const fromContentType = getValueByPath(fromObject, ['contentType']);
+    if (fromContentType != null) {
+        setValueByPath(toObject, ['contentType'], fromContentType);
+    }
+    return toObject;
+}
+function safetySettingToMldev(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['method']) !== undefined) {
+        throw new Error('method parameter is not supported in Gemini API.');
+    }
+    const fromCategory = getValueByPath(fromObject, ['category']);
+    if (fromCategory != null) {
+        setValueByPath(toObject, ['category'], fromCategory);
+    }
+    const fromThreshold = getValueByPath(fromObject, ['threshold']);
+    if (fromThreshold != null) {
+        setValueByPath(toObject, ['threshold'], fromThreshold);
+    }
+    return toObject;
+}
+function safetySettingToVertex(fromObject) {
+    const toObject = {};
+    const fromMethod = getValueByPath(fromObject, ['method']);
+    if (fromMethod != null) {
+        setValueByPath(toObject, ['method'], fromMethod);
+    }
+    const fromCategory = getValueByPath(fromObject, ['category']);
+    if (fromCategory != null) {
+        setValueByPath(toObject, ['category'], fromCategory);
+    }
+    const fromThreshold = getValueByPath(fromObject, ['threshold']);
+    if (fromThreshold != null) {
+        setValueByPath(toObject, ['threshold'], fromThreshold);
+    }
+    return toObject;
+}
+function schemaToMldev(fromObject) {
+    const toObject = {};
+    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
+    if (fromAnyOf != null) {
+        setValueByPath(toObject, ['anyOf'], fromAnyOf);
+    }
+    const fromDefault = getValueByPath(fromObject, ['default']);
+    if (fromDefault != null) {
+        setValueByPath(toObject, ['default'], fromDefault);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
+    }
+    const fromEnum = getValueByPath(fromObject, ['enum']);
+    if (fromEnum != null) {
+        setValueByPath(toObject, ['enum'], fromEnum);
+    }
+    const fromExample = getValueByPath(fromObject, ['example']);
+    if (fromExample != null) {
+        setValueByPath(toObject, ['example'], fromExample);
+    }
+    const fromFormat = getValueByPath(fromObject, ['format']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['format'], fromFormat);
+    }
+    const fromItems = getValueByPath(fromObject, ['items']);
+    if (fromItems != null) {
+        setValueByPath(toObject, ['items'], fromItems);
+    }
+    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
+    if (fromMaxItems != null) {
+        setValueByPath(toObject, ['maxItems'], fromMaxItems);
+    }
+    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
+    if (fromMaxLength != null) {
+        setValueByPath(toObject, ['maxLength'], fromMaxLength);
+    }
+    const fromMaxProperties = getValueByPath(fromObject, [
+        'maxProperties',
+    ]);
+    if (fromMaxProperties != null) {
+        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
+    }
+    const fromMaximum = getValueByPath(fromObject, ['maximum']);
+    if (fromMaximum != null) {
+        setValueByPath(toObject, ['maximum'], fromMaximum);
+    }
+    const fromMinItems = getValueByPath(fromObject, ['minItems']);
+    if (fromMinItems != null) {
+        setValueByPath(toObject, ['minItems'], fromMinItems);
+    }
+    const fromMinLength = getValueByPath(fromObject, ['minLength']);
+    if (fromMinLength != null) {
+        setValueByPath(toObject, ['minLength'], fromMinLength);
+    }
+    const fromMinProperties = getValueByPath(fromObject, [
+        'minProperties',
+    ]);
+    if (fromMinProperties != null) {
+        setValueByPath(toObject, ['minProperties'], fromMinProperties);
+    }
+    const fromMinimum = getValueByPath(fromObject, ['minimum']);
+    if (fromMinimum != null) {
+        setValueByPath(toObject, ['minimum'], fromMinimum);
+    }
+    const fromNullable = getValueByPath(fromObject, ['nullable']);
+    if (fromNullable != null) {
+        setValueByPath(toObject, ['nullable'], fromNullable);
+    }
+    const fromPattern = getValueByPath(fromObject, ['pattern']);
+    if (fromPattern != null) {
+        setValueByPath(toObject, ['pattern'], fromPattern);
+    }
+    const fromProperties = getValueByPath(fromObject, ['properties']);
+    if (fromProperties != null) {
+        setValueByPath(toObject, ['properties'], fromProperties);
+    }
+    const fromPropertyOrdering = getValueByPath(fromObject, [
+        'propertyOrdering',
+    ]);
+    if (fromPropertyOrdering != null) {
+        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
+    }
+    const fromRequired = getValueByPath(fromObject, ['required']);
+    if (fromRequired != null) {
+        setValueByPath(toObject, ['required'], fromRequired);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (fromTitle != null) {
+        setValueByPath(toObject, ['title'], fromTitle);
+    }
+    const fromType = getValueByPath(fromObject, ['type']);
+    if (fromType != null) {
+        setValueByPath(toObject, ['type'], fromType);
+    }
+    return toObject;
+}
+function schemaToVertex(fromObject) {
+    const toObject = {};
+    const fromAnyOf = getValueByPath(fromObject, ['anyOf']);
+    if (fromAnyOf != null) {
+        setValueByPath(toObject, ['anyOf'], fromAnyOf);
+    }
+    const fromDefault = getValueByPath(fromObject, ['default']);
+    if (fromDefault != null) {
+        setValueByPath(toObject, ['default'], fromDefault);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (fromDescription != null) {
+        setValueByPath(toObject, ['description'], fromDescription);
+    }
+    const fromEnum = getValueByPath(fromObject, ['enum']);
+    if (fromEnum != null) {
+        setValueByPath(toObject, ['enum'], fromEnum);
+    }
+    const fromExample = getValueByPath(fromObject, ['example']);
+    if (fromExample != null) {
+        setValueByPath(toObject, ['example'], fromExample);
+    }
+    const fromFormat = getValueByPath(fromObject, ['format']);
+    if (fromFormat != null) {
+        setValueByPath(toObject, ['format'], fromFormat);
+    }
+    const fromItems = getValueByPath(fromObject, ['items']);
+    if (fromItems != null) {
+        setValueByPath(toObject, ['items'], fromItems);
+    }
+    const fromMaxItems = getValueByPath(fromObject, ['maxItems']);
+    if (fromMaxItems != null) {
+        setValueByPath(toObject, ['maxItems'], fromMaxItems);
+    }
+    const fromMaxLength = getValueByPath(fromObject, ['maxLength']);
+    if (fromMaxLength != null) {
+        setValueByPath(toObject, ['maxLength'], fromMaxLength);
+    }
+    const fromMaxProperties = getValueByPath(fromObject, [
+        'maxProperties',
+    ]);
+    if (fromMaxProperties != null) {
+        setValueByPath(toObject, ['maxProperties'], fromMaxProperties);
+    }
+    const fromMaximum = getValueByPath(fromObject, ['maximum']);
+    if (fromMaximum != null) {
+        setValueByPath(toObject, ['maximum'], fromMaximum);
+    }
+    const fromMinItems = getValueByPath(fromObject, ['minItems']);
+    if (fromMinItems != null) {
+        setValueByPath(toObject, ['minItems'], fromMinItems);
+    }
+    const fromMinLength = getValueByPath(fromObject, ['minLength']);
+    if (fromMinLength != null) {
+        setValueByPath(toObject, ['minLength'], fromMinLength);
+    }
+    const fromMinProperties = getValueByPath(fromObject, [
+        'minProperties',
+    ]);
+    if (fromMinProperties != null) {
+        setValueByPath(toObject, ['minProperties'], fromMinProperties);
+    }
+    const fromMinimum = getValueByPath(fromObject, ['minimum']);
+    if (fromMinimum != null) {
+        setValueByPath(toObject, ['minimum'], fromMinimum);
+    }
+    const fromNullable = getValueByPath(fromObject, ['nullable']);
+    if (fromNullable != null) {
+        setValueByPath(toObject, ['nullable'], fromNullable);
+    }
+    const fromPattern = getValueByPath(fromObject, ['pattern']);
+    if (fromPattern != null) {
+        setValueByPath(toObject, ['pattern'], fromPattern);
+    }
+    const fromProperties = getValueByPath(fromObject, ['properties']);
+    if (fromProperties != null) {
+        setValueByPath(toObject, ['properties'], fromProperties);
+    }
+    const fromPropertyOrdering = getValueByPath(fromObject, [
+        'propertyOrdering',
+    ]);
+    if (fromPropertyOrdering != null) {
+        setValueByPath(toObject, ['propertyOrdering'], fromPropertyOrdering);
+    }
+    const fromRequired = getValueByPath(fromObject, ['required']);
+    if (fromRequired != null) {
+        setValueByPath(toObject, ['required'], fromRequired);
+    }
+    const fromTitle = getValueByPath(fromObject, ['title']);
+    if (fromTitle != null) {
+        setValueByPath(toObject, ['title'], fromTitle);
+    }
+    const fromType = getValueByPath(fromObject, ['type']);
+    if (fromType != null) {
+        setValueByPath(toObject, ['type'], fromType);
+    }
+    return toObject;
+}
+function scribbleImageToVertex(fromObject) {
+    const toObject = {};
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['image'], imageToVertex(fromImage));
+    }
+    return toObject;
+}
+function segmentImageConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (parentObject !== undefined && fromMode != null) {
+        setValueByPath(parentObject, ['parameters', 'mode'], fromMode);
+    }
+    const fromMaxPredictions = getValueByPath(fromObject, [
+        'maxPredictions',
+    ]);
+    if (parentObject !== undefined && fromMaxPredictions != null) {
+        setValueByPath(parentObject, ['parameters', 'maxPredictions'], fromMaxPredictions);
+    }
+    const fromConfidenceThreshold = getValueByPath(fromObject, [
+        'confidenceThreshold',
+    ]);
+    if (parentObject !== undefined && fromConfidenceThreshold != null) {
+        setValueByPath(parentObject, ['parameters', 'confidenceThreshold'], fromConfidenceThreshold);
+    }
+    const fromMaskDilation = getValueByPath(fromObject, ['maskDilation']);
+    if (parentObject !== undefined && fromMaskDilation != null) {
+        setValueByPath(parentObject, ['parameters', 'maskDilation'], fromMaskDilation);
+    }
+    const fromBinaryColorThreshold = getValueByPath(fromObject, [
+        'binaryColorThreshold',
+    ]);
+    if (parentObject !== undefined && fromBinaryColorThreshold != null) {
+        setValueByPath(parentObject, ['parameters', 'binaryColorThreshold'], fromBinaryColorThreshold);
+    }
+    return toObject;
+}
+function segmentImageParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromSource = getValueByPath(fromObject, ['source']);
+    if (fromSource != null) {
+        segmentImageSourceToVertex(fromSource, toObject);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        segmentImageConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function segmentImageResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromGeneratedMasks = getValueByPath(fromObject, ['predictions']);
+    if (fromGeneratedMasks != null) {
+        let transformedList = fromGeneratedMasks;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageMaskFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedMasks'], transformedList);
+    }
+    return toObject;
+}
+function segmentImageSourceToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromPrompt = getValueByPath(fromObject, ['prompt']);
+    if (parentObject !== undefined && fromPrompt != null) {
+        setValueByPath(parentObject, ['instances[0]', 'prompt'], fromPrompt);
+    }
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (parentObject !== undefined && fromImage != null) {
+        setValueByPath(parentObject, ['instances[0]', 'image'], imageToVertex(fromImage));
+    }
+    const fromScribbleImage = getValueByPath(fromObject, [
+        'scribbleImage',
+    ]);
+    if (parentObject !== undefined && fromScribbleImage != null) {
+        setValueByPath(parentObject, ['instances[0]', 'scribble'], scribbleImageToVertex(fromScribbleImage));
+    }
+    return toObject;
+}
+function speakerVoiceConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
+    if (fromSpeaker != null) {
+        setValueByPath(toObject, ['speaker'], fromSpeaker);
+    }
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$1(fromVoiceConfig));
+    }
+    return toObject;
+}
+function speechConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev$1(fromVoiceConfig));
+    }
+    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
+        'multiSpeakerVoiceConfig',
+    ]);
+    if (fromMultiSpeakerVoiceConfig != null) {
+        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev$1(fromMultiSpeakerVoiceConfig));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function speechConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToVertex(fromVoiceConfig));
+    }
+    if (getValueByPath(fromObject, ['multiSpeakerVoiceConfig']) !== undefined) {
+        throw new Error('multiSpeakerVoiceConfig parameter is not supported in Vertex AI.');
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function styleReferenceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromStyleDescription = getValueByPath(fromObject, [
+        'styleDescription',
+    ]);
+    if (fromStyleDescription != null) {
+        setValueByPath(toObject, ['styleDescription'], fromStyleDescription);
+    }
+    return toObject;
+}
+function subjectReferenceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromSubjectType = getValueByPath(fromObject, ['subjectType']);
+    if (fromSubjectType != null) {
+        setValueByPath(toObject, ['subjectType'], fromSubjectType);
+    }
+    const fromSubjectDescription = getValueByPath(fromObject, [
+        'subjectDescription',
+    ]);
+    if (fromSubjectDescription != null) {
+        setValueByPath(toObject, ['subjectDescription'], fromSubjectDescription);
+    }
+    return toObject;
+}
+function thinkingConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromIncludeThoughts = getValueByPath(fromObject, [
+        'includeThoughts',
+    ]);
+    if (fromIncludeThoughts != null) {
+        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
+    }
+    const fromThinkingBudget = getValueByPath(fromObject, [
+        'thinkingBudget',
+    ]);
+    if (fromThinkingBudget != null) {
+        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
+    }
+    return toObject;
+}
+function thinkingConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromIncludeThoughts = getValueByPath(fromObject, [
+        'includeThoughts',
+    ]);
+    if (fromIncludeThoughts != null) {
+        setValueByPath(toObject, ['includeThoughts'], fromIncludeThoughts);
+    }
+    const fromThinkingBudget = getValueByPath(fromObject, [
+        'thinkingBudget',
+    ]);
+    if (fromThinkingBudget != null) {
+        setValueByPath(toObject, ['thinkingBudget'], fromThinkingBudget);
+    }
+    return toObject;
+}
+function toolComputerUseToMldev$1(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolComputerUseToVertex(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromFunctionCallingConfig = getValueByPath(fromObject, [
+        'functionCallingConfig',
+    ]);
+    if (fromFunctionCallingConfig != null) {
+        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToMldev(fromFunctionCallingConfig));
+    }
+    const fromRetrievalConfig = getValueByPath(fromObject, [
+        'retrievalConfig',
+    ]);
+    if (fromRetrievalConfig != null) {
+        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToMldev(fromRetrievalConfig));
+    }
+    return toObject;
+}
+function toolConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromFunctionCallingConfig = getValueByPath(fromObject, [
+        'functionCallingConfig',
+    ]);
+    if (fromFunctionCallingConfig != null) {
+        setValueByPath(toObject, ['functionCallingConfig'], functionCallingConfigToVertex(fromFunctionCallingConfig));
+    }
+    const fromRetrievalConfig = getValueByPath(fromObject, [
+        'retrievalConfig',
+    ]);
+    if (fromRetrievalConfig != null) {
+        setValueByPath(toObject, ['retrievalConfig'], retrievalConfigToVertex(fromRetrievalConfig));
+    }
+    return toObject;
+}
+function toolToMldev$1(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToMldev$1(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
+        throw new Error('retrieval parameter is not supported in Gemini API.');
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev$1(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev$1(fromGoogleSearchRetrieval));
+    }
+    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
+        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
+        throw new Error('googleMaps parameter is not supported in Gemini API.');
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToMldev$1());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToMldev$1(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function toolToVertex(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    const fromRetrieval = getValueByPath(fromObject, ['retrieval']);
+    if (fromRetrieval != null) {
+        setValueByPath(toObject, ['retrieval'], fromRetrieval);
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToVertex(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToVertex(fromGoogleSearchRetrieval));
+    }
+    const fromEnterpriseWebSearch = getValueByPath(fromObject, [
+        'enterpriseWebSearch',
+    ]);
+    if (fromEnterpriseWebSearch != null) {
+        setValueByPath(toObject, ['enterpriseWebSearch'], enterpriseWebSearchToVertex(fromEnterpriseWebSearch));
+    }
+    const fromGoogleMaps = getValueByPath(fromObject, ['googleMaps']);
+    if (fromGoogleMaps != null) {
+        setValueByPath(toObject, ['googleMaps'], googleMapsToVertex(fromGoogleMaps));
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToVertex());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToVertex(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function tunedModelInfoFromMldev(fromObject) {
+    const toObject = {};
+    const fromBaseModel = getValueByPath(fromObject, ['baseModel']);
+    if (fromBaseModel != null) {
+        setValueByPath(toObject, ['baseModel'], fromBaseModel);
+    }
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    return toObject;
+}
+function tunedModelInfoFromVertex(fromObject) {
+    const toObject = {};
+    const fromBaseModel = getValueByPath(fromObject, [
+        'labels',
+        'google-vertex-llm-tuning-base-model-id',
+    ]);
+    if (fromBaseModel != null) {
+        setValueByPath(toObject, ['baseModel'], fromBaseModel);
+    }
+    const fromCreateTime = getValueByPath(fromObject, ['createTime']);
+    if (fromCreateTime != null) {
+        setValueByPath(toObject, ['createTime'], fromCreateTime);
+    }
+    const fromUpdateTime = getValueByPath(fromObject, ['updateTime']);
+    if (fromUpdateTime != null) {
+        setValueByPath(toObject, ['updateTime'], fromUpdateTime);
+    }
+    return toObject;
+}
+function updateModelConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (parentObject !== undefined && fromDisplayName != null) {
+        setValueByPath(parentObject, ['displayName'], fromDisplayName);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (parentObject !== undefined && fromDescription != null) {
+        setValueByPath(parentObject, ['description'], fromDescription);
+    }
+    const fromDefaultCheckpointId = getValueByPath(fromObject, [
+        'defaultCheckpointId',
+    ]);
+    if (parentObject !== undefined && fromDefaultCheckpointId != null) {
+        setValueByPath(parentObject, ['defaultCheckpointId'], fromDefaultCheckpointId);
+    }
+    return toObject;
+}
+function updateModelConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromDisplayName = getValueByPath(fromObject, ['displayName']);
+    if (parentObject !== undefined && fromDisplayName != null) {
+        setValueByPath(parentObject, ['displayName'], fromDisplayName);
+    }
+    const fromDescription = getValueByPath(fromObject, ['description']);
+    if (parentObject !== undefined && fromDescription != null) {
+        setValueByPath(parentObject, ['description'], fromDescription);
+    }
+    const fromDefaultCheckpointId = getValueByPath(fromObject, [
+        'defaultCheckpointId',
+    ]);
+    if (parentObject !== undefined && fromDefaultCheckpointId != null) {
+        setValueByPath(parentObject, ['defaultCheckpointId'], fromDefaultCheckpointId);
+    }
+    return toObject;
+}
+function updateModelParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'name'], tModel(apiClient, fromModel));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        updateModelConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function updateModelParametersToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        updateModelConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function upscaleImageAPIConfigInternalToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromOutputGcsUri = getValueByPath(fromObject, ['outputGcsUri']);
+    if (parentObject !== undefined && fromOutputGcsUri != null) {
+        setValueByPath(parentObject, ['parameters', 'storageUri'], fromOutputGcsUri);
+    }
+    const fromIncludeRaiReason = getValueByPath(fromObject, [
+        'includeRaiReason',
+    ]);
+    if (parentObject !== undefined && fromIncludeRaiReason != null) {
+        setValueByPath(parentObject, ['parameters', 'includeRaiReason'], fromIncludeRaiReason);
+    }
+    const fromOutputMimeType = getValueByPath(fromObject, [
+        'outputMimeType',
+    ]);
+    if (parentObject !== undefined && fromOutputMimeType != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'mimeType'], fromOutputMimeType);
+    }
+    const fromOutputCompressionQuality = getValueByPath(fromObject, [
+        'outputCompressionQuality',
+    ]);
+    if (parentObject !== undefined && fromOutputCompressionQuality != null) {
+        setValueByPath(parentObject, ['parameters', 'outputOptions', 'compressionQuality'], fromOutputCompressionQuality);
+    }
+    const fromEnhanceInputImage = getValueByPath(fromObject, [
+        'enhanceInputImage',
+    ]);
+    if (parentObject !== undefined && fromEnhanceInputImage != null) {
+        setValueByPath(parentObject, ['parameters', 'upscaleConfig', 'enhanceInputImage'], fromEnhanceInputImage);
+    }
+    const fromImagePreservationFactor = getValueByPath(fromObject, [
+        'imagePreservationFactor',
+    ]);
+    if (parentObject !== undefined && fromImagePreservationFactor != null) {
+        setValueByPath(parentObject, ['parameters', 'upscaleConfig', 'imagePreservationFactor'], fromImagePreservationFactor);
+    }
+    const fromNumberOfImages = getValueByPath(fromObject, [
+        'numberOfImages',
+    ]);
+    if (parentObject !== undefined && fromNumberOfImages != null) {
+        setValueByPath(parentObject, ['parameters', 'sampleCount'], fromNumberOfImages);
+    }
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (parentObject !== undefined && fromMode != null) {
+        setValueByPath(parentObject, ['parameters', 'mode'], fromMode);
+    }
+    return toObject;
+}
+function upscaleImageAPIParametersInternalToVertex(apiClient, fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['_url', 'model'], tModel(apiClient, fromModel));
+    }
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['instances[0]', 'image'], imageToVertex(fromImage));
+    }
+    const fromUpscaleFactor = getValueByPath(fromObject, [
+        'upscaleFactor',
+    ]);
+    if (fromUpscaleFactor != null) {
+        setValueByPath(toObject, ['parameters', 'upscaleConfig', 'upscaleFactor'], fromUpscaleFactor);
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        upscaleImageAPIConfigInternalToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function upscaleImageResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromGeneratedImages = getValueByPath(fromObject, [
+        'predictions',
+    ]);
+    if (fromGeneratedImages != null) {
+        let transformedList = fromGeneratedImages;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return generatedImageFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['generatedImages'], transformedList);
+    }
+    return toObject;
+}
+function urlContextMetadataFromMldev(fromObject) {
+    const toObject = {};
+    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
+    if (fromUrlMetadata != null) {
+        let transformedList = fromUrlMetadata;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return urlMetadataFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['urlMetadata'], transformedList);
+    }
+    return toObject;
+}
+function urlContextMetadataFromVertex(fromObject) {
+    const toObject = {};
+    const fromUrlMetadata = getValueByPath(fromObject, ['urlMetadata']);
+    if (fromUrlMetadata != null) {
+        let transformedList = fromUrlMetadata;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return urlMetadataFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['urlMetadata'], transformedList);
+    }
+    return toObject;
+}
+function urlContextToMldev$1() {
+    const toObject = {};
+    return toObject;
+}
+function urlContextToVertex() {
+    const toObject = {};
+    return toObject;
+}
+function urlMetadataFromMldev(fromObject) {
+    const toObject = {};
+    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
+    if (fromRetrievedUrl != null) {
+        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
+    }
+    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
+        'urlRetrievalStatus',
+    ]);
+    if (fromUrlRetrievalStatus != null) {
+        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
+    }
+    return toObject;
+}
+function urlMetadataFromVertex(fromObject) {
+    const toObject = {};
+    const fromRetrievedUrl = getValueByPath(fromObject, ['retrievedUrl']);
+    if (fromRetrievedUrl != null) {
+        setValueByPath(toObject, ['retrievedUrl'], fromRetrievedUrl);
+    }
+    const fromUrlRetrievalStatus = getValueByPath(fromObject, [
+        'urlRetrievalStatus',
+    ]);
+    if (fromUrlRetrievalStatus != null) {
+        setValueByPath(toObject, ['urlRetrievalStatus'], fromUrlRetrievalStatus);
+    }
+    return toObject;
+}
+function videoFromMldev(fromObject) {
+    const toObject = {};
+    const fromUri = getValueByPath(fromObject, ['video', 'uri']);
+    if (fromUri != null) {
+        setValueByPath(toObject, ['uri'], fromUri);
+    }
+    const fromVideoBytes = getValueByPath(fromObject, [
+        'video',
+        'encodedVideo',
+    ]);
+    if (fromVideoBytes != null) {
+        setValueByPath(toObject, ['videoBytes'], tBytes(fromVideoBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['encoding']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function videoFromVertex(fromObject) {
     const toObject = {};
     const fromUri = getValueByPath(fromObject, ['gcsUri']);
     if (fromUri != null) {
@@ -16825,61 +14386,129 @@ function videoFromVertex$1(fromObject) {
     }
     return toObject;
 }
-function generatedVideoFromVertex$1(fromObject) {
+function videoGenerationMaskToVertex(fromObject) {
     const toObject = {};
-    const fromVideo = getValueByPath(fromObject, ['_self']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], videoFromVertex$1(fromVideo));
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['_self'], imageToVertex(fromImage));
+    }
+    const fromMaskMode = getValueByPath(fromObject, ['maskMode']);
+    if (fromMaskMode != null) {
+        setValueByPath(toObject, ['maskMode'], fromMaskMode);
     }
     return toObject;
 }
-function generateVideosResponseFromVertex$1(fromObject) {
+function videoGenerationReferenceImageToVertex(fromObject) {
     const toObject = {};
-    const fromGeneratedVideos = getValueByPath(fromObject, ['videos']);
-    if (fromGeneratedVideos != null) {
-        let transformedList = fromGeneratedVideos;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedVideoFromVertex$1(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedVideos'], transformedList);
+    const fromImage = getValueByPath(fromObject, ['image']);
+    if (fromImage != null) {
+        setValueByPath(toObject, ['image'], imageToVertex(fromImage));
     }
-    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
-        'raiMediaFilteredCount',
+    const fromReferenceType = getValueByPath(fromObject, [
+        'referenceType',
     ]);
-    if (fromRaiMediaFilteredCount != null) {
-        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
-    }
-    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
-        'raiMediaFilteredReasons',
-    ]);
-    if (fromRaiMediaFilteredReasons != null) {
-        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
+    if (fromReferenceType != null) {
+        setValueByPath(toObject, ['referenceType'], fromReferenceType);
     }
     return toObject;
 }
-function generateVideosOperationFromVertex$1(fromObject) {
+function videoMetadataFromMldev(fromObject) {
     const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
     }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], fromMetadata);
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
     }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
     }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fromError);
+    return toObject;
+}
+function videoMetadataFromVertex(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
     }
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], generateVideosResponseFromVertex$1(fromResponse));
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoMetadataToMldev$1(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoMetadataToVertex(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function videoToVertex(fromObject) {
+    const toObject = {};
+    const fromUri = getValueByPath(fromObject, ['uri']);
+    if (fromUri != null) {
+        setValueByPath(toObject, ['gcsUri'], fromUri);
+    }
+    const fromVideoBytes = getValueByPath(fromObject, ['videoBytes']);
+    if (fromVideoBytes != null) {
+        setValueByPath(toObject, ['bytesBase64Encoded'], tBytes(fromVideoBytes));
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function voiceConfigToMldev$1(fromObject) {
+    const toObject = {};
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
+    ]);
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev$1(fromPrebuiltVoiceConfig));
+    }
+    return toObject;
+}
+function voiceConfigToVertex(fromObject) {
+    const toObject = {};
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
+    ]);
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToVertex(fromPrebuiltVoiceConfig));
     }
     return toObject;
 }
@@ -16893,11 +14522,11 @@ const CONTENT_TYPE_HEADER = 'Content-Type';
 const SERVER_TIMEOUT_HEADER = 'X-Server-Timeout';
 const USER_AGENT_HEADER = 'User-Agent';
 const GOOGLE_API_CLIENT_HEADER = 'x-goog-api-client';
-const SDK_VERSION = '1.8.0'; // x-release-please-version
+const SDK_VERSION = '1.21.0'; // x-release-please-version
 const LIBRARY_LABEL = `google-genai-sdk/${SDK_VERSION}`;
 const VERTEX_AI_API_DEFAULT_VERSION = 'v1beta1';
 const GOOGLE_AI_API_DEFAULT_VERSION = 'v1beta';
-const responseLineRE = /^data: (.*)(?:\n\n|\r\r|\r\n\r\n)/;
+const responseLineRE = /^\s*data: (.*)(?:\n\n|\r\r|\r\n\r\n)/;
 /**
  * The ApiClient class is used to send requests to the Gemini API or Vertex AI
  * endpoints.
@@ -17124,7 +14753,14 @@ class ApiClient {
             const abortController = new AbortController();
             const signal = abortController.signal;
             if (httpOptions.timeout && (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.timeout) > 0) {
-                setTimeout(() => abortController.abort(), httpOptions.timeout);
+                const timeoutHandle = setTimeout(() => abortController.abort(), httpOptions.timeout);
+                if (timeoutHandle &&
+                    typeof timeoutHandle.unref ===
+                        'function') {
+                    // call unref to prevent nodejs process from hanging, see
+                    // https://nodejs.org/api/timers.html#timeoutunref
+                    timeoutHandle.unref();
+                }
             }
             if (abortSignal) {
                 abortSignal.addEventListener('abort', () => {
@@ -17187,7 +14823,7 @@ class ApiClient {
                         }
                         break;
                     }
-                    const chunkString = decoder.decode(value);
+                    const chunkString = decoder.decode(value, { stream: true });
                     // Parse and throw an error if the chunk contains an error.
                     try {
                         const chunkJson = JSON.parse(chunkString);
@@ -17458,6 +15094,9 @@ function includeExtraBodyToRequestInit(requestInit, extraBody) {
  */
 // TODO: b/416041229 - Determine how to retrieve the MCP package version.
 const MCP_LABEL = 'mcp_used/unknown';
+// Whether MCP tool usage is detected from mcpToTool. This is used for
+// telemetry.
+let hasMcpToolUsageFromMcpToTool = false;
 // Checks whether the list of tools contains any MCP tools.
 function hasMcpToolUsage(tools) {
     for (const tool of tools) {
@@ -17468,25 +15107,13 @@ function hasMcpToolUsage(tools) {
             return true;
         }
     }
-    return false;
+    return hasMcpToolUsageFromMcpToTool;
 }
 // Sets the MCP version label in the Google API client header.
 function setMcpUsageHeader(headers) {
     var _a;
     const existingHeader = (_a = headers[GOOGLE_API_CLIENT_HEADER]) !== null && _a !== void 0 ? _a : '';
     headers[GOOGLE_API_CLIENT_HEADER] = (existingHeader + ` ${MCP_LABEL}`).trimStart();
-}
-// Checks whether the list of tools contains any MCP clients. Will return true
-// if there is at least one MCP client.
-function hasMcpClientTools(params) {
-    var _a, _b, _c;
-    return (_c = (_b = (_a = params.config) === null || _a === void 0 ? void 0 : _a.tools) === null || _b === void 0 ? void 0 : _b.some((tool) => isMcpCallableTool(tool))) !== null && _c !== void 0 ? _c : false;
-}
-// Checks whether the list of tools contains any non-MCP tools. Will return true
-// if there is at least one non-MCP tool.
-function hasNonMcpTools(params) {
-    var _a, _b, _c;
-    return ((_c = (_b = (_a = params.config) === null || _a === void 0 ? void 0 : _a.tools) === null || _b === void 0 ? void 0 : _b.some((tool) => !isMcpCallableTool(tool))) !== null && _c !== void 0 ? _c : false);
 }
 // Returns true if the object is a MCP CallableTool, otherwise false.
 function isMcpCallableTool(object) {
@@ -17918,7 +15545,7 @@ class Live {
        if (GOOGLE_GENAI_USE_VERTEXAI) {
          model = 'gemini-2.0-flash-live-preview-04-09';
        } else {
-         model = 'gemini-2.0-flash-live-001';
+         model = 'gemini-live-2.5-flash-preview';
        }
        const session = await ai.live.connect({
          model: model,
@@ -17944,16 +15571,22 @@ class Live {
       */
     async connect(params) {
         var _a, _b, _c, _d, _e, _f;
+        // TODO: b/404946746 - Support per request HTTP options.
+        if (params.config && params.config.httpOptions) {
+            throw new Error('The Live module does not support httpOptions at request-level in' +
+                ' LiveConnectConfig yet. Please use the client-level httpOptions' +
+                ' configuration instead.');
+        }
         const websocketBaseUrl = this.apiClient.getWebsocketBaseUrl();
         const apiVersion = this.apiClient.getApiVersion();
         let url;
-        const defaultHeaders = this.apiClient.getDefaultHeaders();
+        const clientHeaders = this.apiClient.getHeaders();
         if (params.config &&
             params.config.tools &&
             hasMcpToolUsage(params.config.tools)) {
-            setMcpUsageHeader(defaultHeaders);
+            setMcpUsageHeader(clientHeaders);
         }
-        const headers = mapToHeaders(defaultHeaders);
+        const headers = mapToHeaders(clientHeaders);
         if (this.apiClient.isVertexAI()) {
             url = `${websocketBaseUrl}/ws/google.cloud.aiplatform.${apiVersion}.LlmBidiService/BidiGenerateContent`;
             await this.auth.addAuthHeaders(headers);
@@ -17964,6 +15597,9 @@ class Live {
             let keyName = 'key';
             if (apiKey === null || apiKey === void 0 ? void 0 : apiKey.startsWith('auth_tokens/')) {
                 console.warn('Warning: Ephemeral token support is experimental and may change in future versions.');
+                if (apiVersion !== 'v1alpha') {
+                    console.warn("Warning: The SDK's ephemeral token support is in v1alpha only. Please use const ai = new GoogleGenAI({apiKey: token.name, httpOptions: { apiVersion: 'v1alpha' }}); before session connection.");
+                }
                 method = 'BidiGenerateContentConstrained';
                 keyName = 'access_token';
             }
@@ -18239,7 +15875,7 @@ class Session {
        if (GOOGLE_GENAI_USE_VERTEXAI) {
          model = 'gemini-2.0-flash-live-preview-04-09';
        } else {
-         model = 'gemini-2.0-flash-live-001';
+         model = 'gemini-live-2.5-flash-preview';
        }
        const session = await ai.live.connect({
          model: model,
@@ -18309,6 +15945,18 @@ function shouldDisableAfc(config) {
 function isCallableTool(tool) {
     return 'callTool' in tool && typeof tool.callTool === 'function';
 }
+// Checks whether the list of tools contains any CallableTools. Will return true
+// if there is at least one CallableTool.
+function hasCallableTools(params) {
+    var _a, _b, _c;
+    return (_c = (_b = (_a = params.config) === null || _a === void 0 ? void 0 : _a.tools) === null || _b === void 0 ? void 0 : _b.some((tool) => isCallableTool(tool))) !== null && _c !== void 0 ? _c : false;
+}
+// Checks whether the list of tools contains any non-callable tools. Will return
+// true if there is at least one non-Callable tool.
+function hasNonCallableTools(params) {
+    var _a, _b, _c;
+    return (_c = (_b = (_a = params.config) === null || _a === void 0 ? void 0 : _a.tools) === null || _b === void 0 ? void 0 : _b.some((tool) => !isCallableTool(tool))) !== null && _c !== void 0 ? _c : false;
+}
 /**
  * Returns whether to append automatic function calling history to the
  * response.
@@ -18367,11 +16015,12 @@ class Models extends BaseModule {
          */
         this.generateContent = async (params) => {
             var _a, _b, _c, _d, _e;
-            const transformedParams = await this.processParamsForMcpUsage(params);
-            if (!hasMcpClientTools(params) || shouldDisableAfc(params.config)) {
+            const transformedParams = await this.processParamsMaybeAddMcpUsage(params);
+            this.maybeMoveToResponseJsonSchem(params);
+            if (!hasCallableTools(params) || shouldDisableAfc(params.config)) {
                 return await this.generateContentInternal(transformedParams);
             }
-            if (hasNonMcpTools(params)) {
+            if (hasNonCallableTools(params)) {
                 throw new Error('Automatic function calling with CallableTools and Tools is not yet supported.');
             }
             let response;
@@ -18454,8 +16103,9 @@ class Models extends BaseModule {
          * ```
          */
         this.generateContentStream = async (params) => {
+            this.maybeMoveToResponseJsonSchem(params);
             if (shouldDisableAfc(params.config)) {
-                const transformedParams = await this.processParamsForMcpUsage(params);
+                const transformedParams = await this.processParamsMaybeAddMcpUsage(params);
                 return await this.generateContentStreamInternal(transformedParams);
             }
             else {
@@ -18503,11 +16153,13 @@ class Models extends BaseModule {
                     response = {
                         generatedImages: generatedImages,
                         positivePromptSafetyAttributes: positivePromptSafetyAttributes,
+                        sdkHttpResponse: apiResponse.sdkHttpResponse,
                     };
                 }
                 else {
                     response = {
                         generatedImages: generatedImages,
+                        sdkHttpResponse: apiResponse.sdkHttpResponse,
                     };
                 }
                 return response;
@@ -18604,6 +16256,55 @@ class Models extends BaseModule {
             };
             return await this.upscaleImageInternal(apiParams);
         };
+        /**
+         *  Generates videos based on a text description and configuration.
+         *
+         * @param params - The parameters for generating videos.
+         * @return A Promise<GenerateVideosOperation> which allows you to track the progress and eventually retrieve the generated videos using the operations.get method.
+         *
+         * @example
+         * ```ts
+         * const operation = await ai.models.generateVideos({
+         *  model: 'veo-2.0-generate-001',
+         *  source: {
+         *    prompt: 'A neon hologram of a cat driving at top speed',
+         *  },
+         *  config: {
+         *    numberOfVideos: 1
+         * });
+         *
+         * while (!operation.done) {
+         *   await new Promise(resolve => setTimeout(resolve, 10000));
+         *   operation = await ai.operations.getVideosOperation({operation: operation});
+         * }
+         *
+         * console.log(operation.response?.generatedVideos?.[0]?.video?.uri);
+         * ```
+         */
+        this.generateVideos = async (params) => {
+            if ((params.prompt || params.image || params.video) && params.source) {
+                throw new Error('Source and prompt/image/video are mutually exclusive. Please only use source.');
+            }
+            return await this.generateVideosInternal(params);
+        };
+    }
+    /**
+     * This logic is needed for GenerateContentConfig only.
+     * Previously we made GenerateContentConfig.responseSchema field to accept
+     * unknown. Since v1.9.0, we switch to use backend JSON schema support.
+     * To maintain backward compatibility, we move the data that was treated as
+     * JSON schema from the responseSchema field to the responseJsonSchema field.
+     */
+    maybeMoveToResponseJsonSchem(params) {
+        if (params.config && params.config.responseSchema) {
+            if (!params.config.responseJsonSchema) {
+                if (Object.keys(params.config.responseSchema).includes('$schema')) {
+                    params.config.responseJsonSchema = params.config.responseSchema;
+                    delete params.config.responseSchema;
+                }
+            }
+        }
+        return;
     }
     /**
      * Transforms the CallableTools in the parameters to be simply Tools, it
@@ -18611,7 +16312,7 @@ class Models extends BaseModule {
      * modify the original params. Also sets the MCP usage header if there are
      * MCP tools in the parameters.
      */
-    async processParamsForMcpUsage(params) {
+    async processParamsMaybeAddMcpUsage(params) {
         var _a, _b, _c;
         const tools = (_a = params.config) === null || _a === void 0 ? void 0 : _a.tools;
         if (!tools) {
@@ -18678,7 +16379,7 @@ class Models extends BaseModule {
                         remoteCallCount++;
                         wereFunctionsCalled = false;
                     }
-                    const transformedParams = yield __await(models.processParamsForMcpUsage(params));
+                    const transformedParams = yield __await(models.processParamsMaybeAddMcpUsage(params));
                     const response = yield __await(models.generateContentStreamInternal(transformedParams));
                     const functionResponses = [];
                     const responseContents = [];
@@ -18753,7 +16454,6 @@ class Models extends BaseModule {
             const body = generateContentParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:generateContent', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -18766,7 +16466,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = generateContentResponseFromVertex(apiResponse);
@@ -18779,7 +16485,6 @@ class Models extends BaseModule {
             const body = generateContentParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:generateContent', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -18792,7 +16497,13 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = generateContentResponseFromMldev(apiResponse);
@@ -18811,7 +16522,6 @@ class Models extends BaseModule {
             const body = generateContentParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:streamGenerateContent?alt=sse', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             const apiClient = this.apiClient;
@@ -18832,6 +16542,9 @@ class Models extends BaseModule {
                             _d = false;
                             const chunk = _c;
                             const resp = generateContentResponseFromVertex((yield __await(chunk.json())));
+                            resp['sdkHttpResponse'] = {
+                                headers: chunk.headers,
+                            };
                             const typedResp = new GenerateContentResponse();
                             Object.assign(typedResp, resp);
                             yield yield __await(typedResp);
@@ -18851,7 +16564,6 @@ class Models extends BaseModule {
             const body = generateContentParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:streamGenerateContent?alt=sse', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             const apiClient = this.apiClient;
@@ -18872,6 +16584,9 @@ class Models extends BaseModule {
                             _d = false;
                             const chunk = _c;
                             const resp = generateContentResponseFromMldev((yield __await(chunk.json())));
+                            resp['sdkHttpResponse'] = {
+                                headers: chunk.headers,
+                            };
                             const typedResp = new GenerateContentResponse();
                             Object.assign(typedResp, resp);
                             yield yield __await(typedResp);
@@ -18918,7 +16633,6 @@ class Models extends BaseModule {
             const body = embedContentParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:predict', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -18931,7 +16645,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = embedContentResponseFromVertex(apiResponse);
@@ -18944,7 +16664,6 @@ class Models extends BaseModule {
             const body = embedContentParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:batchEmbedContents', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -18957,7 +16676,13 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = embedContentResponseFromMldev(apiResponse);
@@ -18968,23 +16693,7 @@ class Models extends BaseModule {
         }
     }
     /**
-     * Generates an image based on a text description and configuration.
-     *
-     * @param params - The parameters for generating images.
-     * @return The response from the API.
-     *
-     * @example
-     * ```ts
-     * const response = await ai.models.generateImages({
-     *  model: 'imagen-3.0-generate-002',
-     *  prompt: 'Robot holding a red skateboard',
-     *  config: {
-     *    numberOfImages: 1,
-     *    includeRaiReason: true,
-     *  },
-     * });
-     * console.log(response?.generatedImages?.[0]?.image?.imageBytes);
-     * ```
+     * Private method for generating images.
      */
     async generateImagesInternal(params) {
         var _a, _b, _c, _d;
@@ -18995,7 +16704,6 @@ class Models extends BaseModule {
             const body = generateImagesParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:predict', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19008,7 +16716,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = generateImagesResponseFromVertex(apiResponse);
@@ -19021,7 +16735,6 @@ class Models extends BaseModule {
             const body = generateImagesParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:predict', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19034,7 +16747,13 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = generateImagesResponseFromMldev(apiResponse);
@@ -19044,6 +16763,9 @@ class Models extends BaseModule {
             });
         }
     }
+    /**
+     * Private method for editing an image.
+     */
     async editImageInternal(params) {
         var _a, _b;
         let response;
@@ -19053,7 +16775,6 @@ class Models extends BaseModule {
             const body = editImageParametersInternalToVertex(this.apiClient, params);
             path = formatMap('{model}:predict', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19066,7 +16787,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = editImageResponseFromVertex(apiResponse);
@@ -19079,6 +16806,9 @@ class Models extends BaseModule {
             throw new Error('This method is only supported by the Vertex AI.');
         }
     }
+    /**
+     * Private method for upscaling an image.
+     */
     async upscaleImageInternal(params) {
         var _a, _b;
         let response;
@@ -19088,7 +16818,84 @@ class Models extends BaseModule {
             const body = upscaleImageAPIParametersInternalToVertex(this.apiClient, params);
             path = formatMap('{model}:predict', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
+            delete body['_url'];
+            delete body['_query'];
+            response = this.apiClient
+                .request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(body),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
+            })
+                .then((httpResponse) => {
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
+            });
+            return response.then((apiResponse) => {
+                const resp = upscaleImageResponseFromVertex(apiResponse);
+                const typedResp = new UpscaleImageResponse();
+                Object.assign(typedResp, resp);
+                return typedResp;
+            });
+        }
+        else {
+            throw new Error('This method is only supported by the Vertex AI.');
+        }
+    }
+    /**
+     * Recontextualizes an image.
+     *
+     * There are two types of recontextualization currently supported:
+     * 1) Imagen Product Recontext - Generate images of products in new scenes
+     *    and contexts.
+     * 2) Virtual Try-On: Generate images of persons modeling fashion products.
+     *
+     * @param params - The parameters for recontextualizing an image.
+     * @return The response from the API.
+     *
+     * @example
+     * ```ts
+     * const response1 = await ai.models.recontextImage({
+     *  model: 'imagen-product-recontext-preview-06-30',
+     *  source: {
+     *    prompt: 'In a modern kitchen setting.',
+     *    productImages: [productImage],
+     *  },
+     *  config: {
+     *    numberOfImages: 1,
+     *  },
+     * });
+     * console.log(response1?.generatedImages?.[0]?.image?.imageBytes);
+     *
+     * const response2 = await ai.models.recontextImage({
+     *  model: 'virtual-try-on-preview-08-04',
+     *  source: {
+     *    personImage: personImage,
+     *    productImages: [productImage],
+     *  },
+     *  config: {
+     *    numberOfImages: 1,
+     *  },
+     * });
+     * console.log(response2?.generatedImages?.[0]?.image?.imageBytes);
+     * ```
+     */
+    async recontextImage(params) {
+        var _a, _b;
+        let response;
+        let path = '';
+        let queryParams = {};
+        if (this.apiClient.isVertexAI()) {
+            const body = recontextImageParametersToVertex(this.apiClient, params);
+            path = formatMap('{model}:predict', body['_url']);
+            queryParams = body['_query'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19104,8 +16911,62 @@ class Models extends BaseModule {
                 return httpResponse.json();
             });
             return response.then((apiResponse) => {
-                const resp = upscaleImageResponseFromVertex(apiResponse);
-                const typedResp = new UpscaleImageResponse();
+                const resp = recontextImageResponseFromVertex(apiResponse);
+                const typedResp = new RecontextImageResponse();
+                Object.assign(typedResp, resp);
+                return typedResp;
+            });
+        }
+        else {
+            throw new Error('This method is only supported by the Vertex AI.');
+        }
+    }
+    /**
+     * Segments an image, creating a mask of a specified area.
+     *
+     * @param params - The parameters for segmenting an image.
+     * @return The response from the API.
+     *
+     * @example
+     * ```ts
+     * const response = await ai.models.segmentImage({
+     *  model: 'image-segmentation-001',
+     *  source: {
+     *    image: image,
+     *  },
+     *  config: {
+     *    mode: 'foreground',
+     *  },
+     * });
+     * console.log(response?.generatedMasks?.[0]?.mask?.imageBytes);
+     * ```
+     */
+    async segmentImage(params) {
+        var _a, _b;
+        let response;
+        let path = '';
+        let queryParams = {};
+        if (this.apiClient.isVertexAI()) {
+            const body = segmentImageParametersToVertex(this.apiClient, params);
+            path = formatMap('{model}:predict', body['_url']);
+            queryParams = body['_query'];
+            delete body['_url'];
+            delete body['_query'];
+            response = this.apiClient
+                .request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(body),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
+            })
+                .then((httpResponse) => {
+                return httpResponse.json();
+            });
+            return response.then((apiResponse) => {
+                const resp = segmentImageResponseFromVertex(apiResponse);
+                const typedResp = new SegmentImageResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
             });
@@ -19131,7 +16992,6 @@ class Models extends BaseModule {
             const body = getModelParametersToVertex(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19155,7 +17015,6 @@ class Models extends BaseModule {
             const body = getModelParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19185,7 +17044,6 @@ class Models extends BaseModule {
             const body = listModelsParametersToVertex(this.apiClient, params);
             path = formatMap('{models_url}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19198,7 +17056,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listModelsResponseFromVertex(apiResponse);
@@ -19211,7 +17075,6 @@ class Models extends BaseModule {
             const body = listModelsParametersToMldev(this.apiClient, params);
             path = formatMap('{models_url}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19224,7 +17087,13 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listModelsResponseFromMldev(apiResponse);
@@ -19260,7 +17129,6 @@ class Models extends BaseModule {
             const body = updateModelParametersToVertex(this.apiClient, params);
             path = formatMap('{model}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19284,7 +17152,6 @@ class Models extends BaseModule {
             const body = updateModelParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19325,7 +17192,6 @@ class Models extends BaseModule {
             const body = deleteModelParametersToVertex(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19338,10 +17204,16 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
-            return response.then(() => {
-                const resp = deleteModelResponseFromVertex();
+            return response.then((apiResponse) => {
+                const resp = deleteModelResponseFromVertex(apiResponse);
                 const typedResp = new DeleteModelResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -19351,7 +17223,6 @@ class Models extends BaseModule {
             const body = deleteModelParametersToMldev(this.apiClient, params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19364,10 +17235,16 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
-            return response.then(() => {
-                const resp = deleteModelResponseFromMldev();
+            return response.then((apiResponse) => {
+                const resp = deleteModelResponseFromMldev(apiResponse);
                 const typedResp = new DeleteModelResponse();
                 Object.assign(typedResp, resp);
                 return typedResp;
@@ -19399,7 +17276,6 @@ class Models extends BaseModule {
             const body = countTokensParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:countTokens', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19412,7 +17288,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = countTokensResponseFromVertex(apiResponse);
@@ -19425,7 +17307,6 @@ class Models extends BaseModule {
             const body = countTokensParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:countTokens', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19438,7 +17319,13 @@ class Models extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = countTokensResponseFromMldev(apiResponse);
@@ -19475,7 +17362,6 @@ class Models extends BaseModule {
             const body = computeTokensParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:computeTokens', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19488,7 +17374,13 @@ class Models extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = computeTokensResponseFromVertex(apiResponse);
@@ -19502,29 +17394,9 @@ class Models extends BaseModule {
         }
     }
     /**
-     *  Generates videos based on a text description and configuration.
-     *
-     * @param params - The parameters for generating videos.
-     * @return A Promise<GenerateVideosOperation> which allows you to track the progress and eventually retrieve the generated videos using the operations.get method.
-     *
-     * @example
-     * ```ts
-     * const operation = await ai.models.generateVideos({
-     *  model: 'veo-2.0-generate-001',
-     *  prompt: 'A neon hologram of a cat driving at top speed',
-     *  config: {
-     *    numberOfVideos: 1
-     * });
-     *
-     * while (!operation.done) {
-     *   await new Promise(resolve => setTimeout(resolve, 10000));
-     *   operation = await ai.operations.getVideosOperation({operation: operation});
-     * }
-     *
-     * console.log(operation.response?.generatedVideos?.[0]?.video?.uri);
-     * ```
+     * Private method for generating videos.
      */
-    async generateVideos(params) {
+    async generateVideosInternal(params) {
         var _a, _b, _c, _d;
         let response;
         let path = '';
@@ -19533,7 +17405,6 @@ class Models extends BaseModule {
             const body = generateVideosParametersToVertex(this.apiClient, params);
             path = formatMap('{model}:predictLongRunning', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19549,15 +17420,16 @@ class Models extends BaseModule {
                 return httpResponse.json();
             });
             return response.then((apiResponse) => {
-                const resp = generateVideosOperationFromVertex$1(apiResponse);
-                return resp;
+                const resp = generateVideosOperationFromVertex(apiResponse);
+                const typedResp = new GenerateVideosOperation();
+                Object.assign(typedResp, resp);
+                return typedResp;
             });
         }
         else {
             const body = generateVideosParametersToMldev(this.apiClient, params);
             path = formatMap('{model}:predictLongRunning', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19573,222 +17445,13 @@ class Models extends BaseModule {
                 return httpResponse.json();
             });
             return response.then((apiResponse) => {
-                const resp = generateVideosOperationFromMldev$1(apiResponse);
-                return resp;
+                const resp = generateVideosOperationFromMldev(apiResponse);
+                const typedResp = new GenerateVideosOperation();
+                Object.assign(typedResp, resp);
+                return typedResp;
             });
         }
     }
-}
-
-/**
- * @license
- * Copyright 2025 Google LLC
- * SPDX-License-Identifier: Apache-2.0
- */
-// Code generated by the Google Gen AI SDK generator DO NOT EDIT.
-function getOperationParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromOperationName = getValueByPath(fromObject, [
-        'operationName',
-    ]);
-    if (fromOperationName != null) {
-        setValueByPath(toObject, ['_url', 'operationName'], fromOperationName);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function getOperationParametersToVertex(fromObject) {
-    const toObject = {};
-    const fromOperationName = getValueByPath(fromObject, [
-        'operationName',
-    ]);
-    if (fromOperationName != null) {
-        setValueByPath(toObject, ['_url', 'operationName'], fromOperationName);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function fetchPredictOperationParametersToVertex(fromObject) {
-    const toObject = {};
-    const fromOperationName = getValueByPath(fromObject, [
-        'operationName',
-    ]);
-    if (fromOperationName != null) {
-        setValueByPath(toObject, ['operationName'], fromOperationName);
-    }
-    const fromResourceName = getValueByPath(fromObject, ['resourceName']);
-    if (fromResourceName != null) {
-        setValueByPath(toObject, ['_url', 'resourceName'], fromResourceName);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function videoFromMldev(fromObject) {
-    const toObject = {};
-    const fromUri = getValueByPath(fromObject, ['video', 'uri']);
-    if (fromUri != null) {
-        setValueByPath(toObject, ['uri'], fromUri);
-    }
-    const fromVideoBytes = getValueByPath(fromObject, [
-        'video',
-        'encodedVideo',
-    ]);
-    if (fromVideoBytes != null) {
-        setValueByPath(toObject, ['videoBytes'], tBytes(fromVideoBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['encoding']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function generatedVideoFromMldev(fromObject) {
-    const toObject = {};
-    const fromVideo = getValueByPath(fromObject, ['_self']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], videoFromMldev(fromVideo));
-    }
-    return toObject;
-}
-function generateVideosResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromGeneratedVideos = getValueByPath(fromObject, [
-        'generatedSamples',
-    ]);
-    if (fromGeneratedVideos != null) {
-        let transformedList = fromGeneratedVideos;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedVideoFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedVideos'], transformedList);
-    }
-    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
-        'raiMediaFilteredCount',
-    ]);
-    if (fromRaiMediaFilteredCount != null) {
-        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
-    }
-    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
-        'raiMediaFilteredReasons',
-    ]);
-    if (fromRaiMediaFilteredReasons != null) {
-        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
-    }
-    return toObject;
-}
-function generateVideosOperationFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], fromMetadata);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fromError);
-    }
-    const fromResponse = getValueByPath(fromObject, [
-        'response',
-        'generateVideoResponse',
-    ]);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], generateVideosResponseFromMldev(fromResponse));
-    }
-    return toObject;
-}
-function videoFromVertex(fromObject) {
-    const toObject = {};
-    const fromUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromUri != null) {
-        setValueByPath(toObject, ['uri'], fromUri);
-    }
-    const fromVideoBytes = getValueByPath(fromObject, [
-        'bytesBase64Encoded',
-    ]);
-    if (fromVideoBytes != null) {
-        setValueByPath(toObject, ['videoBytes'], tBytes(fromVideoBytes));
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function generatedVideoFromVertex(fromObject) {
-    const toObject = {};
-    const fromVideo = getValueByPath(fromObject, ['_self']);
-    if (fromVideo != null) {
-        setValueByPath(toObject, ['video'], videoFromVertex(fromVideo));
-    }
-    return toObject;
-}
-function generateVideosResponseFromVertex(fromObject) {
-    const toObject = {};
-    const fromGeneratedVideos = getValueByPath(fromObject, ['videos']);
-    if (fromGeneratedVideos != null) {
-        let transformedList = fromGeneratedVideos;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return generatedVideoFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['generatedVideos'], transformedList);
-    }
-    const fromRaiMediaFilteredCount = getValueByPath(fromObject, [
-        'raiMediaFilteredCount',
-    ]);
-    if (fromRaiMediaFilteredCount != null) {
-        setValueByPath(toObject, ['raiMediaFilteredCount'], fromRaiMediaFilteredCount);
-    }
-    const fromRaiMediaFilteredReasons = getValueByPath(fromObject, [
-        'raiMediaFilteredReasons',
-    ]);
-    if (fromRaiMediaFilteredReasons != null) {
-        setValueByPath(toObject, ['raiMediaFilteredReasons'], fromRaiMediaFilteredReasons);
-    }
-    return toObject;
-}
-function generateVideosOperationFromVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], fromMetadata);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fromError);
-    }
-    const fromResponse = getValueByPath(fromObject, ['response']);
-    if (fromResponse != null) {
-        setValueByPath(toObject, ['response'], generateVideosResponseFromVertex(fromResponse));
-    }
-    return toObject;
 }
 
 /**
@@ -19819,16 +17482,63 @@ class Operations extends BaseModule {
             if (config && 'httpOptions' in config) {
                 httpOptions = config.httpOptions;
             }
-            return this.fetchPredictVideosOperationInternal({
+            const rawOperation = await this.fetchPredictVideosOperationInternal({
                 operationName: operation.name,
                 resourceName: resourceName,
                 config: { httpOptions: httpOptions },
             });
+            return operation._fromAPIResponse({
+                apiResponse: rawOperation,
+                isVertexAI: true,
+            });
         }
         else {
-            return this.getVideosOperationInternal({
+            const rawOperation = await this.getVideosOperationInternal({
                 operationName: operation.name,
                 config: config,
+            });
+            return operation._fromAPIResponse({
+                apiResponse: rawOperation,
+                isVertexAI: false,
+            });
+        }
+    }
+    /**
+     * Gets the status of a long-running operation.
+     *
+     * @param parameters The parameters for the get operation request.
+     * @return The updated Operation object, with the latest status or result.
+     */
+    async get(parameters) {
+        const operation = parameters.operation;
+        const config = parameters.config;
+        if (operation.name === undefined || operation.name === '') {
+            throw new Error('Operation name is required.');
+        }
+        if (this.apiClient.isVertexAI()) {
+            const resourceName = operation.name.split('/operations/')[0];
+            let httpOptions = undefined;
+            if (config && 'httpOptions' in config) {
+                httpOptions = config.httpOptions;
+            }
+            const rawOperation = await this.fetchPredictVideosOperationInternal({
+                operationName: operation.name,
+                resourceName: resourceName,
+                config: { httpOptions: httpOptions },
+            });
+            return operation._fromAPIResponse({
+                apiResponse: rawOperation,
+                isVertexAI: true,
+            });
+        }
+        else {
+            const rawOperation = await this.getVideosOperationInternal({
+                operationName: operation.name,
+                config: config,
+            });
+            return operation._fromAPIResponse({
+                apiResponse: rawOperation,
+                isVertexAI: false,
             });
         }
     }
@@ -19841,7 +17551,6 @@ class Operations extends BaseModule {
             const body = getOperationParametersToVertex(params);
             path = formatMap('{operationName}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19856,16 +17565,12 @@ class Operations extends BaseModule {
                 .then((httpResponse) => {
                 return httpResponse.json();
             });
-            return response.then((apiResponse) => {
-                const resp = generateVideosOperationFromVertex(apiResponse);
-                return resp;
-            });
+            return response;
         }
         else {
             const body = getOperationParametersToMldev(params);
             path = formatMap('{operationName}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19880,10 +17585,7 @@ class Operations extends BaseModule {
                 .then((httpResponse) => {
                 return httpResponse.json();
             });
-            return response.then((apiResponse) => {
-                const resp = generateVideosOperationFromMldev(apiResponse);
-                return resp;
-            });
+            return response;
         }
     }
     async fetchPredictVideosOperationInternal(params) {
@@ -19895,7 +17597,6 @@ class Operations extends BaseModule {
             const body = fetchPredictOperationParametersToVertex(params);
             path = formatMap('{resourceName}:fetchPredictOperation', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -19910,10 +17611,7 @@ class Operations extends BaseModule {
                 .then((httpResponse) => {
                 return httpResponse.json();
             });
-            return response.then((apiResponse) => {
-                const resp = generateVideosOperationFromVertex(apiResponse);
-                return resp;
-            });
+            return response;
         }
         else {
             throw new Error('This method is only supported by the Vertex AI.');
@@ -19926,83 +17624,47 @@ class Operations extends BaseModule {
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-function prebuiltVoiceConfigToMldev(fromObject) {
+function audioTranscriptionConfigToMldev() {
     const toObject = {};
-    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
-    if (fromVoiceName != null) {
-        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    return toObject;
+}
+function authTokenFromMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
-function voiceConfigToMldev(fromObject) {
+function automaticActivityDetectionToMldev(fromObject) {
     const toObject = {};
-    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
-        'prebuiltVoiceConfig',
+    const fromDisabled = getValueByPath(fromObject, ['disabled']);
+    if (fromDisabled != null) {
+        setValueByPath(toObject, ['disabled'], fromDisabled);
+    }
+    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
+        'startOfSpeechSensitivity',
     ]);
-    if (fromPrebuiltVoiceConfig != null) {
-        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev(fromPrebuiltVoiceConfig));
+    if (fromStartOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
     }
-    return toObject;
-}
-function speakerVoiceConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
-    if (fromSpeaker != null) {
-        setValueByPath(toObject, ['speaker'], fromSpeaker);
-    }
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev(fromVoiceConfig));
-    }
-    return toObject;
-}
-function multiSpeakerVoiceConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
-        'speakerVoiceConfigs',
+    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
+        'endOfSpeechSensitivity',
     ]);
-    if (fromSpeakerVoiceConfigs != null) {
-        let transformedList = fromSpeakerVoiceConfigs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return speakerVoiceConfigToMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
+    if (fromEndOfSpeechSensitivity != null) {
+        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
     }
-    return toObject;
-}
-function speechConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
-    if (fromVoiceConfig != null) {
-        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev(fromVoiceConfig));
-    }
-    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
-        'multiSpeakerVoiceConfig',
+    const fromPrefixPaddingMs = getValueByPath(fromObject, [
+        'prefixPaddingMs',
     ]);
-    if (fromMultiSpeakerVoiceConfig != null) {
-        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev(fromMultiSpeakerVoiceConfig));
+    if (fromPrefixPaddingMs != null) {
+        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
     }
-    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
-    if (fromLanguageCode != null) {
-        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
-    }
-    return toObject;
-}
-function videoMetadataToMldev(fromObject) {
-    const toObject = {};
-    const fromFps = getValueByPath(fromObject, ['fps']);
-    if (fromFps != null) {
-        setValueByPath(toObject, ['fps'], fromFps);
-    }
-    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
-    if (fromEndOffset != null) {
-        setValueByPath(toObject, ['endOffset'], fromEndOffset);
-    }
-    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
-    if (fromStartOffset != null) {
-        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    const fromSilenceDurationMs = getValueByPath(fromObject, [
+        'silenceDurationMs',
+    ]);
+    if (fromSilenceDurationMs != null) {
+        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
     }
     return toObject;
 }
@@ -20021,75 +17683,6 @@ function blobToMldev(fromObject) {
     }
     return toObject;
 }
-function fileDataToMldev(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['displayName']) !== undefined) {
-        throw new Error('displayName parameter is not supported in Gemini API.');
-    }
-    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
-    if (fromFileUri != null) {
-        setValueByPath(toObject, ['fileUri'], fromFileUri);
-    }
-    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
-    if (fromMimeType != null) {
-        setValueByPath(toObject, ['mimeType'], fromMimeType);
-    }
-    return toObject;
-}
-function partToMldev(fromObject) {
-    const toObject = {};
-    const fromVideoMetadata = getValueByPath(fromObject, [
-        'videoMetadata',
-    ]);
-    if (fromVideoMetadata != null) {
-        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev(fromVideoMetadata));
-    }
-    const fromThought = getValueByPath(fromObject, ['thought']);
-    if (fromThought != null) {
-        setValueByPath(toObject, ['thought'], fromThought);
-    }
-    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
-    if (fromInlineData != null) {
-        setValueByPath(toObject, ['inlineData'], blobToMldev(fromInlineData));
-    }
-    const fromFileData = getValueByPath(fromObject, ['fileData']);
-    if (fromFileData != null) {
-        setValueByPath(toObject, ['fileData'], fileDataToMldev(fromFileData));
-    }
-    const fromThoughtSignature = getValueByPath(fromObject, [
-        'thoughtSignature',
-    ]);
-    if (fromThoughtSignature != null) {
-        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
-    }
-    const fromCodeExecutionResult = getValueByPath(fromObject, [
-        'codeExecutionResult',
-    ]);
-    if (fromCodeExecutionResult != null) {
-        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
-    }
-    const fromExecutableCode = getValueByPath(fromObject, [
-        'executableCode',
-    ]);
-    if (fromExecutableCode != null) {
-        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
-    }
-    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
-    if (fromFunctionCall != null) {
-        setValueByPath(toObject, ['functionCall'], fromFunctionCall);
-    }
-    const fromFunctionResponse = getValueByPath(fromObject, [
-        'functionResponse',
-    ]);
-    if (fromFunctionResponse != null) {
-        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
-    }
-    const fromText = getValueByPath(fromObject, ['text']);
-    if (fromText != null) {
-        setValueByPath(toObject, ['text'], fromText);
-    }
-    return toObject;
-}
 function contentToMldev(fromObject) {
     const toObject = {};
     const fromParts = getValueByPath(fromObject, ['parts']);
@@ -20105,6 +17698,105 @@ function contentToMldev(fromObject) {
     const fromRole = getValueByPath(fromObject, ['role']);
     if (fromRole != null) {
         setValueByPath(toObject, ['role'], fromRole);
+    }
+    return toObject;
+}
+function contextWindowCompressionConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromTriggerTokens = getValueByPath(fromObject, [
+        'triggerTokens',
+    ]);
+    if (fromTriggerTokens != null) {
+        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
+    }
+    const fromSlidingWindow = getValueByPath(fromObject, [
+        'slidingWindow',
+    ]);
+    if (fromSlidingWindow != null) {
+        setValueByPath(toObject, ['slidingWindow'], slidingWindowToMldev(fromSlidingWindow));
+    }
+    return toObject;
+}
+function createAuthTokenConfigToMldev(apiClient, fromObject, parentObject) {
+    const toObject = {};
+    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
+    if (parentObject !== undefined && fromExpireTime != null) {
+        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
+    }
+    const fromNewSessionExpireTime = getValueByPath(fromObject, [
+        'newSessionExpireTime',
+    ]);
+    if (parentObject !== undefined && fromNewSessionExpireTime != null) {
+        setValueByPath(parentObject, ['newSessionExpireTime'], fromNewSessionExpireTime);
+    }
+    const fromUses = getValueByPath(fromObject, ['uses']);
+    if (parentObject !== undefined && fromUses != null) {
+        setValueByPath(parentObject, ['uses'], fromUses);
+    }
+    const fromLiveConnectConstraints = getValueByPath(fromObject, [
+        'liveConnectConstraints',
+    ]);
+    if (parentObject !== undefined && fromLiveConnectConstraints != null) {
+        setValueByPath(parentObject, ['bidiGenerateContentSetup'], liveConnectConstraintsToMldev(apiClient, fromLiveConnectConstraints));
+    }
+    const fromLockAdditionalFields = getValueByPath(fromObject, [
+        'lockAdditionalFields',
+    ]);
+    if (parentObject !== undefined && fromLockAdditionalFields != null) {
+        setValueByPath(parentObject, ['fieldMask'], fromLockAdditionalFields);
+    }
+    return toObject;
+}
+function createAuthTokenParametersToMldev(apiClient, fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        setValueByPath(toObject, ['config'], createAuthTokenConfigToMldev(apiClient, fromConfig, toObject));
+    }
+    return toObject;
+}
+function dynamicRetrievalConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromMode = getValueByPath(fromObject, ['mode']);
+    if (fromMode != null) {
+        setValueByPath(toObject, ['mode'], fromMode);
+    }
+    const fromDynamicThreshold = getValueByPath(fromObject, [
+        'dynamicThreshold',
+    ]);
+    if (fromDynamicThreshold != null) {
+        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    }
+    return toObject;
+}
+function fileDataToMldev(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['displayName']) !== undefined) {
+        throw new Error('displayName parameter is not supported in Gemini API.');
+    }
+    const fromFileUri = getValueByPath(fromObject, ['fileUri']);
+    if (fromFileUri != null) {
+        setValueByPath(toObject, ['fileUri'], fromFileUri);
+    }
+    const fromMimeType = getValueByPath(fromObject, ['mimeType']);
+    if (fromMimeType != null) {
+        setValueByPath(toObject, ['mimeType'], fromMimeType);
+    }
+    return toObject;
+}
+function functionCallToMldev(fromObject) {
+    const toObject = {};
+    const fromId = getValueByPath(fromObject, ['id']);
+    if (fromId != null) {
+        setValueByPath(toObject, ['id'], fromId);
+    }
+    const fromArgs = getValueByPath(fromObject, ['args']);
+    if (fromArgs != null) {
+        setValueByPath(toObject, ['args'], fromArgs);
+    }
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
     }
     return toObject;
 }
@@ -20144,15 +17836,13 @@ function functionDeclarationToMldev(fromObject) {
     }
     return toObject;
 }
-function intervalToMldev(fromObject) {
+function googleSearchRetrievalToMldev(fromObject) {
     const toObject = {};
-    const fromStartTime = getValueByPath(fromObject, ['startTime']);
-    if (fromStartTime != null) {
-        setValueByPath(toObject, ['startTime'], fromStartTime);
-    }
-    const fromEndTime = getValueByPath(fromObject, ['endTime']);
-    if (fromEndTime != null) {
-        setValueByPath(toObject, ['endTime'], fromEndTime);
+    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
+        'dynamicRetrievalConfig',
+    ]);
+    if (fromDynamicRetrievalConfig != null) {
+        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev(fromDynamicRetrievalConfig));
     }
     return toObject;
 }
@@ -20164,183 +17854,20 @@ function googleSearchToMldev(fromObject) {
     if (fromTimeRangeFilter != null) {
         setValueByPath(toObject, ['timeRangeFilter'], intervalToMldev(fromTimeRangeFilter));
     }
-    return toObject;
-}
-function dynamicRetrievalConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromMode = getValueByPath(fromObject, ['mode']);
-    if (fromMode != null) {
-        setValueByPath(toObject, ['mode'], fromMode);
-    }
-    const fromDynamicThreshold = getValueByPath(fromObject, [
-        'dynamicThreshold',
-    ]);
-    if (fromDynamicThreshold != null) {
-        setValueByPath(toObject, ['dynamicThreshold'], fromDynamicThreshold);
+    if (getValueByPath(fromObject, ['excludeDomains']) !== undefined) {
+        throw new Error('excludeDomains parameter is not supported in Gemini API.');
     }
     return toObject;
 }
-function googleSearchRetrievalToMldev(fromObject) {
+function intervalToMldev(fromObject) {
     const toObject = {};
-    const fromDynamicRetrievalConfig = getValueByPath(fromObject, [
-        'dynamicRetrievalConfig',
-    ]);
-    if (fromDynamicRetrievalConfig != null) {
-        setValueByPath(toObject, ['dynamicRetrievalConfig'], dynamicRetrievalConfigToMldev(fromDynamicRetrievalConfig));
+    const fromStartTime = getValueByPath(fromObject, ['startTime']);
+    if (fromStartTime != null) {
+        setValueByPath(toObject, ['startTime'], fromStartTime);
     }
-    return toObject;
-}
-function urlContextToMldev() {
-    const toObject = {};
-    return toObject;
-}
-function toolToMldev(fromObject) {
-    const toObject = {};
-    const fromFunctionDeclarations = getValueByPath(fromObject, [
-        'functionDeclarations',
-    ]);
-    if (fromFunctionDeclarations != null) {
-        let transformedList = fromFunctionDeclarations;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return functionDeclarationToMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['functionDeclarations'], transformedList);
-    }
-    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
-        throw new Error('retrieval parameter is not supported in Gemini API.');
-    }
-    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
-    if (fromGoogleSearch != null) {
-        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev(fromGoogleSearch));
-    }
-    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-        'googleSearchRetrieval',
-    ]);
-    if (fromGoogleSearchRetrieval != null) {
-        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev(fromGoogleSearchRetrieval));
-    }
-    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
-        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
-        throw new Error('googleMaps parameter is not supported in Gemini API.');
-    }
-    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
-    if (fromUrlContext != null) {
-        setValueByPath(toObject, ['urlContext'], urlContextToMldev());
-    }
-    const fromCodeExecution = getValueByPath(fromObject, [
-        'codeExecution',
-    ]);
-    if (fromCodeExecution != null) {
-        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
-    }
-    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
-    if (fromComputerUse != null) {
-        setValueByPath(toObject, ['computerUse'], fromComputerUse);
-    }
-    return toObject;
-}
-function sessionResumptionConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromHandle = getValueByPath(fromObject, ['handle']);
-    if (fromHandle != null) {
-        setValueByPath(toObject, ['handle'], fromHandle);
-    }
-    if (getValueByPath(fromObject, ['transparent']) !== undefined) {
-        throw new Error('transparent parameter is not supported in Gemini API.');
-    }
-    return toObject;
-}
-function audioTranscriptionConfigToMldev() {
-    const toObject = {};
-    return toObject;
-}
-function automaticActivityDetectionToMldev(fromObject) {
-    const toObject = {};
-    const fromDisabled = getValueByPath(fromObject, ['disabled']);
-    if (fromDisabled != null) {
-        setValueByPath(toObject, ['disabled'], fromDisabled);
-    }
-    const fromStartOfSpeechSensitivity = getValueByPath(fromObject, [
-        'startOfSpeechSensitivity',
-    ]);
-    if (fromStartOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['startOfSpeechSensitivity'], fromStartOfSpeechSensitivity);
-    }
-    const fromEndOfSpeechSensitivity = getValueByPath(fromObject, [
-        'endOfSpeechSensitivity',
-    ]);
-    if (fromEndOfSpeechSensitivity != null) {
-        setValueByPath(toObject, ['endOfSpeechSensitivity'], fromEndOfSpeechSensitivity);
-    }
-    const fromPrefixPaddingMs = getValueByPath(fromObject, [
-        'prefixPaddingMs',
-    ]);
-    if (fromPrefixPaddingMs != null) {
-        setValueByPath(toObject, ['prefixPaddingMs'], fromPrefixPaddingMs);
-    }
-    const fromSilenceDurationMs = getValueByPath(fromObject, [
-        'silenceDurationMs',
-    ]);
-    if (fromSilenceDurationMs != null) {
-        setValueByPath(toObject, ['silenceDurationMs'], fromSilenceDurationMs);
-    }
-    return toObject;
-}
-function realtimeInputConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
-        'automaticActivityDetection',
-    ]);
-    if (fromAutomaticActivityDetection != null) {
-        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToMldev(fromAutomaticActivityDetection));
-    }
-    const fromActivityHandling = getValueByPath(fromObject, [
-        'activityHandling',
-    ]);
-    if (fromActivityHandling != null) {
-        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
-    }
-    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
-    if (fromTurnCoverage != null) {
-        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
-    }
-    return toObject;
-}
-function slidingWindowToMldev(fromObject) {
-    const toObject = {};
-    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
-    if (fromTargetTokens != null) {
-        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
-    }
-    return toObject;
-}
-function contextWindowCompressionConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromTriggerTokens = getValueByPath(fromObject, [
-        'triggerTokens',
-    ]);
-    if (fromTriggerTokens != null) {
-        setValueByPath(toObject, ['triggerTokens'], fromTriggerTokens);
-    }
-    const fromSlidingWindow = getValueByPath(fromObject, [
-        'slidingWindow',
-    ]);
-    if (fromSlidingWindow != null) {
-        setValueByPath(toObject, ['slidingWindow'], slidingWindowToMldev(fromSlidingWindow));
-    }
-    return toObject;
-}
-function proactivityConfigToMldev(fromObject) {
-    const toObject = {};
-    const fromProactiveAudio = getValueByPath(fromObject, [
-        'proactiveAudio',
-    ]);
-    if (fromProactiveAudio != null) {
-        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
+    const fromEndTime = getValueByPath(fromObject, ['endTime']);
+    if (fromEndTime != null) {
+        setValueByPath(toObject, ['endTime'], fromEndTime);
     }
     return toObject;
 }
@@ -20460,49 +17987,253 @@ function liveConnectConstraintsToMldev(apiClient, fromObject) {
     }
     return toObject;
 }
-function createAuthTokenConfigToMldev(apiClient, fromObject, parentObject) {
+function multiSpeakerVoiceConfigToMldev(fromObject) {
     const toObject = {};
-    const fromExpireTime = getValueByPath(fromObject, ['expireTime']);
-    if (parentObject !== undefined && fromExpireTime != null) {
-        setValueByPath(parentObject, ['expireTime'], fromExpireTime);
-    }
-    const fromNewSessionExpireTime = getValueByPath(fromObject, [
-        'newSessionExpireTime',
+    const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
+        'speakerVoiceConfigs',
     ]);
-    if (parentObject !== undefined && fromNewSessionExpireTime != null) {
-        setValueByPath(parentObject, ['newSessionExpireTime'], fromNewSessionExpireTime);
-    }
-    const fromUses = getValueByPath(fromObject, ['uses']);
-    if (parentObject !== undefined && fromUses != null) {
-        setValueByPath(parentObject, ['uses'], fromUses);
-    }
-    const fromLiveConnectConstraints = getValueByPath(fromObject, [
-        'liveConnectConstraints',
-    ]);
-    if (parentObject !== undefined && fromLiveConnectConstraints != null) {
-        setValueByPath(parentObject, ['bidiGenerateContentSetup'], liveConnectConstraintsToMldev(apiClient, fromLiveConnectConstraints));
-    }
-    const fromLockAdditionalFields = getValueByPath(fromObject, [
-        'lockAdditionalFields',
-    ]);
-    if (parentObject !== undefined && fromLockAdditionalFields != null) {
-        setValueByPath(parentObject, ['fieldMask'], fromLockAdditionalFields);
+    if (fromSpeakerVoiceConfigs != null) {
+        let transformedList = fromSpeakerVoiceConfigs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return speakerVoiceConfigToMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['speakerVoiceConfigs'], transformedList);
     }
     return toObject;
 }
-function createAuthTokenParametersToMldev(apiClient, fromObject) {
+function partToMldev(fromObject) {
     const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createAuthTokenConfigToMldev(apiClient, fromConfig, toObject));
+    const fromVideoMetadata = getValueByPath(fromObject, [
+        'videoMetadata',
+    ]);
+    if (fromVideoMetadata != null) {
+        setValueByPath(toObject, ['videoMetadata'], videoMetadataToMldev(fromVideoMetadata));
+    }
+    const fromThought = getValueByPath(fromObject, ['thought']);
+    if (fromThought != null) {
+        setValueByPath(toObject, ['thought'], fromThought);
+    }
+    const fromInlineData = getValueByPath(fromObject, ['inlineData']);
+    if (fromInlineData != null) {
+        setValueByPath(toObject, ['inlineData'], blobToMldev(fromInlineData));
+    }
+    const fromFileData = getValueByPath(fromObject, ['fileData']);
+    if (fromFileData != null) {
+        setValueByPath(toObject, ['fileData'], fileDataToMldev(fromFileData));
+    }
+    const fromThoughtSignature = getValueByPath(fromObject, [
+        'thoughtSignature',
+    ]);
+    if (fromThoughtSignature != null) {
+        setValueByPath(toObject, ['thoughtSignature'], fromThoughtSignature);
+    }
+    const fromFunctionCall = getValueByPath(fromObject, ['functionCall']);
+    if (fromFunctionCall != null) {
+        setValueByPath(toObject, ['functionCall'], functionCallToMldev(fromFunctionCall));
+    }
+    const fromCodeExecutionResult = getValueByPath(fromObject, [
+        'codeExecutionResult',
+    ]);
+    if (fromCodeExecutionResult != null) {
+        setValueByPath(toObject, ['codeExecutionResult'], fromCodeExecutionResult);
+    }
+    const fromExecutableCode = getValueByPath(fromObject, [
+        'executableCode',
+    ]);
+    if (fromExecutableCode != null) {
+        setValueByPath(toObject, ['executableCode'], fromExecutableCode);
+    }
+    const fromFunctionResponse = getValueByPath(fromObject, [
+        'functionResponse',
+    ]);
+    if (fromFunctionResponse != null) {
+        setValueByPath(toObject, ['functionResponse'], fromFunctionResponse);
+    }
+    const fromText = getValueByPath(fromObject, ['text']);
+    if (fromText != null) {
+        setValueByPath(toObject, ['text'], fromText);
     }
     return toObject;
 }
-function authTokenFromMldev(fromObject) {
+function prebuiltVoiceConfigToMldev(fromObject) {
     const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
+    const fromVoiceName = getValueByPath(fromObject, ['voiceName']);
+    if (fromVoiceName != null) {
+        setValueByPath(toObject, ['voiceName'], fromVoiceName);
+    }
+    return toObject;
+}
+function proactivityConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromProactiveAudio = getValueByPath(fromObject, [
+        'proactiveAudio',
+    ]);
+    if (fromProactiveAudio != null) {
+        setValueByPath(toObject, ['proactiveAudio'], fromProactiveAudio);
+    }
+    return toObject;
+}
+function realtimeInputConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromAutomaticActivityDetection = getValueByPath(fromObject, [
+        'automaticActivityDetection',
+    ]);
+    if (fromAutomaticActivityDetection != null) {
+        setValueByPath(toObject, ['automaticActivityDetection'], automaticActivityDetectionToMldev(fromAutomaticActivityDetection));
+    }
+    const fromActivityHandling = getValueByPath(fromObject, [
+        'activityHandling',
+    ]);
+    if (fromActivityHandling != null) {
+        setValueByPath(toObject, ['activityHandling'], fromActivityHandling);
+    }
+    const fromTurnCoverage = getValueByPath(fromObject, ['turnCoverage']);
+    if (fromTurnCoverage != null) {
+        setValueByPath(toObject, ['turnCoverage'], fromTurnCoverage);
+    }
+    return toObject;
+}
+function sessionResumptionConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromHandle = getValueByPath(fromObject, ['handle']);
+    if (fromHandle != null) {
+        setValueByPath(toObject, ['handle'], fromHandle);
+    }
+    if (getValueByPath(fromObject, ['transparent']) !== undefined) {
+        throw new Error('transparent parameter is not supported in Gemini API.');
+    }
+    return toObject;
+}
+function slidingWindowToMldev(fromObject) {
+    const toObject = {};
+    const fromTargetTokens = getValueByPath(fromObject, ['targetTokens']);
+    if (fromTargetTokens != null) {
+        setValueByPath(toObject, ['targetTokens'], fromTargetTokens);
+    }
+    return toObject;
+}
+function speakerVoiceConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromSpeaker = getValueByPath(fromObject, ['speaker']);
+    if (fromSpeaker != null) {
+        setValueByPath(toObject, ['speaker'], fromSpeaker);
+    }
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev(fromVoiceConfig));
+    }
+    return toObject;
+}
+function speechConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromVoiceConfig = getValueByPath(fromObject, ['voiceConfig']);
+    if (fromVoiceConfig != null) {
+        setValueByPath(toObject, ['voiceConfig'], voiceConfigToMldev(fromVoiceConfig));
+    }
+    const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
+        'multiSpeakerVoiceConfig',
+    ]);
+    if (fromMultiSpeakerVoiceConfig != null) {
+        setValueByPath(toObject, ['multiSpeakerVoiceConfig'], multiSpeakerVoiceConfigToMldev(fromMultiSpeakerVoiceConfig));
+    }
+    const fromLanguageCode = getValueByPath(fromObject, ['languageCode']);
+    if (fromLanguageCode != null) {
+        setValueByPath(toObject, ['languageCode'], fromLanguageCode);
+    }
+    return toObject;
+}
+function toolComputerUseToMldev(fromObject) {
+    const toObject = {};
+    const fromEnvironment = getValueByPath(fromObject, ['environment']);
+    if (fromEnvironment != null) {
+        setValueByPath(toObject, ['environment'], fromEnvironment);
+    }
+    const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+        'excludedPredefinedFunctions',
+    ]);
+    if (fromExcludedPredefinedFunctions != null) {
+        setValueByPath(toObject, ['excludedPredefinedFunctions'], fromExcludedPredefinedFunctions);
+    }
+    return toObject;
+}
+function toolToMldev(fromObject) {
+    const toObject = {};
+    const fromFunctionDeclarations = getValueByPath(fromObject, [
+        'functionDeclarations',
+    ]);
+    if (fromFunctionDeclarations != null) {
+        let transformedList = fromFunctionDeclarations;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return functionDeclarationToMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['functionDeclarations'], transformedList);
+    }
+    if (getValueByPath(fromObject, ['retrieval']) !== undefined) {
+        throw new Error('retrieval parameter is not supported in Gemini API.');
+    }
+    const fromGoogleSearch = getValueByPath(fromObject, ['googleSearch']);
+    if (fromGoogleSearch != null) {
+        setValueByPath(toObject, ['googleSearch'], googleSearchToMldev(fromGoogleSearch));
+    }
+    const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+        'googleSearchRetrieval',
+    ]);
+    if (fromGoogleSearchRetrieval != null) {
+        setValueByPath(toObject, ['googleSearchRetrieval'], googleSearchRetrievalToMldev(fromGoogleSearchRetrieval));
+    }
+    if (getValueByPath(fromObject, ['enterpriseWebSearch']) !== undefined) {
+        throw new Error('enterpriseWebSearch parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['googleMaps']) !== undefined) {
+        throw new Error('googleMaps parameter is not supported in Gemini API.');
+    }
+    const fromUrlContext = getValueByPath(fromObject, ['urlContext']);
+    if (fromUrlContext != null) {
+        setValueByPath(toObject, ['urlContext'], urlContextToMldev());
+    }
+    const fromComputerUse = getValueByPath(fromObject, ['computerUse']);
+    if (fromComputerUse != null) {
+        setValueByPath(toObject, ['computerUse'], toolComputerUseToMldev(fromComputerUse));
+    }
+    const fromCodeExecution = getValueByPath(fromObject, [
+        'codeExecution',
+    ]);
+    if (fromCodeExecution != null) {
+        setValueByPath(toObject, ['codeExecution'], fromCodeExecution);
+    }
+    return toObject;
+}
+function urlContextToMldev() {
+    const toObject = {};
+    return toObject;
+}
+function videoMetadataToMldev(fromObject) {
+    const toObject = {};
+    const fromFps = getValueByPath(fromObject, ['fps']);
+    if (fromFps != null) {
+        setValueByPath(toObject, ['fps'], fromFps);
+    }
+    const fromEndOffset = getValueByPath(fromObject, ['endOffset']);
+    if (fromEndOffset != null) {
+        setValueByPath(toObject, ['endOffset'], fromEndOffset);
+    }
+    const fromStartOffset = getValueByPath(fromObject, ['startOffset']);
+    if (fromStartOffset != null) {
+        setValueByPath(toObject, ['startOffset'], fromStartOffset);
+    }
+    return toObject;
+}
+function voiceConfigToMldev(fromObject) {
+    const toObject = {};
+    const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+        'prebuiltVoiceConfig',
+    ]);
+    if (fromPrebuiltVoiceConfig != null) {
+        setValueByPath(toObject, ['prebuiltVoiceConfig'], prebuiltVoiceConfigToMldev(fromPrebuiltVoiceConfig));
     }
     return toObject;
 }
@@ -20665,14 +18396,20 @@ class Tokens extends BaseModule {
      * @experimental
      *
      * @remarks
-     * Ephermeral auth tokens is only supported in the Gemini Developer API.
+     * Ephemeral auth tokens is only supported in the Gemini Developer API.
      * It can be used for the session connection to the Live constrained API.
+     * Support in v1alpha only.
      *
      * @param params - The parameters for the create request.
      * @return The created auth token.
      *
      * @example
      * ```ts
+     * const ai = new GoogleGenAI({
+     *     apiKey: token.name,
+     *     httpOptions: { apiVersion: 'v1alpha' }  // Support in v1alpha only.
+     * });
+     *
      * // Case 1: If LiveEphemeralParameters is unset, unlock LiveConnectConfig
      * // when using the token in Live API sessions. Each session connection can
      * // use a different configuration.
@@ -20778,71 +18515,19 @@ class Tokens extends BaseModule {
  * SPDX-License-Identifier: Apache-2.0
  */
 // Code generated by the Google Gen AI SDK generator DO NOT EDIT.
-function getTuningJobParametersToMldev(fromObject) {
+function cancelTuningJobParametersToMldev(fromObject) {
     const toObject = {};
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['_url', 'name'], fromName);
     }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
     return toObject;
 }
-function listTuningJobsConfigToMldev(fromObject, parentObject) {
+function cancelTuningJobParametersToVertex(fromObject) {
     const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
-    }
-    const fromFilter = getValueByPath(fromObject, ['filter']);
-    if (parentObject !== undefined && fromFilter != null) {
-        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
-    }
-    return toObject;
-}
-function listTuningJobsParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listTuningJobsConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function tuningExampleToMldev(fromObject) {
-    const toObject = {};
-    const fromTextInput = getValueByPath(fromObject, ['textInput']);
-    if (fromTextInput != null) {
-        setValueByPath(toObject, ['textInput'], fromTextInput);
-    }
-    const fromOutput = getValueByPath(fromObject, ['output']);
-    if (fromOutput != null) {
-        setValueByPath(toObject, ['output'], fromOutput);
-    }
-    return toObject;
-}
-function tuningDatasetToMldev(fromObject) {
-    const toObject = {};
-    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
-        throw new Error('gcsUri parameter is not supported in Gemini API.');
-    }
-    if (getValueByPath(fromObject, ['vertexDatasetResource']) !== undefined) {
-        throw new Error('vertexDatasetResource parameter is not supported in Gemini API.');
-    }
-    const fromExamples = getValueByPath(fromObject, ['examples']);
-    if (fromExamples != null) {
-        let transformedList = fromExamples;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return tuningExampleToMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['examples', 'examples'], transformedList);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], fromName);
     }
     return toObject;
 }
@@ -20874,6 +18559,10 @@ function createTuningJobConfigToMldev(fromObject, parentObject) {
         undefined) {
         throw new Error('exportLastCheckpointOnly parameter is not supported in Gemini API.');
     }
+    if (getValueByPath(fromObject, ['preTunedModelCheckpointId']) !==
+        undefined) {
+        throw new Error('preTunedModelCheckpointId parameter is not supported in Gemini API.');
+    }
     if (getValueByPath(fromObject, ['adapterSize']) !== undefined) {
         throw new Error('adapterSize parameter is not supported in Gemini API.');
     }
@@ -20885,90 +18574,8 @@ function createTuningJobConfigToMldev(fromObject, parentObject) {
     if (parentObject !== undefined && fromLearningRate != null) {
         setValueByPath(parentObject, ['tuningTask', 'hyperparameters', 'learningRate'], fromLearningRate);
     }
-    return toObject;
-}
-function createTuningJobParametersToMldev(fromObject) {
-    const toObject = {};
-    const fromBaseModel = getValueByPath(fromObject, ['baseModel']);
-    if (fromBaseModel != null) {
-        setValueByPath(toObject, ['baseModel'], fromBaseModel);
-    }
-    const fromTrainingDataset = getValueByPath(fromObject, [
-        'trainingDataset',
-    ]);
-    if (fromTrainingDataset != null) {
-        setValueByPath(toObject, ['tuningTask', 'trainingData'], tuningDatasetToMldev(fromTrainingDataset));
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createTuningJobConfigToMldev(fromConfig, toObject));
-    }
-    return toObject;
-}
-function getTuningJobParametersToVertex(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['_url', 'name'], fromName);
-    }
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], fromConfig);
-    }
-    return toObject;
-}
-function listTuningJobsConfigToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
-    if (parentObject !== undefined && fromPageSize != null) {
-        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
-    }
-    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
-    if (parentObject !== undefined && fromPageToken != null) {
-        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
-    }
-    const fromFilter = getValueByPath(fromObject, ['filter']);
-    if (parentObject !== undefined && fromFilter != null) {
-        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
-    }
-    return toObject;
-}
-function listTuningJobsParametersToVertex(fromObject) {
-    const toObject = {};
-    const fromConfig = getValueByPath(fromObject, ['config']);
-    if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], listTuningJobsConfigToVertex(fromConfig, toObject));
-    }
-    return toObject;
-}
-function tuningDatasetToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (parentObject !== undefined && fromGcsUri != null) {
-        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromGcsUri);
-    }
-    const fromVertexDatasetResource = getValueByPath(fromObject, [
-        'vertexDatasetResource',
-    ]);
-    if (parentObject !== undefined && fromVertexDatasetResource != null) {
-        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromVertexDatasetResource);
-    }
-    if (getValueByPath(fromObject, ['examples']) !== undefined) {
-        throw new Error('examples parameter is not supported in Vertex AI.');
-    }
-    return toObject;
-}
-function tuningValidationDatasetToVertex(fromObject, parentObject) {
-    const toObject = {};
-    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
-    if (fromGcsUri != null) {
-        setValueByPath(toObject, ['validationDatasetUri'], fromGcsUri);
-    }
-    const fromVertexDatasetResource = getValueByPath(fromObject, [
-        'vertexDatasetResource',
-    ]);
-    if (parentObject !== undefined && fromVertexDatasetResource != null) {
-        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromVertexDatasetResource);
+    if (getValueByPath(fromObject, ['labels']) !== undefined) {
+        throw new Error('labels parameter is not supported in Gemini API.');
     }
     return toObject;
 }
@@ -21016,13 +18623,47 @@ function createTuningJobConfigToVertex(fromObject, parentObject) {
     if (getValueByPath(fromObject, ['learningRate']) !== undefined) {
         throw new Error('learningRate parameter is not supported in Vertex AI.');
     }
+    const fromLabels = getValueByPath(fromObject, ['labels']);
+    if (parentObject !== undefined && fromLabels != null) {
+        setValueByPath(parentObject, ['labels'], fromLabels);
+    }
     return toObject;
 }
-function createTuningJobParametersToVertex(fromObject) {
+function createTuningJobParametersPrivateToMldev(fromObject) {
     const toObject = {};
     const fromBaseModel = getValueByPath(fromObject, ['baseModel']);
     if (fromBaseModel != null) {
         setValueByPath(toObject, ['baseModel'], fromBaseModel);
+    }
+    const fromPreTunedModel = getValueByPath(fromObject, [
+        'preTunedModel',
+    ]);
+    if (fromPreTunedModel != null) {
+        setValueByPath(toObject, ['preTunedModel'], fromPreTunedModel);
+    }
+    const fromTrainingDataset = getValueByPath(fromObject, [
+        'trainingDataset',
+    ]);
+    if (fromTrainingDataset != null) {
+        setValueByPath(toObject, ['tuningTask', 'trainingData'], tuningDatasetToMldev(fromTrainingDataset));
+    }
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        createTuningJobConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function createTuningJobParametersPrivateToVertex(fromObject) {
+    const toObject = {};
+    const fromBaseModel = getValueByPath(fromObject, ['baseModel']);
+    if (fromBaseModel != null) {
+        setValueByPath(toObject, ['baseModel'], fromBaseModel);
+    }
+    const fromPreTunedModel = getValueByPath(fromObject, [
+        'preTunedModel',
+    ]);
+    if (fromPreTunedModel != null) {
+        setValueByPath(toObject, ['preTunedModel'], fromPreTunedModel);
     }
     const fromTrainingDataset = getValueByPath(fromObject, [
         'trainingDataset',
@@ -21032,7 +18673,143 @@ function createTuningJobParametersToVertex(fromObject) {
     }
     const fromConfig = getValueByPath(fromObject, ['config']);
     if (fromConfig != null) {
-        setValueByPath(toObject, ['config'], createTuningJobConfigToVertex(fromConfig, toObject));
+        createTuningJobConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function getTuningJobParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], fromName);
+    }
+    return toObject;
+}
+function getTuningJobParametersToVertex(fromObject) {
+    const toObject = {};
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['_url', 'name'], fromName);
+    }
+    return toObject;
+}
+function listTuningJobsConfigToMldev(fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    }
+    const fromFilter = getValueByPath(fromObject, ['filter']);
+    if (parentObject !== undefined && fromFilter != null) {
+        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
+    }
+    return toObject;
+}
+function listTuningJobsConfigToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromPageSize = getValueByPath(fromObject, ['pageSize']);
+    if (parentObject !== undefined && fromPageSize != null) {
+        setValueByPath(parentObject, ['_query', 'pageSize'], fromPageSize);
+    }
+    const fromPageToken = getValueByPath(fromObject, ['pageToken']);
+    if (parentObject !== undefined && fromPageToken != null) {
+        setValueByPath(parentObject, ['_query', 'pageToken'], fromPageToken);
+    }
+    const fromFilter = getValueByPath(fromObject, ['filter']);
+    if (parentObject !== undefined && fromFilter != null) {
+        setValueByPath(parentObject, ['_query', 'filter'], fromFilter);
+    }
+    return toObject;
+}
+function listTuningJobsParametersToMldev(fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listTuningJobsConfigToMldev(fromConfig, toObject);
+    }
+    return toObject;
+}
+function listTuningJobsParametersToVertex(fromObject) {
+    const toObject = {};
+    const fromConfig = getValueByPath(fromObject, ['config']);
+    if (fromConfig != null) {
+        listTuningJobsConfigToVertex(fromConfig, toObject);
+    }
+    return toObject;
+}
+function listTuningJobsResponseFromMldev(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    }
+    const fromTuningJobs = getValueByPath(fromObject, ['tunedModels']);
+    if (fromTuningJobs != null) {
+        let transformedList = fromTuningJobs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return tuningJobFromMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['tuningJobs'], transformedList);
+    }
+    return toObject;
+}
+function listTuningJobsResponseFromVertex(fromObject) {
+    const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
+    const fromNextPageToken = getValueByPath(fromObject, [
+        'nextPageToken',
+    ]);
+    if (fromNextPageToken != null) {
+        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    }
+    const fromTuningJobs = getValueByPath(fromObject, ['tuningJobs']);
+    if (fromTuningJobs != null) {
+        let transformedList = fromTuningJobs;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return tuningJobFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['tuningJobs'], transformedList);
+    }
+    return toObject;
+}
+function tunedModelCheckpointFromVertex(fromObject) {
+    const toObject = {};
+    const fromCheckpointId = getValueByPath(fromObject, ['checkpointId']);
+    if (fromCheckpointId != null) {
+        setValueByPath(toObject, ['checkpointId'], fromCheckpointId);
+    }
+    const fromEpoch = getValueByPath(fromObject, ['epoch']);
+    if (fromEpoch != null) {
+        setValueByPath(toObject, ['epoch'], fromEpoch);
+    }
+    const fromStep = getValueByPath(fromObject, ['step']);
+    if (fromStep != null) {
+        setValueByPath(toObject, ['step'], fromStep);
+    }
+    const fromEndpoint = getValueByPath(fromObject, ['endpoint']);
+    if (fromEndpoint != null) {
+        setValueByPath(toObject, ['endpoint'], fromEndpoint);
     }
     return toObject;
 }
@@ -21048,8 +18825,85 @@ function tunedModelFromMldev(fromObject) {
     }
     return toObject;
 }
+function tunedModelFromVertex(fromObject) {
+    const toObject = {};
+    const fromModel = getValueByPath(fromObject, ['model']);
+    if (fromModel != null) {
+        setValueByPath(toObject, ['model'], fromModel);
+    }
+    const fromEndpoint = getValueByPath(fromObject, ['endpoint']);
+    if (fromEndpoint != null) {
+        setValueByPath(toObject, ['endpoint'], fromEndpoint);
+    }
+    const fromCheckpoints = getValueByPath(fromObject, ['checkpoints']);
+    if (fromCheckpoints != null) {
+        let transformedList = fromCheckpoints;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return tunedModelCheckpointFromVertex(item);
+            });
+        }
+        setValueByPath(toObject, ['checkpoints'], transformedList);
+    }
+    return toObject;
+}
+function tuningDatasetToMldev(fromObject) {
+    const toObject = {};
+    if (getValueByPath(fromObject, ['gcsUri']) !== undefined) {
+        throw new Error('gcsUri parameter is not supported in Gemini API.');
+    }
+    if (getValueByPath(fromObject, ['vertexDatasetResource']) !== undefined) {
+        throw new Error('vertexDatasetResource parameter is not supported in Gemini API.');
+    }
+    const fromExamples = getValueByPath(fromObject, ['examples']);
+    if (fromExamples != null) {
+        let transformedList = fromExamples;
+        if (Array.isArray(transformedList)) {
+            transformedList = transformedList.map((item) => {
+                return tuningExampleToMldev(item);
+            });
+        }
+        setValueByPath(toObject, ['examples', 'examples'], transformedList);
+    }
+    return toObject;
+}
+function tuningDatasetToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (parentObject !== undefined && fromGcsUri != null) {
+        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromGcsUri);
+    }
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+        'vertexDatasetResource',
+    ]);
+    if (parentObject !== undefined && fromVertexDatasetResource != null) {
+        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromVertexDatasetResource);
+    }
+    if (getValueByPath(fromObject, ['examples']) !== undefined) {
+        throw new Error('examples parameter is not supported in Vertex AI.');
+    }
+    return toObject;
+}
+function tuningExampleToMldev(fromObject) {
+    const toObject = {};
+    const fromTextInput = getValueByPath(fromObject, ['textInput']);
+    if (fromTextInput != null) {
+        setValueByPath(toObject, ['textInput'], fromTextInput);
+    }
+    const fromOutput = getValueByPath(fromObject, ['output']);
+    if (fromOutput != null) {
+        setValueByPath(toObject, ['output'], fromOutput);
+    }
+    return toObject;
+}
 function tuningJobFromMldev(fromObject) {
     const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['name'], fromName);
@@ -21092,11 +18946,11 @@ function tuningJobFromMldev(fromObject) {
     if (fromTunedModel != null) {
         setValueByPath(toObject, ['tunedModel'], tunedModelFromMldev(fromTunedModel));
     }
-    const fromDistillationSpec = getValueByPath(fromObject, [
-        'distillationSpec',
+    const fromCustomBaseModel = getValueByPath(fromObject, [
+        'customBaseModel',
     ]);
-    if (fromDistillationSpec != null) {
-        setValueByPath(toObject, ['distillationSpec'], fromDistillationSpec);
+    if (fromCustomBaseModel != null) {
+        setValueByPath(toObject, ['customBaseModel'], fromCustomBaseModel);
     }
     const fromExperiment = getValueByPath(fromObject, ['experiment']);
     if (fromExperiment != null) {
@@ -21106,17 +18960,13 @@ function tuningJobFromMldev(fromObject) {
     if (fromLabels != null) {
         setValueByPath(toObject, ['labels'], fromLabels);
     }
+    const fromOutputUri = getValueByPath(fromObject, ['outputUri']);
+    if (fromOutputUri != null) {
+        setValueByPath(toObject, ['outputUri'], fromOutputUri);
+    }
     const fromPipelineJob = getValueByPath(fromObject, ['pipelineJob']);
     if (fromPipelineJob != null) {
         setValueByPath(toObject, ['pipelineJob'], fromPipelineJob);
-    }
-    const fromSatisfiesPzi = getValueByPath(fromObject, ['satisfiesPzi']);
-    if (fromSatisfiesPzi != null) {
-        setValueByPath(toObject, ['satisfiesPzi'], fromSatisfiesPzi);
-    }
-    const fromSatisfiesPzs = getValueByPath(fromObject, ['satisfiesPzs']);
-    if (fromSatisfiesPzs != null) {
-        setValueByPath(toObject, ['satisfiesPzs'], fromSatisfiesPzs);
     }
     const fromServiceAccount = getValueByPath(fromObject, [
         'serviceAccount',
@@ -21132,90 +18982,14 @@ function tuningJobFromMldev(fromObject) {
     }
     return toObject;
 }
-function listTuningJobsResponseFromMldev(fromObject) {
-    const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
-    ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
-    }
-    const fromTuningJobs = getValueByPath(fromObject, ['tunedModels']);
-    if (fromTuningJobs != null) {
-        let transformedList = fromTuningJobs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return tuningJobFromMldev(item);
-            });
-        }
-        setValueByPath(toObject, ['tuningJobs'], transformedList);
-    }
-    return toObject;
-}
-function operationFromMldev(fromObject) {
-    const toObject = {};
-    const fromName = getValueByPath(fromObject, ['name']);
-    if (fromName != null) {
-        setValueByPath(toObject, ['name'], fromName);
-    }
-    const fromMetadata = getValueByPath(fromObject, ['metadata']);
-    if (fromMetadata != null) {
-        setValueByPath(toObject, ['metadata'], fromMetadata);
-    }
-    const fromDone = getValueByPath(fromObject, ['done']);
-    if (fromDone != null) {
-        setValueByPath(toObject, ['done'], fromDone);
-    }
-    const fromError = getValueByPath(fromObject, ['error']);
-    if (fromError != null) {
-        setValueByPath(toObject, ['error'], fromError);
-    }
-    return toObject;
-}
-function tunedModelCheckpointFromVertex(fromObject) {
-    const toObject = {};
-    const fromCheckpointId = getValueByPath(fromObject, ['checkpointId']);
-    if (fromCheckpointId != null) {
-        setValueByPath(toObject, ['checkpointId'], fromCheckpointId);
-    }
-    const fromEpoch = getValueByPath(fromObject, ['epoch']);
-    if (fromEpoch != null) {
-        setValueByPath(toObject, ['epoch'], fromEpoch);
-    }
-    const fromStep = getValueByPath(fromObject, ['step']);
-    if (fromStep != null) {
-        setValueByPath(toObject, ['step'], fromStep);
-    }
-    const fromEndpoint = getValueByPath(fromObject, ['endpoint']);
-    if (fromEndpoint != null) {
-        setValueByPath(toObject, ['endpoint'], fromEndpoint);
-    }
-    return toObject;
-}
-function tunedModelFromVertex(fromObject) {
-    const toObject = {};
-    const fromModel = getValueByPath(fromObject, ['model']);
-    if (fromModel != null) {
-        setValueByPath(toObject, ['model'], fromModel);
-    }
-    const fromEndpoint = getValueByPath(fromObject, ['endpoint']);
-    if (fromEndpoint != null) {
-        setValueByPath(toObject, ['endpoint'], fromEndpoint);
-    }
-    const fromCheckpoints = getValueByPath(fromObject, ['checkpoints']);
-    if (fromCheckpoints != null) {
-        let transformedList = fromCheckpoints;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return tunedModelCheckpointFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['checkpoints'], transformedList);
-    }
-    return toObject;
-}
 function tuningJobFromVertex(fromObject) {
     const toObject = {};
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
+    ]);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
+    }
     const fromName = getValueByPath(fromObject, ['name']);
     if (fromName != null) {
         setValueByPath(toObject, ['name'], fromName);
@@ -21256,6 +19030,12 @@ function tuningJobFromVertex(fromObject) {
     if (fromTunedModel != null) {
         setValueByPath(toObject, ['tunedModel'], tunedModelFromVertex(fromTunedModel));
     }
+    const fromPreTunedModel = getValueByPath(fromObject, [
+        'preTunedModel',
+    ]);
+    if (fromPreTunedModel != null) {
+        setValueByPath(toObject, ['preTunedModel'], fromPreTunedModel);
+    }
     const fromSupervisedTuningSpec = getValueByPath(fromObject, [
         'supervisedTuningSpec',
     ]);
@@ -21280,11 +19060,11 @@ function tuningJobFromVertex(fromObject) {
     if (fromPartnerModelTuningSpec != null) {
         setValueByPath(toObject, ['partnerModelTuningSpec'], fromPartnerModelTuningSpec);
     }
-    const fromDistillationSpec = getValueByPath(fromObject, [
-        'distillationSpec',
+    const fromCustomBaseModel = getValueByPath(fromObject, [
+        'customBaseModel',
     ]);
-    if (fromDistillationSpec != null) {
-        setValueByPath(toObject, ['distillationSpec'], fromDistillationSpec);
+    if (fromCustomBaseModel != null) {
+        setValueByPath(toObject, ['customBaseModel'], fromCustomBaseModel);
     }
     const fromExperiment = getValueByPath(fromObject, ['experiment']);
     if (fromExperiment != null) {
@@ -21294,17 +19074,13 @@ function tuningJobFromVertex(fromObject) {
     if (fromLabels != null) {
         setValueByPath(toObject, ['labels'], fromLabels);
     }
+    const fromOutputUri = getValueByPath(fromObject, ['outputUri']);
+    if (fromOutputUri != null) {
+        setValueByPath(toObject, ['outputUri'], fromOutputUri);
+    }
     const fromPipelineJob = getValueByPath(fromObject, ['pipelineJob']);
     if (fromPipelineJob != null) {
         setValueByPath(toObject, ['pipelineJob'], fromPipelineJob);
-    }
-    const fromSatisfiesPzi = getValueByPath(fromObject, ['satisfiesPzi']);
-    if (fromSatisfiesPzi != null) {
-        setValueByPath(toObject, ['satisfiesPzi'], fromSatisfiesPzi);
-    }
-    const fromSatisfiesPzs = getValueByPath(fromObject, ['satisfiesPzs']);
-    if (fromSatisfiesPzs != null) {
-        setValueByPath(toObject, ['satisfiesPzs'], fromSatisfiesPzs);
     }
     const fromServiceAccount = getValueByPath(fromObject, [
         'serviceAccount',
@@ -21320,23 +19096,43 @@ function tuningJobFromVertex(fromObject) {
     }
     return toObject;
 }
-function listTuningJobsResponseFromVertex(fromObject) {
+function tuningOperationFromMldev(fromObject) {
     const toObject = {};
-    const fromNextPageToken = getValueByPath(fromObject, [
-        'nextPageToken',
+    const fromSdkHttpResponse = getValueByPath(fromObject, [
+        'sdkHttpResponse',
     ]);
-    if (fromNextPageToken != null) {
-        setValueByPath(toObject, ['nextPageToken'], fromNextPageToken);
+    if (fromSdkHttpResponse != null) {
+        setValueByPath(toObject, ['sdkHttpResponse'], fromSdkHttpResponse);
     }
-    const fromTuningJobs = getValueByPath(fromObject, ['tuningJobs']);
-    if (fromTuningJobs != null) {
-        let transformedList = fromTuningJobs;
-        if (Array.isArray(transformedList)) {
-            transformedList = transformedList.map((item) => {
-                return tuningJobFromVertex(item);
-            });
-        }
-        setValueByPath(toObject, ['tuningJobs'], transformedList);
+    const fromName = getValueByPath(fromObject, ['name']);
+    if (fromName != null) {
+        setValueByPath(toObject, ['name'], fromName);
+    }
+    const fromMetadata = getValueByPath(fromObject, ['metadata']);
+    if (fromMetadata != null) {
+        setValueByPath(toObject, ['metadata'], fromMetadata);
+    }
+    const fromDone = getValueByPath(fromObject, ['done']);
+    if (fromDone != null) {
+        setValueByPath(toObject, ['done'], fromDone);
+    }
+    const fromError = getValueByPath(fromObject, ['error']);
+    if (fromError != null) {
+        setValueByPath(toObject, ['error'], fromError);
+    }
+    return toObject;
+}
+function tuningValidationDatasetToVertex(fromObject, parentObject) {
+    const toObject = {};
+    const fromGcsUri = getValueByPath(fromObject, ['gcsUri']);
+    if (fromGcsUri != null) {
+        setValueByPath(toObject, ['validationDatasetUri'], fromGcsUri);
+    }
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+        'vertexDatasetResource',
+    ]);
+    if (parentObject !== undefined && fromVertexDatasetResource != null) {
+        setValueByPath(parentObject, ['supervisedTuningSpec', 'trainingDatasetUri'], fromVertexDatasetResource);
     }
     return toObject;
 }
@@ -21384,11 +19180,27 @@ class Tunings extends BaseModule {
          * change in future versions.
          */
         this.tune = async (params) => {
+            var _a;
             if (this.apiClient.isVertexAI()) {
-                return await this.tuneInternal(params);
+                if (params.baseModel.startsWith('projects/')) {
+                    const preTunedModel = {
+                        tunedModelName: params.baseModel,
+                    };
+                    if ((_a = params.config) === null || _a === void 0 ? void 0 : _a.preTunedModelCheckpointId) {
+                        preTunedModel.checkpointId = params.config.preTunedModelCheckpointId;
+                    }
+                    const paramsPrivate = Object.assign(Object.assign({}, params), { preTunedModel: preTunedModel });
+                    paramsPrivate.baseModel = undefined;
+                    return await this.tuneInternal(paramsPrivate);
+                }
+                else {
+                    const paramsPrivate = Object.assign({}, params);
+                    return await this.tuneInternal(paramsPrivate);
+                }
             }
             else {
-                const operation = await this.tuneMldevInternal(params);
+                const paramsPrivate = Object.assign({}, params);
+                const operation = await this.tuneMldevInternal(paramsPrivate);
                 let tunedModelName = '';
                 if (operation['metadata'] !== undefined &&
                     operation['metadata']['tunedModel'] !== undefined) {
@@ -21415,7 +19227,6 @@ class Tunings extends BaseModule {
             const body = getTuningJobParametersToVertex(params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21428,7 +19239,13 @@ class Tunings extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = tuningJobFromVertex(apiResponse);
@@ -21439,7 +19256,6 @@ class Tunings extends BaseModule {
             const body = getTuningJobParametersToMldev(params);
             path = formatMap('{name}', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21452,7 +19268,13 @@ class Tunings extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = tuningJobFromMldev(apiResponse);
@@ -21469,7 +19291,6 @@ class Tunings extends BaseModule {
             const body = listTuningJobsParametersToVertex(params);
             path = formatMap('tuningJobs', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21482,7 +19303,13 @@ class Tunings extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listTuningJobsResponseFromVertex(apiResponse);
@@ -21495,7 +19322,6 @@ class Tunings extends BaseModule {
             const body = listTuningJobsParametersToMldev(params);
             path = formatMap('tunedModels', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21508,7 +19334,13 @@ class Tunings extends BaseModule {
                 abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = listTuningJobsResponseFromMldev(apiResponse);
@@ -21518,16 +19350,61 @@ class Tunings extends BaseModule {
             });
         }
     }
+    /**
+     * Cancels a tuning job.
+     *
+     * @param params - The parameters for the cancel request.
+     * @return The empty response returned by the API.
+     *
+     * @example
+     * ```ts
+     * await ai.tunings.cancel({name: '...'}); // The server-generated resource name.
+     * ```
+     */
+    async cancel(params) {
+        var _a, _b, _c, _d;
+        let path = '';
+        let queryParams = {};
+        if (this.apiClient.isVertexAI()) {
+            const body = cancelTuningJobParametersToVertex(params);
+            path = formatMap('{name}:cancel', body['_url']);
+            queryParams = body['_query'];
+            delete body['_url'];
+            delete body['_query'];
+            await this.apiClient.request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(body),
+                httpMethod: 'POST',
+                httpOptions: (_a = params.config) === null || _a === void 0 ? void 0 : _a.httpOptions,
+                abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
+            });
+        }
+        else {
+            const body = cancelTuningJobParametersToMldev(params);
+            path = formatMap('{name}:cancel', body['_url']);
+            queryParams = body['_query'];
+            delete body['_url'];
+            delete body['_query'];
+            await this.apiClient.request({
+                path: path,
+                queryParams: queryParams,
+                body: JSON.stringify(body),
+                httpMethod: 'POST',
+                httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+                abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal,
+            });
+        }
+    }
     async tuneInternal(params) {
         var _a, _b;
         let response;
         let path = '';
         let queryParams = {};
         if (this.apiClient.isVertexAI()) {
-            const body = createTuningJobParametersToVertex(params);
+            const body = createTuningJobParametersPrivateToVertex(params);
             path = formatMap('tuningJobs', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21540,7 +19417,13 @@ class Tunings extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
                 const resp = tuningJobFromVertex(apiResponse);
@@ -21560,10 +19443,9 @@ class Tunings extends BaseModule {
             throw new Error('This method is only supported by the Gemini Developer API.');
         }
         else {
-            const body = createTuningJobParametersToMldev(params);
+            const body = createTuningJobParametersPrivateToMldev(params);
             path = formatMap('tunedModels', body['_url']);
             queryParams = body['_query'];
-            delete body['config'];
             delete body['_url'];
             delete body['_query'];
             response = this.apiClient
@@ -21576,10 +19458,16 @@ class Tunings extends BaseModule {
                 abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal,
             })
                 .then((httpResponse) => {
-                return httpResponse.json();
+                return httpResponse.json().then((jsonResponse) => {
+                    const response = jsonResponse;
+                    response.sdkHttpResponse = {
+                        headers: httpResponse.headers,
+                    };
+                    return response;
+                });
             });
             return response.then((apiResponse) => {
-                const resp = operationFromMldev(apiResponse);
+                const resp = tuningOperationFromMldev(apiResponse);
                 return resp;
             });
         }
@@ -21799,7 +19687,7 @@ class GoogleGenAI {
         }
         this.vertexai = (_a = options.vertexai) !== null && _a !== void 0 ? _a : false;
         this.apiKey = options.apiKey;
-        const baseUrl = getBaseUrl(options, 
+        const baseUrl = getBaseUrl(options.httpOptions, options.vertexai, 
         /*vertexBaseUrlFromEnv*/ undefined, 
         /*geminiBaseUrlFromEnv*/ undefined);
         if (baseUrl) {
@@ -22091,7 +19979,6 @@ const MAX_INLINE_DATA_SIZE = 20_000_000;
 class GeminiAi {
     _log;
     _genAI;
-    _chat;
     get _summaryModelName() {
         const modelName = getSetting(SETTING_AI_MODEL_SUMMARY);
         if (!modelName)
@@ -22131,19 +20018,19 @@ class GeminiAi {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
-        // 2.5 models do not support videos, so we fallback to 2.0 Flash
-        if (["gemini-2.5-pro", "gemini-2.5-flash"].includes(modelName) && unreadMessages.some((message) => message.videos?.length)) {
-            modelName = "gemini-2.0-flash";
+        let tools = undefined;
+        if (modelName.startsWith("gemini-2.5")) {
+            tools = [{ urlContext: {} }];
         }
-        this._chat = this._genAI.chats.create({
+        return this._genAI.models.generateContentStream({
             model: modelName,
             config: {
                 systemInstruction: this._getSystemInstruction(promptData),
                 responseModalities: [Modality.TEXT],
-                tools: [{ urlContext: {} }]
-            }
+                tools
+            },
+            contents: request
         });
-        return this._chat.sendMessageStream({ message: request });
     }
     async isSensitiveContent(messages) {
         const request = await this._getSensitiveContentPrompt(messages);
@@ -22181,7 +20068,7 @@ class GeminiAi {
         return [
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
-            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime }),
+            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime })
         ]
             .filter(Boolean)
             .join("\n");

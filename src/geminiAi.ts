@@ -1,5 +1,4 @@
 import {
-    Chat,
     createPartFromBase64,
     createPartFromUri,
     DeleteFileResponse,
@@ -11,6 +10,7 @@ import {
     Part,
     PartUnion,
     Schema,
+    ToolListUnion,
     Type
 } from "@google/genai";
 import { i18n } from "./i18n";
@@ -31,7 +31,6 @@ type PromptItem = { message: Message; dataPart?: Array<Part> };
 
 export class GeminiAi {
     private _genAI: GoogleGenAI;
-    private _chat: Chat | undefined;
 
     private get _summaryModelName(): string {
         const modelName = getSetting<string>(SETTING_AI_MODEL_SUMMARY);
@@ -77,20 +76,20 @@ export class GeminiAi {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
+        let tools: ToolListUnion | undefined = undefined;
 
-        // 2.5 models do not support videos, so we fallback to 2.0 Flash
-        if (["gemini-2.5-pro", "gemini-2.5-flash"].includes(modelName) && unreadMessages.some((message) => message.videos?.length)) {
-            modelName = "gemini-2.0-flash";
+        if (modelName.startsWith("gemini-2.5")) {
+            tools = [{ urlContext: {} }];
         }
-        this._chat = this._genAI.chats.create({
+        return this._genAI.models.generateContentStream({
             model: modelName,
             config: {
                 systemInstruction: this._getSystemInstruction(promptData),
                 responseModalities: [Modality.TEXT],
-                tools: [{ urlContext: {} }]
-            }
+                tools
+            },
+            contents: request
         });
-        return this._chat.sendMessageStream({ message: request });
     }
 
     async isSensitiveContent(
@@ -138,7 +137,7 @@ export class GeminiAi {
         return [
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
-            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime }),
+            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime })
         ]
             .filter(Boolean)
             .join("\n");
