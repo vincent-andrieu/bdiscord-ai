@@ -36,7 +36,7 @@ export class SummaryButton {
         const toolbar = document.querySelector('[class^="toolbar__"]');
 
         if (!toolbar) {
-            return this._log("Toolbar not found");
+            return;
         }
         const button = BdApi.React.createElement(BdApi.Components.Button, {
             children: [
