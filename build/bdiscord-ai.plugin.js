@@ -19921,7 +19921,7 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
                 images.push(addImage(url));
             }
             else if (["video", "gifv"].includes(embed.type) && embed.video) {
-                const url = embed.video.proxyURL || embed.video.proxy_url;
+                const url = embed.video.url || embed.video.proxyURL || embed.video.proxy_url;
                 if (url) {
                     const extension = url.split(".").pop();
                     const mimeType = extension ? `video/${extension}` : undefined;
