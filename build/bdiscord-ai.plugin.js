@@ -20245,7 +20245,7 @@ class SummaryButton {
     _add() {
         if (!this._enabled || document.getElementById(this._id))
             return;
-        const toolbar = document.querySelector('[class^="toolbar__"]');
+        const toolbar = document.querySelector('[class$="-toolbar"]');
         if (!toolbar) {
             return;
         }
