@@ -2,16 +2,15 @@ import { i18n } from "./i18n";
 import { DropdownSetting, SettingConfigElement } from "./types";
 
 const name = "BDiscordAI";
-const DEFAULT_AI_MODEL_SUMMARY = "gemini-2.5-flash";
-const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.0-flash-lite";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-3-pro-preview";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-2.5-flash-lite";
 export const MAX_MEDIA_SIZE = 50;
 const DEFAULT_SUMMARY_MIN_LENGTH = 300;
 
 const AI_MODELS: DropdownSetting<string>["options"] = [
+    { label: "Gemini 3 Flash (Preview)", value: "gemini-3-flash-preview" },
     { label: "Gemini 2.5 Pro", value: "gemini-2.5-pro" },
-    { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
-    { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
-    { label: "Gemini 2.0 Flash-Lite", value: "gemini-2.0-flash-lite" }
+    { label: "Gemini 2.5 Flash-Lite", value: "gemini-2.5-flash-lite" }
 ];
 
 export const SETTING_GOOGLE_API_KEY = "googleApiKey";
