@@ -58,6 +58,7 @@ export default class BDiscordAI {
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
     ];
+    private _lastVisitedChannels = new Set<string>();
     private _isSensitiveMessageCheck = new Set<string>();
     private _closeApiKeyNotice?: () => void;
 
@@ -180,6 +181,12 @@ export default class BDiscordAI {
                     break;
 
                 case "CHANNEL_SELECT":
+                    if (event.channelId === selectedChannelId) {
+                        this._lastVisitedChannels.add(selectedChannelId);
+                        this._enableSummaryButtonIfNeeded(selectedChannelId);
+                    }
+
+                case "CHANNEL_SELECT":
                 case "MESSAGE_DELETE":
                 case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
@@ -266,6 +273,7 @@ export default class BDiscordAI {
         if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
         if (
             this._userStore.getCurrentUser().id === discordMessage.author.id ||
+            !this._lastVisitedChannels.has(discordMessage.channel_id) ||
             ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
                 !discordMessage.embeds?.length) ||
             this._isSensitiveMessageCheck.has(discordMessage.id)
