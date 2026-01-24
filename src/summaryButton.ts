@@ -33,9 +33,10 @@ export class SummaryButton {
 
     private _add() {
         if (!this._enabled || document.getElementById(this._id)) return;
-        const toolbar = document.querySelector('[class$="-toolbar"]');
+        const toolbar = document.querySelector('[class*="toolbar"]');
 
         if (!toolbar) {
+            console.error(LOG_PREFIX, "Toolbar not found");
             return;
         }
         const button = BdApi.React.createElement(BdApi.Components.Button, {
