@@ -72,7 +72,7 @@ export default class BDiscordAI {
         this._readStateStore = BdApi.Webpack.getStore("ReadStateStore");
         this._messageStore = BdApi.Webpack.getStore<MessageStore>("MessageStore");
         this._messageActions = BdApi.Webpack.getByKeys("jumpToMessage", "_sendMessage");
-        this._fluxDispatcher = BdApi.Webpack.getByKeys("actionLogger");
+        this._fluxDispatcher = BdApi.Webpack.getByKeys("dispatch", "subscribe", { searchExports: true });
 
         this._updateManager = new UpdateManager(this._log.bind(this));
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
