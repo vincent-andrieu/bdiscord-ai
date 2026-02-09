@@ -8,6 +8,7 @@
 'use strict';
 
 const en = {
+    ID: "ID",
     AUTHOR: "Author",
     CONTENT: "Content",
     DATE: "Date",
@@ -46,13 +47,13 @@ const en = {
         MEDIAS: "Images, videos and audios have been sent in messages.",
         CONTENT: (params) => [
             "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
-            "- Username: <@1234>",
-            "- Role name: <@&1234>",
-            "- Custom emoji: <a:name:1234>",
+            "- Username: <@authorId>",
+            "- Role name: <@&roleId>",
+            "- Custom emoji: <a:name:emojiId>",
             "- Native emoji: :joy:",
-            "- Channel names: <#1234>",
-            "- Link to a message: https://discord.com/channels/1234/1234/1234",
-            "- Markdown link formatting is not supported: [text](url)",
+            `- Channel names: <#${params.channelId}>`,
+            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
             "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
             `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
             `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
@@ -60,11 +61,11 @@ const en = {
             `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
             `- Relative date/time: <t:${params.timestamp}:R> => just now`
         ]
-    },
-    SUMMARY_IMAGE_REQUEST: "Generate an image to illustrate the summary"
+    }
 };
 
 const fr = {
+    ID: "ID",
     AUTHOR: "Auteur",
     CONTENT: "Contenu",
     DATE: "Date",
@@ -103,13 +104,13 @@ const fr = {
         MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
         CONTENT: (params) => [
             "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
-            "- Nom d'utilisateur : <@1234>",
-            "- Nom de rôle : <@&1234>",
-            "- Emoji personnalisé : <a:nom:1234>",
+            "- Nom d'utilisateur : <@auteurId>",
+            "- Nom de rôle : <@&roleId>",
+            "- Emoji personnalisé : <a:nom:emojiId>",
             "- Emoji natif : :joy:",
-            "- Nom des channels : <#1234>",
-            "- Lien vers un message : https://discord.com/channels/1234/1234/1234",
-            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url)",
+            `- Nom des channels : <#${params.channelId}>`,
+            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
             "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
             `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
@@ -117,8 +118,7 @@ const fr = {
             `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
             `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
         ]
-    },
-    SUMMARY_IMAGE_REQUEST: "Génère une image pour illustrer le résumé"
+    }
 };
 
 const DEFAULT_LOCALE = "fr";
@@ -20013,7 +20013,7 @@ class GeminiAi {
             await this.purgeMedias();
         }
     }
-    async summarizeMessages(unreadMessages) {
+    async summarizeMessages(guildId, channelId, unreadMessages) {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
@@ -20024,7 +20024,7 @@ class GeminiAi {
         return this._genAI.models.generateContentStream({
             model: modelName,
             config: {
-                systemInstruction: this._getSystemInstruction(promptData),
+                systemInstruction: this._getSystemInstruction(guildId, channelId, promptData),
                 responseModalities: [Modality.TEXT],
                 tools
             },
@@ -20057,7 +20057,7 @@ class GeminiAi {
         });
         return response.text ? JSON.parse(response.text) : undefined;
     }
-    _getSystemInstruction(promptData) {
+    _getSystemInstruction(guildId, channelId, promptData) {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -20067,7 +20067,15 @@ class GeminiAi {
         return [
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
-            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime })
+            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({
+                guildId,
+                channelId,
+                timestamp,
+                formattedTime,
+                formattedLongDate,
+                formattedShortDateTime,
+                formattedLongDateTime
+            })
         ]
             .filter(Boolean)
             .join("\n");
@@ -20201,6 +20209,7 @@ class GeminiAi {
 }
 function getTextPromptItem(message) {
     return JSON.stringify({
+        [i18n.ID]: message.id,
         [i18n.AUTHOR]: message.author.username,
         [i18n.DATE]: message.date,
         [i18n.CONTENT]: message.content
@@ -20647,7 +20656,7 @@ class BDiscordAI {
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
         const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(unreadMessages);
+        const summaryStream = await model.summarizeMessages(guildId, channelId, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
         for await (const chunk of summaryStream) {

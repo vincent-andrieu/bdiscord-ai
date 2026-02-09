@@ -1,4 +1,5 @@
 export const en = {
+    ID: "ID",
     AUTHOR: "Author",
     CONTENT: "Content",
     DATE: "Date",
@@ -37,6 +38,8 @@ export const en = {
             "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
         MEDIAS: "Images, videos and audios have been sent in messages.",
         CONTENT: (params: {
+            guildId: string;
+            channelId: string;
             timestamp: number;
             formattedTime: string;
             formattedLongDate: string;
@@ -44,13 +47,13 @@ export const en = {
             formattedLongDateTime: string;
         }) => [
             "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
-            "- Username: <@1234>",
-            "- Role name: <@&1234>",
-            "- Custom emoji: <a:name:1234>",
+            "- Username: <@authorId>",
+            "- Role name: <@&roleId>",
+            "- Custom emoji: <a:name:emojiId>",
             "- Native emoji: :joy:",
-            "- Channel names: <#1234>",
-            "- Link to a message: https://discord.com/channels/1234/1234/1234",
-            "- Markdown link formatting is not supported: [text](url)",
+            `- Channel names: <#${params.channelId}>`,
+            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
             "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
             `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
             `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
@@ -58,6 +61,5 @@ export const en = {
             `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
             `- Relative date/time: <t:${params.timestamp}:R> => just now`
         ]
-    },
-    SUMMARY_IMAGE_REQUEST: "Generate an image to illustrate the summary"
+    }
 } as const;

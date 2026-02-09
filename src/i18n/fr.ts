@@ -1,4 +1,5 @@
 export const fr = {
+    ID: "ID",
     AUTHOR: "Auteur",
     CONTENT: "Contenu",
     DATE: "Date",
@@ -38,6 +39,8 @@ export const fr = {
             "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
         MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
         CONTENT: (params: {
+            guildId: string;
+            channelId: string;
             timestamp: number;
             formattedTime: string;
             formattedLongDate: string;
@@ -45,13 +48,13 @@ export const fr = {
             formattedLongDateTime: string;
         }) => [
             "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
-            "- Nom d'utilisateur : <@1234>",
-            "- Nom de rôle : <@&1234>",
-            "- Emoji personnalisé : <a:nom:1234>",
+            "- Nom d'utilisateur : <@auteurId>",
+            "- Nom de rôle : <@&roleId>",
+            "- Emoji personnalisé : <a:nom:emojiId>",
             "- Emoji natif : :joy:",
-            "- Nom des channels : <#1234>",
-            "- Lien vers un message : https://discord.com/channels/1234/1234/1234",
-            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url)",
+            `- Nom des channels : <#${params.channelId}>`,
+            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
             "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
             `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
             `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
@@ -59,6 +62,5 @@ export const fr = {
             `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
             `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
         ]
-    },
-    SUMMARY_IMAGE_REQUEST: "Génère une image pour illustrer le résumé"
+    }
 } as const;

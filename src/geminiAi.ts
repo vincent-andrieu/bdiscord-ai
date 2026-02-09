@@ -72,7 +72,7 @@ export class GeminiAi {
         }
     }
 
-    async summarizeMessages(unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
+    async summarizeMessages(guildId: string, channelId: string, unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         let modelName = this._summaryModelName;
@@ -84,7 +84,7 @@ export class GeminiAi {
         return this._genAI.models.generateContentStream({
             model: modelName,
             config: {
-                systemInstruction: this._getSystemInstruction(promptData),
+                systemInstruction: this._getSystemInstruction(guildId, channelId, promptData),
                 responseModalities: [Modality.TEXT],
                 tools
             },
@@ -125,7 +125,7 @@ export class GeminiAi {
         return response.text ? JSON.parse(response.text) : undefined;
     }
 
-    private _getSystemInstruction(promptData: Array<PromptItem>): string {
+    private _getSystemInstruction(guildId: string, channelId: string, promptData: Array<PromptItem>): string {
         const now = new Date();
         const timestamp = convertTimestampToUnix(now);
         const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -137,7 +137,15 @@ export class GeminiAi {
         return [
             i18n.SYSTEM_INSTRUCTIONS.INTRODUCTION,
             promptData.some((prompt) => prompt.dataPart?.length) ? i18n.SYSTEM_INSTRUCTIONS.MEDIAS : undefined,
-            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({ timestamp, formattedTime, formattedLongDate, formattedShortDateTime, formattedLongDateTime })
+            ...i18n.SYSTEM_INSTRUCTIONS.CONTENT({
+                guildId,
+                channelId,
+                timestamp,
+                formattedTime,
+                formattedLongDate,
+                formattedShortDateTime,
+                formattedLongDateTime
+            })
         ]
             .filter(Boolean)
             .join("\n");
@@ -301,6 +309,7 @@ export class GeminiAi {
 
 function getTextPromptItem(message: Message): string {
     return JSON.stringify({
+        [i18n.ID]: message.id,
         [i18n.AUTHOR]: message.author.username,
         [i18n.DATE]: message.date,
         [i18n.CONTENT]: message.content
