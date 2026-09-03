@@ -75,14 +75,10 @@ export class GeminiAi {
     async summarizeMessages(guildId: string, channelId: string, unreadMessages: Array<Message>): Promise<AsyncGenerator<GenerateContentResponse>> {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request: Array<PartUnion> = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
-        let modelName = this._summaryModelName;
-        let tools: ToolListUnion | undefined = undefined;
+        const tools: ToolListUnion = [{ urlContext: {} }];
 
-        if (modelName.startsWith("gemini-2.5")) {
-            tools = [{ urlContext: {} }];
-        }
         return this._genAI.models.generateContentStream({
-            model: modelName,
+            model: this._summaryModelName,
             config: {
                 systemInstruction: this._getSystemInstruction(guildId, channelId, promptData),
                 responseModalities: [Modality.TEXT],
