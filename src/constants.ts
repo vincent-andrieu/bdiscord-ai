@@ -2,6 +2,7 @@ import { getConfig } from "./settings";
 
 export const LOG_PREFIX = `[${getConfig().name}]`;
 export const GEMINI_VIDEOS_LIMIT = 10;
+export const SUMMARY_STREAM_REFRESH_DELAY = 100;
 export const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
 export const GITHUB_BRANCH = "main";
 export const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;

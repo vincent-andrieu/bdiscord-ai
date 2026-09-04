@@ -1,4 +1,5 @@
-import { DiscordMessageFlags, LOG_PREFIX } from "./constants";
+import { FinishReason } from "@google/genai";
+import { DiscordMessageFlags, LOG_PREFIX, SUMMARY_STREAM_REFRESH_DELAY } from "./constants";
 import { forceReloadMessages } from "./domUtils";
 import { GeminiAi } from "./geminiAi";
 import { i18n, setLocale } from "./i18n";
@@ -183,10 +184,9 @@ export default class BDiscordAI {
                 case "CHANNEL_SELECT":
                     if (event.channelId === selectedChannelId) {
                         this._lastVisitedChannels.add(selectedChannelId);
-                        this._enableSummaryButtonIfNeeded(selectedChannelId);
                     }
+                // falls through
 
-                case "CHANNEL_SELECT":
                 case "MESSAGE_DELETE":
                 case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
@@ -232,14 +232,27 @@ export default class BDiscordAI {
         const summaryStream = await model.summarizeMessages(guildId, channelId, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
+        let lastRefreshTime = 0;
+        let isRefreshPending = false;
 
         for await (const chunk of summaryStream) {
+            const finishReason = chunk.candidates?.[0]?.finishReason;
             const chunkText = chunk.text;
 
+            if (finishReason && finishReason !== FinishReason.STOP) {
+                this._log(`${i18n.SUMMARY_INCOMPLETE} (${finishReason})`, "warn");
+            }
             if (!chunkText?.length) continue;
             if (message) {
                 message.content += chunkText;
-                this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
+                isRefreshPending = true;
+
+                // Throttled to avoid re-rendering the whole message list on every chunk
+                if (Date.now() - lastRefreshTime >= SUMMARY_STREAM_REFRESH_DELAY) {
+                    this._refreshMessageContent(message);
+                    lastRefreshTime = Date.now();
+                    isRefreshPending = false;
+                }
             } else {
                 const messageId = generateMessageId(previousMessageId);
 
@@ -254,22 +267,36 @@ export default class BDiscordAI {
                 });
 
                 this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
+                lastRefreshTime = Date.now();
                 if (getSetting<boolean>(SETTING_JUMP_TO_MESSAGE)) {
-                    this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+                    try {
+                        this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+                    } catch (error) {
+                        this._log(typeof error === "string" ? error : (error as Error).message);
+                    }
                 }
             }
         }
+
+        if (message && isRefreshPending) {
+            this._refreshMessageContent(message);
+        }
+    }
+
+    /**
+     * Discord drops an optimistic MESSAGE_CREATE as soon as the message id is already in the channel, so calling
+     * receiveMessage again only updates the local object and never the rendered message. The streamed chunks have to go
+     * through MESSAGE_UPDATE instead, which merges the new content into the existing record.
+     */
+    private _refreshMessageContent(message: DiscordMessage): void {
+        this._fluxDispatcher.dispatch({
+            type: "MESSAGE_UPDATE",
+            channelId: message.channel_id,
+            message
+        });
     }
 
     private async _checkSensitiveContent(discordMessage: DiscordMessage) {
-        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
-        const settingEmetophobia = getSetting<boolean>(SETTING_EMETOPHOBIA_MODE);
-        const settingArachnophobia = getSetting<boolean>(SETTING_ARACHNOPHOBIA_MODE);
-        const settingEpilepsy = getSetting<boolean>(SETTING_EPILEPSY_MODE);
-        const settingSexuality = getSetting<boolean>(SETTING_SEXUALITY_MODE);
-        const backup: { attachments: Record<string, boolean>; embeds: Array<DiscordMessageEmbed> } = { attachments: {}, embeds: [] };
-
-        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality) return;
         if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
         if (
             this._userStore.getCurrentUser().id === discordMessage.author.id ||
@@ -279,6 +306,14 @@ export default class BDiscordAI {
             this._isSensitiveMessageCheck.has(discordMessage.id)
         )
             return;
+        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
+        const settingEmetophobia = getSetting<boolean>(SETTING_EMETOPHOBIA_MODE);
+        const settingArachnophobia = getSetting<boolean>(SETTING_ARACHNOPHOBIA_MODE);
+        const settingEpilepsy = getSetting<boolean>(SETTING_EPILEPSY_MODE);
+        const settingSexuality = getSetting<boolean>(SETTING_SEXUALITY_MODE);
+        const backup: { attachments: Record<string, boolean>; embeds: Array<DiscordMessageEmbed> } = { attachments: {}, embeds: [] };
+
+        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality) return;
 
         const toggleSensitiveContent = (toggle: boolean) => {
             const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);

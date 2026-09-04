@@ -478,10 +478,10 @@ export type DiscordEmoji = {
 
 export type MessageActions = {
     fetchMessages: (params: { channelId: string; limit: number; before?: string; after?: string }) => Promise<Array<DiscordMessage>>;
-    receiveMessage: (channelId: string, message: DiscordMessage, _?: unknown, options?: { messageReference?: {
+    receiveMessage: (channelId: string, message: DiscordMessage, optimistic?: boolean, options?: { messageReference?: {
         guild_id: string;
         channel_id: string;
         message_id: string;
     } }) => void;
-    jumpToMessage(params: { channelId: string, messageId: string, flash?: boolean = false, offset?: number, context?: unknown, extraProperties?: any = null, isPreload?: boolean, returnMessageId?: string, skipLocalFetch: boolean, jumpType?: number}): void;
+    jumpToMessage(params: { channelId: string, messageId: string, flash?: boolean, offset?: number, context?: unknown, extraProperties?: any, isPreload?: boolean, returnMessageId?: string, skipLocalFetch: boolean, jumpType?: number}): void;
 };

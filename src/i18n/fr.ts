@@ -7,6 +7,7 @@ export const fr = {
     ADD: "Ajouter",
     UPDATE: "Mettre à jour",
     API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
+    SUMMARY_INCOMPLETE: "Le résumé est incomplet",
     UPDATE_NOTICE: "Nouvelle version disponible",
     SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
     SETTING_GOOGLE_API_KEY: "Google API Key",
