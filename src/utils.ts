@@ -1,5 +1,12 @@
-import { DiscordMessageFlags, DiscordMessageState, DiscordMessageType, GEMINI_VIDEOS_LIMIT } from "./constants";
-import { isAudioMimeType, isImageMimeType, isVideoMimeType } from "./medias";
+import {
+    DiscordMessageFlags,
+    DiscordMessageState,
+    DiscordMessageType,
+    GEMINI_VIDEOS_LIMIT,
+    isAudioMimeType,
+    isImageMimeType,
+    isVideoMimeType
+} from "./constants";
 import { Audio, DiscordMessage, DiscordMessageComponent, DiscordUser, GuildMemberStore, Image, Message, SelectedGuildStore, Video } from "./types";
 
 export function getRuntimeRequire(packageName: string) {
@@ -13,41 +20,111 @@ export function getRuntimeRequire(packageName: string) {
     }
 }
 
-export function getOldestId(a: string | undefined, b: string): string;
-export function getOldestId(a: string, b?: string): string;
-export function getOldestId(a: string, b: string): string;
-export function getOldestId(a?: string, b?: string): string | undefined;
-export function getOldestId(a?: string, b?: string): string | undefined {
-    if (!a && !b) {
+export function getErrorMessage(error: unknown): string {
+    if (typeof error === "string") {
+        return error;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return String(error);
+}
+
+export function isAbortError(error: unknown): boolean {
+    return (error as { name?: string } | undefined)?.name === "AbortError";
+}
+
+/**
+ * Runs `task` over `items` with at most `limit` calls in flight. `task` is expected to handle its own failures: a
+ * rejection aborts the whole pool.
+ */
+export async function mapWithConcurrency<T, R>(items: Array<T>, limit: number, task: (item: T, index: number) => Promise<R>): Promise<Array<R>> {
+    const results: Array<R> = new Array(items.length);
+    let nextIndex = 0;
+
+    const worker = async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex++;
+
+            results[index] = await task(items[index], index);
+        }
+    };
+
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+    return results;
+}
+
+export function getOldestId(firstId: string | undefined, secondId: string): string;
+export function getOldestId(firstId: string, secondId?: string): string;
+export function getOldestId(firstId: string, secondId: string): string;
+export function getOldestId(firstId?: string, secondId?: string): string | undefined;
+export function getOldestId(firstId?: string, secondId?: string): string | undefined {
+    if (!firstId && !secondId) {
         return undefined;
     }
 
-    if (!a) {
-        return b;
+    if (!firstId) {
+        return secondId;
     }
-    if (!b) {
-        return a;
+    if (!secondId) {
+        return firstId;
     }
-    if (a.length === b.length) {
-        return a < b ? a : b;
+    if (firstId.length === secondId.length) {
+        return firstId < secondId ? firstId : secondId;
     }
-    return a.length < b.length ? a : b;
+    return firstId.length < secondId.length ? firstId : secondId;
 }
 
 export function convertTimestampToUnix(timestamp: Date | string | number): number {
     return Math.floor(new Date(timestamp).getTime() / 1000);
 }
 
-export function convertArrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunk = 1024;
+/**
+ * Encoding is delegated to `FileReader` so a multi megabytes media does not freeze the Discord UI thread the way a
+ * manual `String.fromCharCode` loop did.
+ */
+export function convertBlobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
 
-    for (let i = 0; i < bytes.length; i += chunk) {
-        const slice = bytes.subarray(i, i + chunk);
-        binary += String.fromCharCode.apply(null, Array.from(slice));
+        reader.onerror = () => reject(reader.error ?? new Error("Failed to encode media"));
+        reader.onload = () => {
+            const result = reader.result;
+
+            if (typeof result !== "string") {
+                reject(new Error("Unexpected media encoding result"));
+                return;
+            }
+            // The reader returns a "data:<mimeType>;base64,<data>" URL
+            resolve(result.slice(result.indexOf(",") + 1));
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+
+/**
+ * Discord CDN urls carry query parameters (`?ex=...&hm=...`) that are re-signed over time, so anything comparing or
+ * parsing an url has to drop them first.
+ */
+export function stripUrlQuery(url: string): string {
+    return url.split(/[?#]/)[0];
+}
+
+export function getUrlExtension(url: string): string | undefined {
+    const path = stripUrlQuery(url);
+    const extension = path.split(".").pop()?.toLowerCase();
+
+    return extension && extension !== path ? extension : undefined;
+}
+
+export function hashString(value: string): string {
+    let hash = 0;
+
+    for (let index = 0; index < value.length; index++) {
+        hash = (hash << 5) - hash + value.charCodeAt(index);
+        hash |= 0;
     }
-    return btoa(binary);
+    return (hash >>> 0).toString(36);
 }
 
 export function generateMessageId(previousMessageId: string): string {
@@ -137,8 +214,8 @@ export function mapMessages(
     let countVideos = 0;
 
     const addImage = (url: string): Image => {
-        const extension = url.split(".").pop();
-        const mimeType = extension ? `image/${extension}` : undefined;
+        const extension = getUrlExtension(url);
+        const mimeType = extension ? `image/${extension === "jpg" ? "jpeg" : extension}` : undefined;
 
         return {
             name: url,
@@ -181,6 +258,8 @@ export function mapMessages(
 
         // Add embeds
         message.embeds?.forEach((embed) => {
+            const thumbnailUrl = embed.thumbnail?.proxyURL || embed.thumbnail?.proxy_url;
+
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
 
@@ -189,21 +268,17 @@ export function mapMessages(
                 const url = embed.video.url || embed.video.proxyURL || embed.video.proxy_url;
 
                 if (url) {
-                    const extension = url.split(".").pop();
+                    const extension = getUrlExtension(url);
                     const mimeType = extension ? `video/${extension}` : undefined;
 
                     videos.push({
                         name: url,
                         mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
                         url: url,
-                        thumbnail: embed.thumbnail.proxyURL || embed.thumbnail.proxy_url
+                        thumbnail: thumbnailUrl
                     });
-                } else {
-                    const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
-
-                    if (thumbnailUrl) {
-                        images.push(addImage(thumbnailUrl));
-                    }
+                } else if (thumbnailUrl) {
+                    images.push(addImage(thumbnailUrl));
                 }
             }
         });
@@ -229,13 +304,13 @@ export function mapMessages(
             const videos: Array<Video | undefined> = message.videos;
 
             if (countVideos > maxVideos) {
-                for (let k = 0; k < videos.length && countVideos > maxVideos; k++) {
-                    const thumbnailUrl = videos[k]?.thumbnail;
+                for (let index = 0; index < videos.length && countVideos > maxVideos; index++) {
+                    const thumbnailUrl = videos[index]?.thumbnail;
 
                     if (thumbnailUrl) {
                         message.images.push(addImage(thumbnailUrl));
                     }
-                    videos[k] = undefined;
+                    videos[index] = undefined;
                     countVideos--;
                 }
                 message.videos = videos.filter((video) => video) as Array<Video>;

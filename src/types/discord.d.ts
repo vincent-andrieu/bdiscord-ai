@@ -281,7 +281,7 @@ export type DiscordMessageAttachment = {
     proxy_url: string;
     width: number;
     height: number;
-    content_type: string;
+    content_type?: string;
     content_scan_version: number;
     duration_secs?: number;
     placeholder: string;
@@ -321,7 +321,7 @@ export type DiscordMessageEmbed = {
     rawDescription?: string;
     rawTitle?: string;
     referenceId?: string;
-    thumbnail: {
+    thumbnail?: {
         flags: number;
         height: number;
         placeholder: string;

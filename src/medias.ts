@@ -1,35 +1,26 @@
-import { AudioMimeType, audioMimeTypes, ImageMimeType, imageMimeTypes, LOG_PREFIX, VideoMimeType, videoMimeTypes } from "./constants";
+import { isImageMimeType, isVideoMimeType, LOG_PREFIX, MEDIA_FETCH_CONCURRENCY } from "./constants";
 import { Image, Media, Message, Video } from "./types";
-
-export function isImageMimeType(mimeType: string): mimeType is ImageMimeType {
-    return imageMimeTypes.includes(mimeType as ImageMimeType);
-}
-export function isVideoMimeType(mimeType: string): mimeType is VideoMimeType {
-    return videoMimeTypes.includes(mimeType as VideoMimeType);
-}
-export function isAudioMimeType(mimeType: string): mimeType is AudioMimeType {
-    return audioMimeTypes.includes(mimeType as AudioMimeType);
-}
+import { mapWithConcurrency } from "./utils";
 
 /**
  * @param messages Array of messages with medias to fetch metadata
  * @returns Return medias that failed to fetch metadata
  */
 export async function fetchMediasMetadata(messages: Array<Message>): Promise<Array<Media>> {
-    let failedMedias: Array<Media> = [];
-    const medias = messages.flatMap((message) => [message.images, message.videos].filter(Boolean).flat() as Array<Image | Video>);
+    const failedMedias: Array<Media> = [];
+    const medias = messages
+        .flatMap((message) => [message.images, message.videos].filter(Boolean).flat() as Array<Image | Video>)
+        .filter((media) => !media.mimeType || !media.size);
 
-    for (const media of medias) {
-        if (media.mimeType && media.size) {
-            continue;
-        }
+    // Metadata requests are independent, so they run through a pool instead of one round trip after the other
+    await mapWithConcurrency(medias, MEDIA_FETCH_CONCURRENCY, async (media) => {
         try {
             const metadata = await fetchMediaMetadata(media.url);
 
             if (metadata.url) {
                 media.url = metadata.url;
             }
-            if (!media.mimeType && metadata.contentType && (isImageMimeType(metadata.contentType) || isVideoMimeType(metadata.contentType))) {
+            if (!media.mimeType && (isImageMimeType(metadata.contentType) || isVideoMimeType(metadata.contentType))) {
                 media.mimeType = metadata.contentType;
             }
             if (!media.size && metadata.contentLength) {
@@ -39,11 +30,12 @@ export async function fetchMediasMetadata(messages: Array<Message>): Promise<Arr
             console.error(LOG_PREFIX, "Failed to fetch media metadata", error);
             failedMedias.push(media);
         }
-    }
+    });
     return failedMedias;
 }
 
-async function fetchMediaMetadata(url: string, n = 0): Promise<{ url?: string; contentType?: string; contentLength?: number }> {
+async function fetchMediaMetadata(url: string): Promise<{ url?: string; contentType?: string; contentLength?: number }> {
+    // `fetch` follows redirects on its own, the final url is exposed by `response.url`
     const response = await fetch(url, { method: "HEAD" });
 
     if (!response.ok) {
@@ -52,16 +44,8 @@ async function fetchMediaMetadata(url: string, n = 0): Promise<{ url?: string; c
     const contentType = response.headers.get("content-type") || undefined;
     const contentLength = response.headers.get("content-length") || undefined;
 
-    if (!contentType && n < 3) {
-        const location = response.headers.get("location");
-
-        if (location) {
-            return fetchMediaMetadata(location, n + 1);
-        }
-    }
-
     return {
-        url: n > 0 ? url : undefined,
+        url: response.redirected && response.url ? response.url : undefined,
         contentType: contentType,
         contentLength: contentLength ? Number(contentLength) : undefined
     };

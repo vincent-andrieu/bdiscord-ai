@@ -1,11 +1,35 @@
-import { getConfig } from "./settings";
-
-export const LOG_PREFIX = `[${getConfig().name}]`;
+export const PLUGIN_NAME = "BDiscordAI";
+export const LOG_PREFIX = `[${PLUGIN_NAME}]`;
 export const GEMINI_VIDEOS_LIMIT = 10;
 export const SUMMARY_STREAM_REFRESH_DELAY = 100;
 export const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
 export const GITHUB_BRANCH = "main";
 export const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
+
+/** Gemini rejects requests bigger than 20 MB. Base64 inflates the payload by ~4/3, so the raw media budget has to stay below that. */
+export const MAX_INLINE_REQUEST_SIZE = 20_000_000;
+export const MAX_INLINE_DATA_SIZE = Math.floor((MAX_INLINE_REQUEST_SIZE * 3) / 4);
+/** Uploaded files are tagged with this prefix so the purge only deletes what this plugin created. */
+export const GEMINI_FILE_DISPLAY_NAME_PREFIX = "bdiscord-ai:";
+export const GEMINI_FILE_PROCESSING_TIMEOUT = 30_000;
+export const GEMINI_FILE_PROCESSING_POLL_DELAY = 500;
+
+/** Medias are downloaded through a small pool instead of one after the other. */
+export const MEDIA_FETCH_CONCURRENCY = 6;
+
+export const MESSAGES_FETCH_LIMIT = 100;
+/** Hard stop on the pagination loops so a huge unread gap cannot hammer the API forever. */
+export const MESSAGES_FETCH_MAX_PAGES = 50;
+
+/** Messages scanned for sensitive content when a channel is opened, starting from the most recent one. */
+export const SENSITIVE_SCAN_MAX_MESSAGES = 10;
+/** One request per message, run in parallel. The sensitive content model is a flash-lite one, whose quota is roomy. */
+export const SENSITIVE_CHECK_CONCURRENCY = 4;
+export const SENSITIVE_CACHE_KEY = "sensitiveContentCache";
+export const SENSITIVE_CACHE_MAX_ENTRIES = 2_000;
+/** Re-rendering the message list is expensive, so a batch of hidden messages only triggers one reload. */
+export const SENSITIVE_RELOAD_DEBOUNCE = 50;
+export const SENSITIVE_CACHE_SAVE_DEBOUNCE = 1_000;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"] as const;
 export type ImageMimeType = (typeof imageMimeTypes)[number];
@@ -25,6 +49,16 @@ export type VideoMimeType = (typeof videoMimeTypes)[number];
 
 export const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"] as const;
 export type AudioMimeType = (typeof audioMimeTypes)[number];
+
+export function isImageMimeType(mimeType: string | undefined): mimeType is ImageMimeType {
+    return imageMimeTypes.includes(mimeType as ImageMimeType);
+}
+export function isVideoMimeType(mimeType: string | undefined): mimeType is VideoMimeType {
+    return videoMimeTypes.includes(mimeType as VideoMimeType);
+}
+export function isAudioMimeType(mimeType: string | undefined): mimeType is AudioMimeType {
+    return audioMimeTypes.includes(mimeType as AudioMimeType);
+}
 
 export enum DiscordMessageType {
     DEFAULT = 0,
