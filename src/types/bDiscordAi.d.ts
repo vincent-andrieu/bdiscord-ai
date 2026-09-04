@@ -17,6 +17,20 @@ export type Message = {
     date: number;
 };
 
+export type SensitiveVerdict = {
+    isEmetophobia: boolean;
+    isArachnophobia: boolean;
+    isEpileptic: boolean;
+    isSexual: boolean;
+};
+
+/** Outcome of a single message check. `verdict` is absent when there was nothing to analyse or when the check failed. */
+export type SensitiveCheckResult = {
+    messageId: string;
+    verdict?: SensitiveVerdict;
+    hasFailed: boolean;
+};
+
 export type Media = Image | Video | Audio;
 
 export type Image = {
