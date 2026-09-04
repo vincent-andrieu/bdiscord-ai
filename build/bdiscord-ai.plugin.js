@@ -7,493 +7,6 @@
  */
 'use strict';
 
-const en = {
-    ID: "ID",
-    AUTHOR: "Author",
-    CONTENT: "Content",
-    DATE: "Date",
-    DONE: "Done",
-    ADD: "Add",
-    UPDATE: "Update",
-    API_KEY_NOTICE: "No Google API key is configured",
-    UPDATE_NOTICE: "New version available",
-    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
-    SETTING_GOOGLE_API_KEY: "Google API Key",
-    SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL_SUMMARY: "Model for summaries",
-    SETTING_AI_MODEL_SUMMARY_NOTE: "Select the Gemini model to use for summaries",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Model for sensitive contents",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Select the Gemini model to use for sensitive contents",
-    SETTING_MEDIA_MAX_SIZE: "Maximum media size",
-    SETTING_MEDIA_MAX_SIZE_NOTE: "Maximum size of media to download (in Mo)",
-    SETTING_JUMP_TO_MESSAGE: "Auto scroll",
-    SETTING_JUMP_TO_MESSAGE_NOTE: "Automatically scroll to the summary",
-    SETTING_SUMMARY_MIN_LENGTH: "Minimum length to summarize",
-    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Minimum length of content to display the button",
-    SETTING_CATEGORY_SENSITIVE: "Sensitive content",
-    SETTING_EMETOPHOBIA_MODE: "Emetophobia",
-    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobia",
-    SETTING_EPILEPSY_MODE: "Epilepsy",
-    SETTING_SEXUALITY_MODE: "Sexuality",
-    SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
-    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
-    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
-    SETTING_CATEGORY_OTHERS: "Others",
-    SETTING_CHECK_UPDATES: "Check for updates",
-    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
-    SUMMARY_BUTTON: "Summarize",
-    SYSTEM_INSTRUCTIONS: {
-        INTRODUCTION: "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
-        MEDIAS: "Images, videos and audios have been sent in messages.",
-        CONTENT: (params) => [
-            "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
-            "- Username: <@authorId>",
-            "- Role name: <@&roleId>",
-            "- Custom emoji: <a:name:emojiId>",
-            "- Native emoji: :joy:",
-            `- Channel names: <#${params.channelId}>`,
-            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
-            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
-            "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
-            `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
-            `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
-            `- Use for dates older than 2 days: <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
-            `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Relative date/time: <t:${params.timestamp}:R> => just now`
-        ]
-    }
-};
-
-const fr = {
-    ID: "ID",
-    AUTHOR: "Auteur",
-    CONTENT: "Contenu",
-    DATE: "Date",
-    DONE: "Terminé",
-    ADD: "Ajouter",
-    UPDATE: "Mettre à jour",
-    API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
-    UPDATE_NOTICE: "Nouvelle version disponible",
-    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
-    SETTING_GOOGLE_API_KEY: "Google API Key",
-    SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL_SUMMARY: "Modèle pour les résumés",
-    SETTING_AI_MODEL_SUMMARY_NOTE: "Sélectionne le modèle Gemini à utiliser pour les résumés",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Modèle pour les contenus sensibles",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Sélectionne le modèle Gemini à utiliser pour les contenus sensibles",
-    SETTING_MEDIA_MAX_SIZE: "Taille maximale des médias",
-    SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
-    SETTING_JUMP_TO_MESSAGE: "Scroll auto",
-    SETTING_JUMP_TO_MESSAGE_NOTE: "Scroll automatiquement sur le résumé",
-    SETTING_SUMMARY_MIN_LENGTH: "Longueur minimale pour résumer",
-    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Longueur minimale du contenu pour afficher le bouton",
-    SETTING_CATEGORY_SENSITIVE: "Contenu sensible",
-    SETTING_EMETOPHOBIA_MODE: "Émétophobie",
-    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobie",
-    SETTING_EPILEPSY_MODE: "Épilepsie",
-    SETTING_SEXUALITY_MODE: "Sexualité",
-    SETTING_SENSITIVE_NOTE: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded",
-    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
-    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
-    SETTING_CATEGORY_OTHERS: "Autres",
-    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
-    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
-    SUMMARY_BUTTON: "Résumer",
-    SYSTEM_INSTRUCTIONS: {
-        INTRODUCTION: "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
-        MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
-        CONTENT: (params) => [
-            "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
-            "- Nom d'utilisateur : <@auteurId>",
-            "- Nom de rôle : <@&roleId>",
-            "- Emoji personnalisé : <a:nom:emojiId>",
-            "- Emoji natif : :joy:",
-            `- Nom des channels : <#${params.channelId}>`,
-            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
-            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
-            "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
-            `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
-            `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
-            `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
-            `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
-        ]
-    }
-};
-
-const DEFAULT_LOCALE = "fr";
-let i18n;
-setLocale(DEFAULT_LOCALE);
-function setLocale(locale = getDiscordLocale()) {
-    switch (locale) {
-        case "en-US":
-        case "en-GB":
-            i18n = en;
-            break;
-        case "fr":
-            i18n = fr;
-            break;
-        default:
-            i18n = en;
-            break;
-    }
-}
-function getDiscordLocale() {
-    const localeStore = BdApi.Webpack.getStore("LocaleStore");
-    return localeStore.locale;
-}
-
-const name = "BDiscordAI";
-const DEFAULT_AI_MODEL_SUMMARY = "gemini-3.8-flash";
-const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-3.1-flash-lite";
-const MAX_MEDIA_SIZE = 50;
-const DEFAULT_SUMMARY_MIN_LENGTH = 300;
-const AI_MODELS = [
-    { label: "Gemini 3.8 Flash", value: "gemini-3.8-flash" },
-    { label: "Gemini 3.7 Flash", value: "gemini-3.7-flash" },
-    { label: "Gemini 3.1 Flash-Lite", value: "gemini-3.1-flash-lite" }
-];
-const SETTING_GOOGLE_API_KEY = "googleApiKey";
-const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
-const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
-const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
-const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
-const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
-const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
-const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
-const SETTING_EPILEPSY_MODE = "epilepsyMode";
-const SETTING_SEXUALITY_MODE = "sexualityMode";
-const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
-const SETTING_CHECK_UPDATES = "checkUpdates";
-function getConfig() {
-    return {
-        name,
-        settings: [
-            {
-                type: "category",
-                id: "aiModel",
-                name: i18n.SETTING_CATEGORY_GEMINI_AI,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "text",
-                        id: SETTING_GOOGLE_API_KEY,
-                        name: i18n.SETTING_GOOGLE_API_KEY,
-                        note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
-                        value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
-                        placeholder: "API KEY"
-                    },
-                    {
-                        type: "dropdown",
-                        id: SETTING_AI_MODEL_SUMMARY,
-                        name: i18n.SETTING_AI_MODEL_SUMMARY,
-                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SUMMARY) || DEFAULT_AI_MODEL_SUMMARY,
-                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
-                        options: AI_MODELS
-                    },
-                    {
-                        type: "dropdown",
-                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
-                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
-                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SENSITIVE_CONTENT) || DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
-                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
-                        options: AI_MODELS
-                    },
-                    {
-                        type: "number",
-                        id: SETTING_MEDIA_MAX_SIZE,
-                        name: i18n.SETTING_MEDIA_MAX_SIZE,
-                        note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
-                        value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
-                        defaultValue: MAX_MEDIA_SIZE,
-                        min: 0
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_JUMP_TO_MESSAGE,
-                        name: i18n.SETTING_JUMP_TO_MESSAGE,
-                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
-                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) ?? true,
-                        defaultValue: true
-                    },
-                    {
-                        type: "number",
-                        id: SETTING_SUMMARY_MIN_LENGTH,
-                        name: i18n.SETTING_SUMMARY_MIN_LENGTH,
-                        note: i18n.SETTING_SUMMARY_MIN_LENGTH_NOTE,
-                        value: BdApi.Data.load(name, SETTING_SUMMARY_MIN_LENGTH) || DEFAULT_SUMMARY_MIN_LENGTH,
-                        defaultValue: DEFAULT_SUMMARY_MIN_LENGTH,
-                        min: 1
-                    }
-                ]
-            },
-            {
-                type: "category",
-                id: "sensitive",
-                name: i18n.SETTING_CATEGORY_SENSITIVE,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "switch",
-                        id: SETTING_EMETOPHOBIA_MODE,
-                        name: i18n.SETTING_EMETOPHOBIA_MODE,
-                        value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_ARACHNOPHOBIA_MODE,
-                        name: i18n.SETTING_ARACHNOPHOBIA_MODE,
-                        value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_EPILEPSY_MODE,
-                        name: i18n.SETTING_EPILEPSY_MODE,
-                        value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_SEXUALITY_MODE,
-                        name: i18n.SETTING_SEXUALITY_MODE,
-                        value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_SENSITIVE_PANIC_MODE,
-                        name: i18n.SETTING_SENSITIVE_PANIC_MODE,
-                        value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
-                    }
-                ]
-            },
-            {
-                type: "category",
-                id: "others",
-                name: i18n.SETTING_CATEGORY_OTHERS,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "switch",
-                        id: SETTING_CHECK_UPDATES,
-                        name: i18n.SETTING_CHECK_UPDATES,
-                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
-                        value: BdApi.Data.load(name, SETTING_CHECK_UPDATES) ?? true,
-                        defaultValue: true
-                    }
-                ]
-            }
-        ]
-    };
-}
-function getSetting(id, settingsList = getConfig().settings) {
-    for (const setting of settingsList) {
-        if (setting.type === "category") {
-            const result = getSetting(id, setting.settings);
-            if (result !== undefined) {
-                return result;
-            }
-        }
-        else if (setting.id === id) {
-            return setting.value;
-        }
-    }
-    return undefined;
-}
-
-const LOG_PREFIX = `[${getConfig().name}]`;
-const GEMINI_VIDEOS_LIMIT = 10;
-const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
-const GITHUB_BRANCH = "main";
-const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
-const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
-const videoMimeTypes = [
-    "video/mp4",
-    "video/mpeg",
-    "video/mov",
-    "video/avi",
-    "video/x-flv",
-    "video/mpg",
-    "video/webm",
-    "video/wmv",
-    "video/3gpp"
-];
-const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"];
-var DiscordMessageType;
-(function (DiscordMessageType) {
-    DiscordMessageType[DiscordMessageType["DEFAULT"] = 0] = "DEFAULT";
-    DiscordMessageType[DiscordMessageType["RECIPIENT_ADD"] = 1] = "RECIPIENT_ADD";
-    DiscordMessageType[DiscordMessageType["RECIPIENT_REMOVE"] = 2] = "RECIPIENT_REMOVE";
-    DiscordMessageType[DiscordMessageType["CALL"] = 3] = "CALL";
-    DiscordMessageType[DiscordMessageType["CHANNEL_NAME_CHANGE"] = 4] = "CHANNEL_NAME_CHANGE";
-    DiscordMessageType[DiscordMessageType["CHANNEL_ICON_CHANGE"] = 5] = "CHANNEL_ICON_CHANGE";
-    DiscordMessageType[DiscordMessageType["CHANNEL_PINNED_MESSAGE"] = 6] = "CHANNEL_PINNED_MESSAGE";
-    DiscordMessageType[DiscordMessageType["USER_JOIN"] = 7] = "USER_JOIN";
-    DiscordMessageType[DiscordMessageType["GUILD_BOOST"] = 8] = "GUILD_BOOST";
-    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_1"] = 9] = "GUILD_BOOST_TIER_1";
-    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_2"] = 10] = "GUILD_BOOST_TIER_2";
-    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_3"] = 11] = "GUILD_BOOST_TIER_3";
-    DiscordMessageType[DiscordMessageType["CHANNEL_FOLLOW_ADD"] = 12] = "CHANNEL_FOLLOW_ADD";
-    DiscordMessageType[DiscordMessageType["GUILD_STREAM"] = 13] = "GUILD_STREAM";
-    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_DISQUALIFIED"] = 14] = "GUILD_DISCOVERY_DISQUALIFIED";
-    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_REQUALIFIED"] = 15] = "GUILD_DISCOVERY_REQUALIFIED";
-    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING"] = 16] = "GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING";
-    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING"] = 17] = "GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING";
-    DiscordMessageType[DiscordMessageType["THREAD_CREATED"] = 18] = "THREAD_CREATED";
-    DiscordMessageType[DiscordMessageType["REPLY"] = 19] = "REPLY";
-    DiscordMessageType[DiscordMessageType["CHAT_INPUT_COMMAND"] = 20] = "CHAT_INPUT_COMMAND";
-    DiscordMessageType[DiscordMessageType["THREAD_STARTER_MESSAGE"] = 21] = "THREAD_STARTER_MESSAGE";
-    DiscordMessageType[DiscordMessageType["GUILD_INVITE_REMINDER"] = 22] = "GUILD_INVITE_REMINDER";
-    DiscordMessageType[DiscordMessageType["CONTEXT_MENU_COMMAND"] = 23] = "CONTEXT_MENU_COMMAND";
-    DiscordMessageType[DiscordMessageType["AUTO_MODERATION_ACTION"] = 24] = "AUTO_MODERATION_ACTION";
-    DiscordMessageType[DiscordMessageType["ROLE_SUBSCRIPTION_PURCHASE"] = 25] = "ROLE_SUBSCRIPTION_PURCHASE";
-    DiscordMessageType[DiscordMessageType["INTERACTION_PREMIUM_UPSELL"] = 26] = "INTERACTION_PREMIUM_UPSELL";
-    DiscordMessageType[DiscordMessageType["STAGE_START"] = 27] = "STAGE_START";
-    DiscordMessageType[DiscordMessageType["STAGE_END"] = 28] = "STAGE_END";
-    DiscordMessageType[DiscordMessageType["STAGE_SPEAKER"] = 29] = "STAGE_SPEAKER";
-    DiscordMessageType[DiscordMessageType["STAGE_RAISE_HAND"] = 30] = "STAGE_RAISE_HAND";
-    DiscordMessageType[DiscordMessageType["STAGE_TOPIC"] = 31] = "STAGE_TOPIC";
-    DiscordMessageType[DiscordMessageType["GUILD_APPLICATION_PREMIUM_SUBSCRIPTION"] = 32] = "GUILD_APPLICATION_PREMIUM_SUBSCRIPTION";
-    DiscordMessageType[DiscordMessageType["PRIVATE_CHANNEL_INTEGRATION_ADDED"] = 33] = "PRIVATE_CHANNEL_INTEGRATION_ADDED";
-    DiscordMessageType[DiscordMessageType["PRIVATE_CHANNEL_INTEGRATION_REMOVED"] = 34] = "PRIVATE_CHANNEL_INTEGRATION_REMOVED";
-    DiscordMessageType[DiscordMessageType["PREMIUM_REFERRAL"] = 35] = "PREMIUM_REFERRAL";
-    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_ALERT_MODE_ENABLED"] = 36] = "GUILD_INCIDENT_ALERT_MODE_ENABLED";
-    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_ALERT_MODE_DISABLED"] = 37] = "GUILD_INCIDENT_ALERT_MODE_DISABLED";
-    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_REPORT_RAID"] = 38] = "GUILD_INCIDENT_REPORT_RAID";
-    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_REPORT_FALSE_ALARM"] = 39] = "GUILD_INCIDENT_REPORT_FALSE_ALARM";
-    DiscordMessageType[DiscordMessageType["GUILD_DEADCHAT_REVIVE_PROMPT"] = 40] = "GUILD_DEADCHAT_REVIVE_PROMPT";
-    DiscordMessageType[DiscordMessageType["CUSTOM_GIFT"] = 41] = "CUSTOM_GIFT";
-    DiscordMessageType[DiscordMessageType["GUILD_GAMING_STATS_PROMPT"] = 42] = "GUILD_GAMING_STATS_PROMPT";
-    DiscordMessageType[DiscordMessageType["PURCHASE_NOTIFICATION"] = 44] = "PURCHASE_NOTIFICATION";
-    DiscordMessageType[DiscordMessageType["VOICE_HANGOUT_INVITE"] = 45] = "VOICE_HANGOUT_INVITE";
-    DiscordMessageType[DiscordMessageType["POLL_RESULT"] = 46] = "POLL_RESULT";
-    DiscordMessageType[DiscordMessageType["CHANGELOG"] = 47] = "CHANGELOG";
-    DiscordMessageType[DiscordMessageType["NITRO_NOTIFICATION"] = 48] = "NITRO_NOTIFICATION";
-    DiscordMessageType[DiscordMessageType["CHANNEL_LINKED_TO_LOBBY"] = 49] = "CHANNEL_LINKED_TO_LOBBY";
-    DiscordMessageType[DiscordMessageType["GIFTING_PROMPT"] = 50] = "GIFTING_PROMPT";
-    DiscordMessageType[DiscordMessageType["IN_GAME_MESSAGE_NUX"] = 51] = "IN_GAME_MESSAGE_NUX";
-    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_ACCEPT_NOTIFICATION"] = 52] = "GUILD_JOIN_REQUEST_ACCEPT_NOTIFICATION";
-    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_REJECT_NOTIFICATION"] = 53] = "GUILD_JOIN_REQUEST_REJECT_NOTIFICATION";
-    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_WITHDRAWN_NOTIFICATION"] = 54] = "GUILD_JOIN_REQUEST_WITHDRAWN_NOTIFICATION";
-    DiscordMessageType[DiscordMessageType["HD_STREAMING_UPGRADED"] = 55] = "HD_STREAMING_UPGRADED";
-})(DiscordMessageType || (DiscordMessageType = {}));
-var DiscordMessageFlags;
-(function (DiscordMessageFlags) {
-    DiscordMessageFlags[DiscordMessageFlags["DEFAULT"] = 0] = "DEFAULT";
-    DiscordMessageFlags[DiscordMessageFlags["CROSSPOSTED"] = 1] = "CROSSPOSTED";
-    DiscordMessageFlags[DiscordMessageFlags["IS_CROSSPOST"] = 2] = "IS_CROSSPOST";
-    DiscordMessageFlags[DiscordMessageFlags["SUPPRESS_EMBEDS"] = 4] = "SUPPRESS_EMBEDS";
-    DiscordMessageFlags[DiscordMessageFlags["SOURCE_MESSAGE_DELETED"] = 8] = "SOURCE_MESSAGE_DELETED";
-    DiscordMessageFlags[DiscordMessageFlags["URGENT"] = 16] = "URGENT";
-    DiscordMessageFlags[DiscordMessageFlags["HAS_THREAD"] = 32] = "HAS_THREAD";
-    DiscordMessageFlags[DiscordMessageFlags["EPHEMERAL"] = 64] = "EPHEMERAL";
-    DiscordMessageFlags[DiscordMessageFlags["LOADING"] = 128] = "LOADING";
-    DiscordMessageFlags[DiscordMessageFlags["FAILED_TO_MENTION_SOME_ROLES_IN_THREAD"] = 256] = "FAILED_TO_MENTION_SOME_ROLES_IN_THREAD";
-    DiscordMessageFlags[DiscordMessageFlags["GUILD_FEED_HIDDEN"] = 512] = "GUILD_FEED_HIDDEN";
-    DiscordMessageFlags[DiscordMessageFlags["SHOULD_SHOW_LINK_NOT_DISCORD_WARNING"] = 1024] = "SHOULD_SHOW_LINK_NOT_DISCORD_WARNING";
-    DiscordMessageFlags[DiscordMessageFlags["SUPPRESS_NOTIFICATIONS"] = 4096] = "SUPPRESS_NOTIFICATIONS";
-    DiscordMessageFlags[DiscordMessageFlags["IS_VOICE_MESSAGE"] = 8192] = "IS_VOICE_MESSAGE";
-    DiscordMessageFlags[DiscordMessageFlags["HAS_SNAPSHOT"] = 16384] = "HAS_SNAPSHOT";
-    DiscordMessageFlags[DiscordMessageFlags["IS_COMPONENTS_V2"] = 32768] = "IS_COMPONENTS_V2";
-    DiscordMessageFlags[DiscordMessageFlags["SENT_BY_SOCIAL_LAYER_INTEGRATION"] = 65536] = "SENT_BY_SOCIAL_LAYER_INTEGRATION";
-})(DiscordMessageFlags || (DiscordMessageFlags = {}));
-var DiscordMessageState;
-(function (DiscordMessageState) {
-    DiscordMessageState["SENT"] = "SENT";
-    DiscordMessageState["SENDING"] = "SENDING";
-    DiscordMessageState["SEND_FAILED"] = "SEND_FAILED";
-})(DiscordMessageState || (DiscordMessageState = {}));
-var DiscordMessageComponentStyle;
-(function (DiscordMessageComponentStyle) {
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["PRIMARY"] = 1] = "PRIMARY";
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["SECONDARY"] = 2] = "SECONDARY";
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["SUCCESS"] = 3] = "SUCCESS";
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["DESTRUCTIVE"] = 4] = "DESTRUCTIVE";
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["LINK"] = 5] = "LINK";
-    DiscordMessageComponentStyle[DiscordMessageComponentStyle["PREMIUM"] = 6] = "PREMIUM";
-})(DiscordMessageComponentStyle || (DiscordMessageComponentStyle = {}));
-var DiscordComponentVisualState;
-(function (DiscordComponentVisualState) {
-    DiscordComponentVisualState[DiscordComponentVisualState["NORMAL"] = 0] = "NORMAL";
-    DiscordComponentVisualState[DiscordComponentVisualState["LOADING"] = 1] = "LOADING";
-    DiscordComponentVisualState[DiscordComponentVisualState["DISABLED"] = 2] = "DISABLED";
-})(DiscordComponentVisualState || (DiscordComponentVisualState = {}));
-
-function forceReloadMessages() {
-    const instance = findInTree(getReactInstance(document.querySelector('main[class*="chatContent"]')), (e) => typeof e?.memoizedProps?.showQuarantinedUserBanner === "boolean", { walkable: ["return"] })?.stateNode;
-    if (!instance)
-        return;
-    const unpatch = BdApi.Patcher.after(getConfig().name, instance, "render", (_this, _, ret) => {
-        unpatch();
-        if (!ret)
-            return;
-        ret.key = Math.random().toString(36).substring(2, 10).toUpperCase();
-        ret.ref = () => _this.forceUpdate();
-    });
-    instance.forceUpdate();
-}
-function findInTree(tree, searchFilter, { walkable = null, ignore = [] } = {}) {
-    if (typeof searchFilter === "string") {
-        if (tree.hasOwnProperty(searchFilter))
-            return tree[searchFilter];
-    }
-    else if (searchFilter(tree)) {
-        return tree;
-    }
-    if (typeof tree !== "object" || tree == null)
-        return undefined;
-    let tempReturn;
-    if (Array.isArray(tree)) {
-        for (const value of tree) {
-            tempReturn = findInTree(value, searchFilter, { walkable, ignore });
-            if (typeof tempReturn != "undefined")
-                return tempReturn;
-        }
-    }
-    else {
-        const toWalk = walkable == null ? Object.keys(tree) : walkable;
-        for (const key of toWalk) {
-            if (!tree.hasOwnProperty(key) || ignore.includes(key))
-                continue;
-            tempReturn = findInTree(tree[key], searchFilter, { walkable, ignore });
-            if (typeof tempReturn != "undefined")
-                return tempReturn;
-        }
-    }
-    return tempReturn;
-}
-function getReactInstance(node) {
-    const domNode = resolveElement(node);
-    if (!(domNode instanceof Element)) {
-        return undefined;
-    }
-    // @ts-ignore
-    return domNode[Object.keys(domNode).find((key) => key.startsWith("__reactInternalInstance") || key.startsWith("__reactFiber"))];
-}
-function resolveElement(node) {
-    try {
-        if (!(node instanceof window.jQuery) && !(node instanceof Element))
-            return undefined;
-        return node instanceof window.jQuery ? node[0] : node;
-    }
-    catch {
-        return node;
-    }
-}
-
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
@@ -26390,6 +25903,496 @@ class GoogleGenAI {
     }
 }
 
+const en = {
+    ID: "ID",
+    AUTHOR: "Author",
+    CONTENT: "Content",
+    DATE: "Date",
+    DONE: "Done",
+    ADD: "Add",
+    UPDATE: "Update",
+    API_KEY_NOTICE: "No Google API key is configured",
+    SUMMARY_INCOMPLETE: "The summary is incomplete",
+    UPDATE_NOTICE: "New version available",
+    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
+    SETTING_GOOGLE_API_KEY: "Google API Key",
+    SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
+    SETTING_AI_MODEL_SUMMARY: "Model for summaries",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Select the Gemini model to use for summaries",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Model for sensitive contents",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Select the Gemini model to use for sensitive contents",
+    SETTING_MEDIA_MAX_SIZE: "Maximum media size",
+    SETTING_MEDIA_MAX_SIZE_NOTE: "Maximum size of media to download (in Mo)",
+    SETTING_JUMP_TO_MESSAGE: "Auto scroll",
+    SETTING_JUMP_TO_MESSAGE_NOTE: "Automatically scroll to the summary",
+    SETTING_SUMMARY_MIN_LENGTH: "Minimum length to summarize",
+    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Minimum length of content to display the button",
+    SETTING_CATEGORY_SENSITIVE: "Sensitive content",
+    SETTING_EMETOPHOBIA_MODE: "Emetophobia",
+    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobia",
+    SETTING_EPILEPSY_MODE: "Epilepsy",
+    SETTING_SEXUALITY_MODE: "Sexuality",
+    SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
+    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
+    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
+    SETTING_CATEGORY_OTHERS: "Others",
+    SETTING_CHECK_UPDATES: "Check for updates",
+    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
+    SUMMARY_BUTTON: "Summarize",
+    SYSTEM_INSTRUCTIONS: {
+        INTRODUCTION: "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
+        MEDIAS: "Images, videos and audios have been sent in messages.",
+        CONTENT: (params) => [
+            "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
+            "- Username: <@authorId>",
+            "- Role name: <@&roleId>",
+            "- Custom emoji: <a:name:emojiId>",
+            "- Native emoji: :joy:",
+            `- Channel names: <#${params.channelId}>`,
+            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
+            "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
+            `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
+            `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
+            `- Use for dates older than 2 days: <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
+            `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
+            `- Relative date/time: <t:${params.timestamp}:R> => just now`
+        ]
+    }
+};
+
+const fr = {
+    ID: "ID",
+    AUTHOR: "Auteur",
+    CONTENT: "Contenu",
+    DATE: "Date",
+    DONE: "Terminé",
+    ADD: "Ajouter",
+    UPDATE: "Mettre à jour",
+    API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
+    SUMMARY_INCOMPLETE: "Le résumé est incomplet",
+    UPDATE_NOTICE: "Nouvelle version disponible",
+    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
+    SETTING_GOOGLE_API_KEY: "Google API Key",
+    SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
+    SETTING_AI_MODEL_SUMMARY: "Modèle pour les résumés",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Sélectionne le modèle Gemini à utiliser pour les résumés",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Modèle pour les contenus sensibles",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Sélectionne le modèle Gemini à utiliser pour les contenus sensibles",
+    SETTING_MEDIA_MAX_SIZE: "Taille maximale des médias",
+    SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
+    SETTING_JUMP_TO_MESSAGE: "Scroll auto",
+    SETTING_JUMP_TO_MESSAGE_NOTE: "Scroll automatiquement sur le résumé",
+    SETTING_SUMMARY_MIN_LENGTH: "Longueur minimale pour résumer",
+    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Longueur minimale du contenu pour afficher le bouton",
+    SETTING_CATEGORY_SENSITIVE: "Contenu sensible",
+    SETTING_EMETOPHOBIA_MODE: "Émétophobie",
+    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobie",
+    SETTING_EPILEPSY_MODE: "Épilepsie",
+    SETTING_SEXUALITY_MODE: "Sexualité",
+    SETTING_SENSITIVE_NOTE: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded",
+    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
+    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
+    SETTING_CATEGORY_OTHERS: "Autres",
+    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
+    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
+    SUMMARY_BUTTON: "Résumer",
+    SYSTEM_INSTRUCTIONS: {
+        INTRODUCTION: "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
+        MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
+        CONTENT: (params) => [
+            "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
+            "- Nom d'utilisateur : <@auteurId>",
+            "- Nom de rôle : <@&roleId>",
+            "- Emoji personnalisé : <a:nom:emojiId>",
+            "- Emoji natif : :joy:",
+            `- Nom des channels : <#${params.channelId}>`,
+            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
+            "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
+            `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
+            `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
+            `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
+            `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
+            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
+        ]
+    }
+};
+
+const DEFAULT_LOCALE = "fr";
+let i18n;
+setLocale(DEFAULT_LOCALE);
+function setLocale(locale = getDiscordLocale()) {
+    switch (locale) {
+        case "en-US":
+        case "en-GB":
+            i18n = en;
+            break;
+        case "fr":
+            i18n = fr;
+            break;
+        default:
+            i18n = en;
+            break;
+    }
+}
+function getDiscordLocale() {
+    const localeStore = BdApi.Webpack.getStore("LocaleStore");
+    return localeStore.locale;
+}
+
+const name = "BDiscordAI";
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-3.8-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-3.1-flash-lite";
+const MAX_MEDIA_SIZE = 50;
+const DEFAULT_SUMMARY_MIN_LENGTH = 300;
+const AI_MODELS = [
+    { label: "Gemini 3.8 Flash", value: "gemini-3.8-flash" },
+    { label: "Gemini 3.7 Flash", value: "gemini-3.7-flash" },
+    { label: "Gemini 3.1 Flash-Lite", value: "gemini-3.1-flash-lite" }
+];
+const SETTING_GOOGLE_API_KEY = "googleApiKey";
+const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
+const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
+const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
+const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
+const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
+const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
+const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
+const SETTING_EPILEPSY_MODE = "epilepsyMode";
+const SETTING_SEXUALITY_MODE = "sexualityMode";
+const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
+const SETTING_CHECK_UPDATES = "checkUpdates";
+function getConfig() {
+    return {
+        name,
+        settings: [
+            {
+                type: "category",
+                id: "aiModel",
+                name: i18n.SETTING_CATEGORY_GEMINI_AI,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "text",
+                        id: SETTING_GOOGLE_API_KEY,
+                        name: i18n.SETTING_GOOGLE_API_KEY,
+                        note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
+                        value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
+                        placeholder: "API KEY"
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SUMMARY,
+                        name: i18n.SETTING_AI_MODEL_SUMMARY,
+                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SUMMARY) || DEFAULT_AI_MODEL_SUMMARY,
+                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
+                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SENSITIVE_CONTENT) || DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_MEDIA_MAX_SIZE,
+                        name: i18n.SETTING_MEDIA_MAX_SIZE,
+                        note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
+                        value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
+                        defaultValue: MAX_MEDIA_SIZE,
+                        min: 0
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_JUMP_TO_MESSAGE,
+                        name: i18n.SETTING_JUMP_TO_MESSAGE,
+                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
+                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) ?? true,
+                        defaultValue: true
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_SUMMARY_MIN_LENGTH,
+                        name: i18n.SETTING_SUMMARY_MIN_LENGTH,
+                        note: i18n.SETTING_SUMMARY_MIN_LENGTH_NOTE,
+                        value: BdApi.Data.load(name, SETTING_SUMMARY_MIN_LENGTH) || DEFAULT_SUMMARY_MIN_LENGTH,
+                        defaultValue: DEFAULT_SUMMARY_MIN_LENGTH,
+                        min: 1
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "sensitive",
+                name: i18n.SETTING_CATEGORY_SENSITIVE,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_EMETOPHOBIA_MODE,
+                        name: i18n.SETTING_EMETOPHOBIA_MODE,
+                        value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_ARACHNOPHOBIA_MODE,
+                        name: i18n.SETTING_ARACHNOPHOBIA_MODE,
+                        value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_EPILEPSY_MODE,
+                        name: i18n.SETTING_EPILEPSY_MODE,
+                        value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SEXUALITY_MODE,
+                        name: i18n.SETTING_SEXUALITY_MODE,
+                        value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SENSITIVE_PANIC_MODE,
+                        name: i18n.SETTING_SENSITIVE_PANIC_MODE,
+                        value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "others",
+                name: i18n.SETTING_CATEGORY_OTHERS,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_CHECK_UPDATES,
+                        name: i18n.SETTING_CHECK_UPDATES,
+                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
+                        value: BdApi.Data.load(name, SETTING_CHECK_UPDATES) ?? true,
+                        defaultValue: true
+                    }
+                ]
+            }
+        ]
+    };
+}
+function getSetting(id, settingsList = getConfig().settings) {
+    for (const setting of settingsList) {
+        if (setting.type === "category") {
+            const result = getSetting(id, setting.settings);
+            if (result !== undefined) {
+                return result;
+            }
+        }
+        else if (setting.id === id) {
+            return setting.value;
+        }
+    }
+    return undefined;
+}
+
+const LOG_PREFIX = `[${getConfig().name}]`;
+const GEMINI_VIDEOS_LIMIT = 10;
+const SUMMARY_STREAM_REFRESH_DELAY = 100;
+const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
+const GITHUB_BRANCH = "main";
+const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
+const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
+const videoMimeTypes = [
+    "video/mp4",
+    "video/mpeg",
+    "video/mov",
+    "video/avi",
+    "video/x-flv",
+    "video/mpg",
+    "video/webm",
+    "video/wmv",
+    "video/3gpp"
+];
+const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"];
+var DiscordMessageType;
+(function (DiscordMessageType) {
+    DiscordMessageType[DiscordMessageType["DEFAULT"] = 0] = "DEFAULT";
+    DiscordMessageType[DiscordMessageType["RECIPIENT_ADD"] = 1] = "RECIPIENT_ADD";
+    DiscordMessageType[DiscordMessageType["RECIPIENT_REMOVE"] = 2] = "RECIPIENT_REMOVE";
+    DiscordMessageType[DiscordMessageType["CALL"] = 3] = "CALL";
+    DiscordMessageType[DiscordMessageType["CHANNEL_NAME_CHANGE"] = 4] = "CHANNEL_NAME_CHANGE";
+    DiscordMessageType[DiscordMessageType["CHANNEL_ICON_CHANGE"] = 5] = "CHANNEL_ICON_CHANGE";
+    DiscordMessageType[DiscordMessageType["CHANNEL_PINNED_MESSAGE"] = 6] = "CHANNEL_PINNED_MESSAGE";
+    DiscordMessageType[DiscordMessageType["USER_JOIN"] = 7] = "USER_JOIN";
+    DiscordMessageType[DiscordMessageType["GUILD_BOOST"] = 8] = "GUILD_BOOST";
+    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_1"] = 9] = "GUILD_BOOST_TIER_1";
+    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_2"] = 10] = "GUILD_BOOST_TIER_2";
+    DiscordMessageType[DiscordMessageType["GUILD_BOOST_TIER_3"] = 11] = "GUILD_BOOST_TIER_3";
+    DiscordMessageType[DiscordMessageType["CHANNEL_FOLLOW_ADD"] = 12] = "CHANNEL_FOLLOW_ADD";
+    DiscordMessageType[DiscordMessageType["GUILD_STREAM"] = 13] = "GUILD_STREAM";
+    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_DISQUALIFIED"] = 14] = "GUILD_DISCOVERY_DISQUALIFIED";
+    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_REQUALIFIED"] = 15] = "GUILD_DISCOVERY_REQUALIFIED";
+    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING"] = 16] = "GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING";
+    DiscordMessageType[DiscordMessageType["GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING"] = 17] = "GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING";
+    DiscordMessageType[DiscordMessageType["THREAD_CREATED"] = 18] = "THREAD_CREATED";
+    DiscordMessageType[DiscordMessageType["REPLY"] = 19] = "REPLY";
+    DiscordMessageType[DiscordMessageType["CHAT_INPUT_COMMAND"] = 20] = "CHAT_INPUT_COMMAND";
+    DiscordMessageType[DiscordMessageType["THREAD_STARTER_MESSAGE"] = 21] = "THREAD_STARTER_MESSAGE";
+    DiscordMessageType[DiscordMessageType["GUILD_INVITE_REMINDER"] = 22] = "GUILD_INVITE_REMINDER";
+    DiscordMessageType[DiscordMessageType["CONTEXT_MENU_COMMAND"] = 23] = "CONTEXT_MENU_COMMAND";
+    DiscordMessageType[DiscordMessageType["AUTO_MODERATION_ACTION"] = 24] = "AUTO_MODERATION_ACTION";
+    DiscordMessageType[DiscordMessageType["ROLE_SUBSCRIPTION_PURCHASE"] = 25] = "ROLE_SUBSCRIPTION_PURCHASE";
+    DiscordMessageType[DiscordMessageType["INTERACTION_PREMIUM_UPSELL"] = 26] = "INTERACTION_PREMIUM_UPSELL";
+    DiscordMessageType[DiscordMessageType["STAGE_START"] = 27] = "STAGE_START";
+    DiscordMessageType[DiscordMessageType["STAGE_END"] = 28] = "STAGE_END";
+    DiscordMessageType[DiscordMessageType["STAGE_SPEAKER"] = 29] = "STAGE_SPEAKER";
+    DiscordMessageType[DiscordMessageType["STAGE_RAISE_HAND"] = 30] = "STAGE_RAISE_HAND";
+    DiscordMessageType[DiscordMessageType["STAGE_TOPIC"] = 31] = "STAGE_TOPIC";
+    DiscordMessageType[DiscordMessageType["GUILD_APPLICATION_PREMIUM_SUBSCRIPTION"] = 32] = "GUILD_APPLICATION_PREMIUM_SUBSCRIPTION";
+    DiscordMessageType[DiscordMessageType["PRIVATE_CHANNEL_INTEGRATION_ADDED"] = 33] = "PRIVATE_CHANNEL_INTEGRATION_ADDED";
+    DiscordMessageType[DiscordMessageType["PRIVATE_CHANNEL_INTEGRATION_REMOVED"] = 34] = "PRIVATE_CHANNEL_INTEGRATION_REMOVED";
+    DiscordMessageType[DiscordMessageType["PREMIUM_REFERRAL"] = 35] = "PREMIUM_REFERRAL";
+    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_ALERT_MODE_ENABLED"] = 36] = "GUILD_INCIDENT_ALERT_MODE_ENABLED";
+    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_ALERT_MODE_DISABLED"] = 37] = "GUILD_INCIDENT_ALERT_MODE_DISABLED";
+    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_REPORT_RAID"] = 38] = "GUILD_INCIDENT_REPORT_RAID";
+    DiscordMessageType[DiscordMessageType["GUILD_INCIDENT_REPORT_FALSE_ALARM"] = 39] = "GUILD_INCIDENT_REPORT_FALSE_ALARM";
+    DiscordMessageType[DiscordMessageType["GUILD_DEADCHAT_REVIVE_PROMPT"] = 40] = "GUILD_DEADCHAT_REVIVE_PROMPT";
+    DiscordMessageType[DiscordMessageType["CUSTOM_GIFT"] = 41] = "CUSTOM_GIFT";
+    DiscordMessageType[DiscordMessageType["GUILD_GAMING_STATS_PROMPT"] = 42] = "GUILD_GAMING_STATS_PROMPT";
+    DiscordMessageType[DiscordMessageType["PURCHASE_NOTIFICATION"] = 44] = "PURCHASE_NOTIFICATION";
+    DiscordMessageType[DiscordMessageType["VOICE_HANGOUT_INVITE"] = 45] = "VOICE_HANGOUT_INVITE";
+    DiscordMessageType[DiscordMessageType["POLL_RESULT"] = 46] = "POLL_RESULT";
+    DiscordMessageType[DiscordMessageType["CHANGELOG"] = 47] = "CHANGELOG";
+    DiscordMessageType[DiscordMessageType["NITRO_NOTIFICATION"] = 48] = "NITRO_NOTIFICATION";
+    DiscordMessageType[DiscordMessageType["CHANNEL_LINKED_TO_LOBBY"] = 49] = "CHANNEL_LINKED_TO_LOBBY";
+    DiscordMessageType[DiscordMessageType["GIFTING_PROMPT"] = 50] = "GIFTING_PROMPT";
+    DiscordMessageType[DiscordMessageType["IN_GAME_MESSAGE_NUX"] = 51] = "IN_GAME_MESSAGE_NUX";
+    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_ACCEPT_NOTIFICATION"] = 52] = "GUILD_JOIN_REQUEST_ACCEPT_NOTIFICATION";
+    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_REJECT_NOTIFICATION"] = 53] = "GUILD_JOIN_REQUEST_REJECT_NOTIFICATION";
+    DiscordMessageType[DiscordMessageType["GUILD_JOIN_REQUEST_WITHDRAWN_NOTIFICATION"] = 54] = "GUILD_JOIN_REQUEST_WITHDRAWN_NOTIFICATION";
+    DiscordMessageType[DiscordMessageType["HD_STREAMING_UPGRADED"] = 55] = "HD_STREAMING_UPGRADED";
+})(DiscordMessageType || (DiscordMessageType = {}));
+var DiscordMessageFlags;
+(function (DiscordMessageFlags) {
+    DiscordMessageFlags[DiscordMessageFlags["DEFAULT"] = 0] = "DEFAULT";
+    DiscordMessageFlags[DiscordMessageFlags["CROSSPOSTED"] = 1] = "CROSSPOSTED";
+    DiscordMessageFlags[DiscordMessageFlags["IS_CROSSPOST"] = 2] = "IS_CROSSPOST";
+    DiscordMessageFlags[DiscordMessageFlags["SUPPRESS_EMBEDS"] = 4] = "SUPPRESS_EMBEDS";
+    DiscordMessageFlags[DiscordMessageFlags["SOURCE_MESSAGE_DELETED"] = 8] = "SOURCE_MESSAGE_DELETED";
+    DiscordMessageFlags[DiscordMessageFlags["URGENT"] = 16] = "URGENT";
+    DiscordMessageFlags[DiscordMessageFlags["HAS_THREAD"] = 32] = "HAS_THREAD";
+    DiscordMessageFlags[DiscordMessageFlags["EPHEMERAL"] = 64] = "EPHEMERAL";
+    DiscordMessageFlags[DiscordMessageFlags["LOADING"] = 128] = "LOADING";
+    DiscordMessageFlags[DiscordMessageFlags["FAILED_TO_MENTION_SOME_ROLES_IN_THREAD"] = 256] = "FAILED_TO_MENTION_SOME_ROLES_IN_THREAD";
+    DiscordMessageFlags[DiscordMessageFlags["GUILD_FEED_HIDDEN"] = 512] = "GUILD_FEED_HIDDEN";
+    DiscordMessageFlags[DiscordMessageFlags["SHOULD_SHOW_LINK_NOT_DISCORD_WARNING"] = 1024] = "SHOULD_SHOW_LINK_NOT_DISCORD_WARNING";
+    DiscordMessageFlags[DiscordMessageFlags["SUPPRESS_NOTIFICATIONS"] = 4096] = "SUPPRESS_NOTIFICATIONS";
+    DiscordMessageFlags[DiscordMessageFlags["IS_VOICE_MESSAGE"] = 8192] = "IS_VOICE_MESSAGE";
+    DiscordMessageFlags[DiscordMessageFlags["HAS_SNAPSHOT"] = 16384] = "HAS_SNAPSHOT";
+    DiscordMessageFlags[DiscordMessageFlags["IS_COMPONENTS_V2"] = 32768] = "IS_COMPONENTS_V2";
+    DiscordMessageFlags[DiscordMessageFlags["SENT_BY_SOCIAL_LAYER_INTEGRATION"] = 65536] = "SENT_BY_SOCIAL_LAYER_INTEGRATION";
+})(DiscordMessageFlags || (DiscordMessageFlags = {}));
+var DiscordMessageState;
+(function (DiscordMessageState) {
+    DiscordMessageState["SENT"] = "SENT";
+    DiscordMessageState["SENDING"] = "SENDING";
+    DiscordMessageState["SEND_FAILED"] = "SEND_FAILED";
+})(DiscordMessageState || (DiscordMessageState = {}));
+var DiscordMessageComponentStyle;
+(function (DiscordMessageComponentStyle) {
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["PRIMARY"] = 1] = "PRIMARY";
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["SECONDARY"] = 2] = "SECONDARY";
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["SUCCESS"] = 3] = "SUCCESS";
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["DESTRUCTIVE"] = 4] = "DESTRUCTIVE";
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["LINK"] = 5] = "LINK";
+    DiscordMessageComponentStyle[DiscordMessageComponentStyle["PREMIUM"] = 6] = "PREMIUM";
+})(DiscordMessageComponentStyle || (DiscordMessageComponentStyle = {}));
+var DiscordComponentVisualState;
+(function (DiscordComponentVisualState) {
+    DiscordComponentVisualState[DiscordComponentVisualState["NORMAL"] = 0] = "NORMAL";
+    DiscordComponentVisualState[DiscordComponentVisualState["LOADING"] = 1] = "LOADING";
+    DiscordComponentVisualState[DiscordComponentVisualState["DISABLED"] = 2] = "DISABLED";
+})(DiscordComponentVisualState || (DiscordComponentVisualState = {}));
+
+function forceReloadMessages() {
+    const instance = findInTree(getReactInstance(document.querySelector('main[class*="chatContent"]')), (e) => typeof e?.memoizedProps?.showQuarantinedUserBanner === "boolean", { walkable: ["return"] })?.stateNode;
+    if (!instance)
+        return;
+    const unpatch = BdApi.Patcher.after(getConfig().name, instance, "render", (_this, _, ret) => {
+        unpatch();
+        if (!ret)
+            return;
+        ret.key = Math.random().toString(36).substring(2, 10).toUpperCase();
+        ret.ref = () => _this.forceUpdate();
+    });
+    instance.forceUpdate();
+}
+function findInTree(tree, searchFilter, { walkable = null, ignore = [] } = {}) {
+    if (typeof searchFilter === "string") {
+        if (tree.hasOwnProperty(searchFilter))
+            return tree[searchFilter];
+    }
+    else if (searchFilter(tree)) {
+        return tree;
+    }
+    if (typeof tree !== "object" || tree == null)
+        return undefined;
+    let tempReturn;
+    if (Array.isArray(tree)) {
+        for (const value of tree) {
+            tempReturn = findInTree(value, searchFilter, { walkable, ignore });
+            if (typeof tempReturn != "undefined")
+                return tempReturn;
+        }
+    }
+    else {
+        const toWalk = walkable == null ? Object.keys(tree) : walkable;
+        for (const key of toWalk) {
+            if (!tree.hasOwnProperty(key) || ignore.includes(key))
+                continue;
+            tempReturn = findInTree(tree[key], searchFilter, { walkable, ignore });
+            if (typeof tempReturn != "undefined")
+                return tempReturn;
+        }
+    }
+    return tempReturn;
+}
+function getReactInstance(node) {
+    const domNode = resolveElement(node);
+    if (!(domNode instanceof Element)) {
+        return undefined;
+    }
+    // @ts-ignore
+    return domNode[Object.keys(domNode).find((key) => key.startsWith("__reactInternalInstance") || key.startsWith("__reactFiber"))];
+}
+function resolveElement(node) {
+    try {
+        if (!(node instanceof window.jQuery) && !(node instanceof Element))
+            return undefined;
+        return node instanceof window.jQuery ? node[0] : node;
+    }
+    catch {
+        return node;
+    }
+}
+
 function isImageMimeType(mimeType) {
     return imageMimeTypes.includes(mimeType);
 }
@@ -27279,9 +27282,8 @@ class BDiscordAI {
                 case "CHANNEL_SELECT":
                     if (event.channelId === selectedChannelId) {
                         this._lastVisitedChannels.add(selectedChannelId);
-                        this._enableSummaryButtonIfNeeded(selectedChannelId);
                     }
-                case "CHANNEL_SELECT":
+                // falls through
                 case "MESSAGE_DELETE":
                 case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
@@ -27324,13 +27326,25 @@ class BDiscordAI {
         const summaryStream = await model.summarizeMessages(guildId, channelId, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
+        let lastRefreshTime = 0;
+        let isRefreshPending = false;
         for await (const chunk of summaryStream) {
+            const finishReason = chunk.candidates?.[0]?.finishReason;
             const chunkText = chunk.text;
+            if (finishReason && finishReason !== FinishReason.STOP) {
+                this._log(`${i18n.SUMMARY_INCOMPLETE} (${finishReason})`, "warn");
+            }
             if (!chunkText?.length)
                 continue;
             if (message) {
                 message.content += chunkText;
-                this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
+                isRefreshPending = true;
+                // Throttled to avoid re-rendering the whole message list on every chunk
+                if (Date.now() - lastRefreshTime >= SUMMARY_STREAM_REFRESH_DELAY) {
+                    this._refreshMessageContent(message);
+                    lastRefreshTime = Date.now();
+                    isRefreshPending = false;
+                }
             }
             else {
                 const messageId = generateMessageId(previousMessageId);
@@ -27344,21 +27358,34 @@ class BDiscordAI {
                     reply: this._messageStore?.getMessage(channelId, referenceMessage)
                 });
                 this._messageActions.receiveMessage(channelId, message, true, { messageReference: message.messageReference });
+                lastRefreshTime = Date.now();
                 if (getSetting(SETTING_JUMP_TO_MESSAGE)) {
-                    this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+                    try {
+                        this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
+                    }
+                    catch (error) {
+                        this._log(typeof error === "string" ? error : error.message);
+                    }
                 }
             }
         }
+        if (message && isRefreshPending) {
+            this._refreshMessageContent(message);
+        }
+    }
+    /**
+     * Discord drops an optimistic MESSAGE_CREATE as soon as the message id is already in the channel, so calling
+     * receiveMessage again only updates the local object and never the rendered message. The streamed chunks have to go
+     * through MESSAGE_UPDATE instead, which merges the new content into the existing record.
+     */
+    _refreshMessageContent(message) {
+        this._fluxDispatcher.dispatch({
+            type: "MESSAGE_UPDATE",
+            channelId: message.channel_id,
+            message
+        });
     }
     async _checkSensitiveContent(discordMessage) {
-        const panicMode = getSetting(SETTING_SENSITIVE_PANIC_MODE);
-        const settingEmetophobia = getSetting(SETTING_EMETOPHOBIA_MODE);
-        const settingArachnophobia = getSetting(SETTING_ARACHNOPHOBIA_MODE);
-        const settingEpilepsy = getSetting(SETTING_EPILEPSY_MODE);
-        const settingSexuality = getSetting(SETTING_SEXUALITY_MODE);
-        const backup = { attachments: {}, embeds: [] };
-        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality)
-            return;
         if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore)
             throw "Fail to get stores";
         if (this._userStore.getCurrentUser().id === discordMessage.author.id ||
@@ -27366,6 +27393,14 @@ class BDiscordAI {
             ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
                 !discordMessage.embeds?.length) ||
             this._isSensitiveMessageCheck.has(discordMessage.id))
+            return;
+        const panicMode = getSetting(SETTING_SENSITIVE_PANIC_MODE);
+        const settingEmetophobia = getSetting(SETTING_EMETOPHOBIA_MODE);
+        const settingArachnophobia = getSetting(SETTING_ARACHNOPHOBIA_MODE);
+        const settingEpilepsy = getSetting(SETTING_EPILEPSY_MODE);
+        const settingSexuality = getSetting(SETTING_SEXUALITY_MODE);
+        const backup = { attachments: {}, embeds: [] };
+        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality)
             return;
         const toggleSensitiveContent = (toggle) => {
             const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
