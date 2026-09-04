@@ -108,9 +108,9 @@ type DOM = {
 };
 
 type FetchOptions = {
-    method?: 'GET' | 'PUT' | 'POST' | 'DELETE';
+    method?: "GET" | "PUT" | "POST" | "DELETE";
     headers?: Record<string, string>;
-    redirect?: 'manual' | 'follow';
+    redirect?: "manual" | "follow";
     maxRedirects?: number;
     signal?: AbortSignal;
     timeout?: number;
@@ -118,7 +118,7 @@ type FetchOptions = {
 }
 
 type Net = {
-    fetch(url: string, options?: FetchOptions = { method: 'GET', redirect: 'follow', maxRedirects: 20, timeout: 3000 }): Promise<Response>;
+    fetch(url: string, options?: FetchOptions): Promise<Response>;
 };
 
 type Patcher = {
@@ -153,9 +153,9 @@ export type ConfirmationModalOptions = PropsWithChildren<{
 }>;
 type UI = {
     buildSettingsPanel(props: { settings: SettingConfigElement[]; onChange: (category: string, id: string, value: any) => void }): HTMLElement;
-    showConfirmationModal(title: string, content: (string | HTMLElement | Array<string | HTMLElement>), options: ConfirmationModalOptions = {}): string | number | void;
-    showNotice(content: string, options?: { type?: 'info' | 'success' | 'warning' | 'error' = 'info'; buttons?: Array.<{ label: string, onClick: () => void }>; timeout?: number = 10000 }): () => void;
-    showToast(content: string, options?: { type?: "info" | "success" | "warning" | "error" = ""; icon?: boolean; timeout?: number = 3000; forceShow?: boolean = false }): void;
+    showConfirmationModal(title: string, content: (string | HTMLElement | Array<string | HTMLElement>), options?: ConfirmationModalOptions): string | number | void;
+    showNotice(content: string, options?: { type?: "info" | "success" | "warning" | "error"; buttons?: Array<{ label: string, onClick: () => void }>; timeout?: number }): () => void;
+    showToast(content: string, options?: { type?: "info" | "success" | "warning" | "error"; icon?: boolean; timeout?: number; forceShow?: boolean }): void;
 };
 
 type Utils = {
