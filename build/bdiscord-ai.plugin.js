@@ -26499,7 +26499,7 @@ function createMessage({ guildId, channelId, previousMessageId, id = previousMes
     }
     const messageReference = reply
         ? {
-            guild_id: guildId,
+            guild_id: guildId ?? undefined,
             channel_id: channelId,
             message_id: reply.id,
             type: 0
@@ -27323,7 +27323,7 @@ class BDiscordAI {
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
         const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(guildId, channelId, unreadMessages);
+        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
         let lastRefreshTime = 0;
