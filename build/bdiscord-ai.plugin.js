@@ -19319,7 +19319,7 @@ function isTimeoutError(err) {
 /**
  * Uses various heurisitics to determine if an error is a abort error.
  */
-function isAbortError(err) {
+function isAbortError$1(err) {
     if (typeof err !== "object" || err == null) {
         return false;
     }
@@ -19738,7 +19738,7 @@ class ClientSDK {
             return response;
         }, { config: options.retryConfig, statusCodes: options.retryCodes }).then((r) => OK(r), (err) => {
             switch (true) {
-                case isAbortError(err):
+                case isAbortError$1(err):
                     return ERR(new RequestAbortedError("Request aborted by client", {
                         cause: err,
                     }));
@@ -25903,321 +25903,31 @@ class GoogleGenAI {
     }
 }
 
-const en = {
-    ID: "ID",
-    AUTHOR: "Author",
-    CONTENT: "Content",
-    DATE: "Date",
-    DONE: "Done",
-    ADD: "Add",
-    UPDATE: "Update",
-    API_KEY_NOTICE: "No Google API key is configured",
-    SUMMARY_INCOMPLETE: "The summary is incomplete",
-    UPDATE_NOTICE: "New version available",
-    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
-    SETTING_GOOGLE_API_KEY: "Google API Key",
-    SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL_SUMMARY: "Model for summaries",
-    SETTING_AI_MODEL_SUMMARY_NOTE: "Select the Gemini model to use for summaries",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Model for sensitive contents",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Select the Gemini model to use for sensitive contents",
-    SETTING_MEDIA_MAX_SIZE: "Maximum media size",
-    SETTING_MEDIA_MAX_SIZE_NOTE: "Maximum size of media to download (in Mo)",
-    SETTING_JUMP_TO_MESSAGE: "Auto scroll",
-    SETTING_JUMP_TO_MESSAGE_NOTE: "Automatically scroll to the summary",
-    SETTING_SUMMARY_MIN_LENGTH: "Minimum length to summarize",
-    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Minimum length of content to display the button",
-    SETTING_CATEGORY_SENSITIVE: "Sensitive content",
-    SETTING_EMETOPHOBIA_MODE: "Emetophobia",
-    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobia",
-    SETTING_EPILEPSY_MODE: "Epilepsy",
-    SETTING_SEXUALITY_MODE: "Sexuality",
-    SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
-    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
-    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
-    SETTING_CATEGORY_OTHERS: "Others",
-    SETTING_CHECK_UPDATES: "Check for updates",
-    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
-    SUMMARY_BUTTON: "Summarize",
-    SYSTEM_INSTRUCTIONS: {
-        INTRODUCTION: "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
-        MEDIAS: "Images, videos and audios have been sent in messages.",
-        CONTENT: (params) => [
-            "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
-            "- Username: <@authorId>",
-            "- Role name: <@&roleId>",
-            "- Custom emoji: <a:name:emojiId>",
-            "- Native emoji: :joy:",
-            `- Channel names: <#${params.channelId}>`,
-            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
-            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
-            "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
-            `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
-            `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
-            `- Use for dates older than 2 days: <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
-            `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Relative date/time: <t:${params.timestamp}:R> => just now`
-        ]
-    }
-};
-
-const fr = {
-    ID: "ID",
-    AUTHOR: "Auteur",
-    CONTENT: "Contenu",
-    DATE: "Date",
-    DONE: "Terminé",
-    ADD: "Ajouter",
-    UPDATE: "Mettre à jour",
-    API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
-    SUMMARY_INCOMPLETE: "Le résumé est incomplet",
-    UPDATE_NOTICE: "Nouvelle version disponible",
-    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
-    SETTING_GOOGLE_API_KEY: "Google API Key",
-    SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
-    SETTING_AI_MODEL_SUMMARY: "Modèle pour les résumés",
-    SETTING_AI_MODEL_SUMMARY_NOTE: "Sélectionne le modèle Gemini à utiliser pour les résumés",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Modèle pour les contenus sensibles",
-    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Sélectionne le modèle Gemini à utiliser pour les contenus sensibles",
-    SETTING_MEDIA_MAX_SIZE: "Taille maximale des médias",
-    SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
-    SETTING_JUMP_TO_MESSAGE: "Scroll auto",
-    SETTING_JUMP_TO_MESSAGE_NOTE: "Scroll automatiquement sur le résumé",
-    SETTING_SUMMARY_MIN_LENGTH: "Longueur minimale pour résumer",
-    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Longueur minimale du contenu pour afficher le bouton",
-    SETTING_CATEGORY_SENSITIVE: "Contenu sensible",
-    SETTING_EMETOPHOBIA_MODE: "Émétophobie",
-    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobie",
-    SETTING_EPILEPSY_MODE: "Épilepsie",
-    SETTING_SEXUALITY_MODE: "Sexualité",
-    SETTING_SENSITIVE_NOTE: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded",
-    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
-    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
-    SETTING_CATEGORY_OTHERS: "Autres",
-    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
-    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
-    SUMMARY_BUTTON: "Résumer",
-    SYSTEM_INSTRUCTIONS: {
-        INTRODUCTION: "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
-        MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
-        CONTENT: (params) => [
-            "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
-            "- Nom d'utilisateur : <@auteurId>",
-            "- Nom de rôle : <@&roleId>",
-            "- Emoji personnalisé : <a:nom:emojiId>",
-            "- Emoji natif : :joy:",
-            `- Nom des channels : <#${params.channelId}>`,
-            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
-            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
-            "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
-            `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
-            `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
-            `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
-            `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
-            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
-        ]
-    }
-};
-
-const DEFAULT_LOCALE = "fr";
-let i18n;
-setLocale(DEFAULT_LOCALE);
-function setLocale(locale = getDiscordLocale()) {
-    switch (locale) {
-        case "en-US":
-        case "en-GB":
-            i18n = en;
-            break;
-        case "fr":
-            i18n = fr;
-            break;
-        default:
-            i18n = en;
-            break;
-    }
-}
-function getDiscordLocale() {
-    const localeStore = BdApi.Webpack.getStore("LocaleStore");
-    return localeStore.locale;
-}
-
-const name = "BDiscordAI";
-const DEFAULT_AI_MODEL_SUMMARY = "gemini-3.8-flash";
-const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-3.1-flash-lite";
-const MAX_MEDIA_SIZE = 50;
-const DEFAULT_SUMMARY_MIN_LENGTH = 300;
-const AI_MODELS = [
-    { label: "Gemini 3.8 Flash", value: "gemini-3.8-flash" },
-    { label: "Gemini 3.7 Flash", value: "gemini-3.7-flash" },
-    { label: "Gemini 3.1 Flash-Lite", value: "gemini-3.1-flash-lite" }
-];
-const SETTING_GOOGLE_API_KEY = "googleApiKey";
-const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
-const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
-const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
-const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
-const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
-const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
-const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
-const SETTING_EPILEPSY_MODE = "epilepsyMode";
-const SETTING_SEXUALITY_MODE = "sexualityMode";
-const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
-const SETTING_CHECK_UPDATES = "checkUpdates";
-function getConfig() {
-    return {
-        name,
-        settings: [
-            {
-                type: "category",
-                id: "aiModel",
-                name: i18n.SETTING_CATEGORY_GEMINI_AI,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "text",
-                        id: SETTING_GOOGLE_API_KEY,
-                        name: i18n.SETTING_GOOGLE_API_KEY,
-                        note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
-                        value: BdApi.Data.load(name, SETTING_GOOGLE_API_KEY) || "",
-                        placeholder: "API KEY"
-                    },
-                    {
-                        type: "dropdown",
-                        id: SETTING_AI_MODEL_SUMMARY,
-                        name: i18n.SETTING_AI_MODEL_SUMMARY,
-                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SUMMARY) || DEFAULT_AI_MODEL_SUMMARY,
-                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
-                        options: AI_MODELS
-                    },
-                    {
-                        type: "dropdown",
-                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
-                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
-                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
-                        value: BdApi.Data.load(name, SETTING_AI_MODEL_SENSITIVE_CONTENT) || DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
-                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
-                        options: AI_MODELS
-                    },
-                    {
-                        type: "number",
-                        id: SETTING_MEDIA_MAX_SIZE,
-                        name: i18n.SETTING_MEDIA_MAX_SIZE,
-                        note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
-                        value: BdApi.Data.load(name, SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE,
-                        defaultValue: MAX_MEDIA_SIZE,
-                        min: 0
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_JUMP_TO_MESSAGE,
-                        name: i18n.SETTING_JUMP_TO_MESSAGE,
-                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
-                        value: BdApi.Data.load(name, SETTING_JUMP_TO_MESSAGE) ?? true,
-                        defaultValue: true
-                    },
-                    {
-                        type: "number",
-                        id: SETTING_SUMMARY_MIN_LENGTH,
-                        name: i18n.SETTING_SUMMARY_MIN_LENGTH,
-                        note: i18n.SETTING_SUMMARY_MIN_LENGTH_NOTE,
-                        value: BdApi.Data.load(name, SETTING_SUMMARY_MIN_LENGTH) || DEFAULT_SUMMARY_MIN_LENGTH,
-                        defaultValue: DEFAULT_SUMMARY_MIN_LENGTH,
-                        min: 1
-                    }
-                ]
-            },
-            {
-                type: "category",
-                id: "sensitive",
-                name: i18n.SETTING_CATEGORY_SENSITIVE,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "switch",
-                        id: SETTING_EMETOPHOBIA_MODE,
-                        name: i18n.SETTING_EMETOPHOBIA_MODE,
-                        value: BdApi.Data.load(name, SETTING_EMETOPHOBIA_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_ARACHNOPHOBIA_MODE,
-                        name: i18n.SETTING_ARACHNOPHOBIA_MODE,
-                        value: BdApi.Data.load(name, SETTING_ARACHNOPHOBIA_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_EPILEPSY_MODE,
-                        name: i18n.SETTING_EPILEPSY_MODE,
-                        value: BdApi.Data.load(name, SETTING_EPILEPSY_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_SEXUALITY_MODE,
-                        name: i18n.SETTING_SEXUALITY_MODE,
-                        value: BdApi.Data.load(name, SETTING_SEXUALITY_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_NOTE
-                    },
-                    {
-                        type: "switch",
-                        id: SETTING_SENSITIVE_PANIC_MODE,
-                        name: i18n.SETTING_SENSITIVE_PANIC_MODE,
-                        value: BdApi.Data.load(name, SETTING_SENSITIVE_PANIC_MODE) || false,
-                        defaultValue: false,
-                        note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
-                    }
-                ]
-            },
-            {
-                type: "category",
-                id: "others",
-                name: i18n.SETTING_CATEGORY_OTHERS,
-                collapsible: true,
-                shown: false,
-                settings: [
-                    {
-                        type: "switch",
-                        id: SETTING_CHECK_UPDATES,
-                        name: i18n.SETTING_CHECK_UPDATES,
-                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
-                        value: BdApi.Data.load(name, SETTING_CHECK_UPDATES) ?? true,
-                        defaultValue: true
-                    }
-                ]
-            }
-        ]
-    };
-}
-function getSetting(id, settingsList = getConfig().settings) {
-    for (const setting of settingsList) {
-        if (setting.type === "category") {
-            const result = getSetting(id, setting.settings);
-            if (result !== undefined) {
-                return result;
-            }
-        }
-        else if (setting.id === id) {
-            return setting.value;
-        }
-    }
-    return undefined;
-}
-
-const LOG_PREFIX = `[${getConfig().name}]`;
+const PLUGIN_NAME = "BDiscordAI";
+const LOG_PREFIX = `[${PLUGIN_NAME}]`;
 const GEMINI_VIDEOS_LIMIT = 10;
 const SUMMARY_STREAM_REFRESH_DELAY = 100;
 const PLUGIN_FILE_NAME = "bdiscord-ai.plugin.js";
 const GITHUB_BRANCH = "main";
 const GITHUB_SOURCE = `https://raw.githubusercontent.com/vincent-andrieu/bdiscord-ai/refs/heads/${GITHUB_BRANCH}/build/${PLUGIN_FILE_NAME}`;
+/** Gemini rejects requests bigger than 20 MB. Base64 inflates the payload by ~4/3, so the raw media budget has to stay below that. */
+const MAX_INLINE_REQUEST_SIZE = 20_000_000;
+const MAX_INLINE_DATA_SIZE = Math.floor((MAX_INLINE_REQUEST_SIZE * 3) / 4);
+/** Uploaded files are tagged with this prefix so the purge only deletes what this plugin created. */
+const GEMINI_FILE_DISPLAY_NAME_PREFIX = "bdiscord-ai:";
+const GEMINI_FILE_PROCESSING_TIMEOUT = 30_000;
+const GEMINI_FILE_PROCESSING_POLL_DELAY = 500;
+/** Medias are downloaded through a small pool instead of one after the other. */
+const MEDIA_FETCH_CONCURRENCY = 6;
+const MESSAGES_FETCH_LIMIT = 100;
+/** Hard stop on the pagination loops so a huge unread gap cannot hammer the API forever. */
+const MESSAGES_FETCH_MAX_PAGES = 50;
+/** One request per message, run in parallel. The sensitive content model is a flash-lite one, whose quota is roomy. */
+const SENSITIVE_CHECK_CONCURRENCY = 4;
+const SENSITIVE_CACHE_KEY = "sensitiveContentCache";
+/** Re-rendering the message list is expensive, so a batch of hidden messages only triggers one reload. */
+const SENSITIVE_RELOAD_DEBOUNCE = 50;
+const SENSITIVE_CACHE_SAVE_DEBOUNCE = 1_000;
 const imageMimeTypes = ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
 const videoMimeTypes = [
     "video/mp4",
@@ -26231,6 +25941,15 @@ const videoMimeTypes = [
     "video/3gpp"
 ];
 const audioMimeTypes = ["audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac"];
+function isImageMimeType(mimeType) {
+    return imageMimeTypes.includes(mimeType);
+}
+function isVideoMimeType(mimeType) {
+    return videoMimeTypes.includes(mimeType);
+}
+function isAudioMimeType(mimeType) {
+    return audioMimeTypes.includes(mimeType);
+}
 var DiscordMessageType;
 (function (DiscordMessageType) {
     DiscordMessageType[DiscordMessageType["DEFAULT"] = 0] = "DEFAULT";
@@ -26331,124 +26050,329 @@ var DiscordComponentVisualState;
     DiscordComponentVisualState[DiscordComponentVisualState["DISABLED"] = 2] = "DISABLED";
 })(DiscordComponentVisualState || (DiscordComponentVisualState = {}));
 
-function forceReloadMessages() {
-    const instance = findInTree(getReactInstance(document.querySelector('main[class*="chatContent"]')), (e) => typeof e?.memoizedProps?.showQuarantinedUserBanner === "boolean", { walkable: ["return"] })?.stateNode;
-    if (!instance)
-        return;
-    const unpatch = BdApi.Patcher.after(getConfig().name, instance, "render", (_this, _, ret) => {
-        unpatch();
-        if (!ret)
-            return;
-        ret.key = Math.random().toString(36).substring(2, 10).toUpperCase();
-        ret.ref = () => _this.forceUpdate();
-    });
-    instance.forceUpdate();
+const en = {
+    ID: "ID",
+    AUTHOR: "Author",
+    CONTENT: "Content",
+    DATE: "Date",
+    DONE: "Done",
+    ADD: "Add",
+    UPDATE: "Update",
+    API_KEY_NOTICE: "No Google API key is configured",
+    SUMMARY_INCOMPLETE: "The summary is incomplete",
+    UPDATE_NOTICE: "New version available",
+    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
+    SETTING_GOOGLE_API_KEY: "Google API Key",
+    SETTING_GOOGLE_API_KEY_NOTE: "Generate a key at https://aistudio.google.com/apikey",
+    SETTING_AI_MODEL_SUMMARY: "Model for summaries",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Select the Gemini model to use for summaries",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Model for sensitive contents",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Select the Gemini model to use for sensitive contents",
+    SETTING_MEDIA_MAX_SIZE: "Maximum media size",
+    SETTING_MEDIA_MAX_SIZE_NOTE: "Maximum size of media to download (in Mo)",
+    SETTING_JUMP_TO_MESSAGE: "Auto scroll",
+    SETTING_JUMP_TO_MESSAGE_NOTE: "Automatically scroll to the summary",
+    SETTING_SUMMARY_MIN_LENGTH: "Minimum length to summarize",
+    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Minimum length of content to display the button",
+    SETTING_CATEGORY_SENSITIVE: "Sensitive content",
+    SETTING_EMETOPHOBIA_MODE: "Emetophobia",
+    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobia",
+    SETTING_EPILEPSY_MODE: "Epilepsy",
+    SETTING_SEXUALITY_MODE: "Sexuality",
+    SETTING_SENSITIVE_NOTE: "Enable spoilers for files and disable embedded images/videos",
+    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
+    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Instantly disables sensitive content and re-enables them after verification. (May cause small freezes)",
+    SETTING_CATEGORY_OTHERS: "Others",
+    SETTING_CHECK_UPDATES: "Check for updates",
+    SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
+    SUMMARY_BUTTON: "Summarize",
+    SUMMARY_BUTTON_STOP: "Stop",
+    SUMMARY_CANCELLED: "Summary cancelled",
+    NO_UNREAD_MESSAGES: "No unread message to summarize",
+    SYSTEM_INSTRUCTIONS: {
+        INTRODUCTION: "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
+        MEDIAS: "Images, videos and audios have been sent in messages.",
+        CONTENT: (params) => [
+            "Some messages may have a specific syntax for tagging people. You can reuse them in your response so they are interpreted. Here are some examples:",
+            "- Username: <@authorId>",
+            "- Role name: <@&roleId>",
+            "- Custom emoji: <a:name:emojiId>",
+            "- Native emoji: :joy:",
+            `- Channel names: <#${params.channelId}>`,
+            `- For each summarized point, reference it with a link to the message: https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- Markdown link formatting is not supported: [text](url) except for links to https://discord.com",
+            "You can use the unix timestamp to specify a date. Here are examples with the current time timestamp:",
+            `- Use for dates within 24 hours: <t:${params.timestamp}:t> => ${params.formattedTime}`,
+            `- Use for dates older than 1 day: <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
+            `- Use for dates older than 2 days: <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
+            `- Use for future dates: <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
+            `- Relative date/time: <t:${params.timestamp}:R> => just now`
+        ]
+    }
+};
+
+const fr = {
+    ID: "ID",
+    AUTHOR: "Auteur",
+    CONTENT: "Contenu",
+    DATE: "Date",
+    DONE: "Terminé",
+    ADD: "Ajouter",
+    UPDATE: "Mettre à jour",
+    API_KEY_NOTICE: "Aucune clée API Google n'est configurée",
+    SUMMARY_INCOMPLETE: "Le résumé est incomplet",
+    UPDATE_NOTICE: "Nouvelle version disponible",
+    SETTING_CATEGORY_GEMINI_AI: "Gemini AI",
+    SETTING_GOOGLE_API_KEY: "Google API Key",
+    SETTING_GOOGLE_API_KEY_NOTE: "Clée à générer sur https://aistudio.google.com/apikey",
+    SETTING_AI_MODEL_SUMMARY: "Modèle pour les résumés",
+    SETTING_AI_MODEL_SUMMARY_NOTE: "Sélectionne le modèle Gemini à utiliser pour les résumés",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT: "Modèle pour les contenus sensibles",
+    SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE: "Sélectionne le modèle Gemini à utiliser pour les contenus sensibles",
+    SETTING_MEDIA_MAX_SIZE: "Taille maximale des médias",
+    SETTING_MEDIA_MAX_SIZE_NOTE: "Taille max des médias à télécharger (en Mo)",
+    SETTING_JUMP_TO_MESSAGE: "Scroll auto",
+    SETTING_JUMP_TO_MESSAGE_NOTE: "Scroll automatiquement sur le résumé",
+    SETTING_SUMMARY_MIN_LENGTH: "Longueur minimale pour résumer",
+    SETTING_SUMMARY_MIN_LENGTH_NOTE: "Longueur minimale du contenu pour afficher le bouton",
+    SETTING_CATEGORY_SENSITIVE: "Contenu sensible",
+    SETTING_EMETOPHOBIA_MODE: "Émétophobie",
+    SETTING_ARACHNOPHOBIA_MODE: "Arachnophobie",
+    SETTING_EPILEPSY_MODE: "Épilepsie",
+    SETTING_SEXUALITY_MODE: "Sexualité",
+    SETTING_SENSITIVE_NOTE: "Active le spoiler pour les fichiers et désactive les images/vidéos embeded",
+    SETTING_SENSITIVE_PANIC_MODE: "Panic mode",
+    SETTING_SENSITIVE_PANIC_MODE_NOTE: "Désactive instantanément le contenu sensible puis les réactive après la vérification. (Peut provoquer des petits freezes)",
+    SETTING_CATEGORY_OTHERS: "Autres",
+    SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
+    SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
+    SUMMARY_BUTTON: "Résumer",
+    SUMMARY_BUTTON_STOP: "Arrêter",
+    SUMMARY_CANCELLED: "Résumé annulé",
+    NO_UNREAD_MESSAGES: "Aucun message non lu à résumer",
+    SYSTEM_INSTRUCTIONS: {
+        INTRODUCTION: "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",
+        MEDIAS: "Les images, vidéos et audios ont été envoyés dans des messages.",
+        CONTENT: (params) => [
+            "Certains messages peuvent avoir une syntaxe particulière et permet de notifier des personnes. Tu peux les réutiliser dans ta réponse pour qu'ils soient interprétés. Voici quelques exemples :",
+            "- Nom d'utilisateur : <@auteurId>",
+            "- Nom de rôle : <@&roleId>",
+            "- Emoji personnalisé : <a:nom:emojiId>",
+            "- Emoji natif : :joy:",
+            `- Nom des channels : <#${params.channelId}>`,
+            `- Pour chaque point résumé fait référence à celui-ci avec un lien vers message : https://discord.com/channels/${params.guildId}/${params.channelId}/<messageId>`,
+            "- La mise en forme des liens markdown n'est pas prit en charge : [texte](url) sauf pour les liens vers https://discord.com",
+            "Tu peux utiliser le timestamp unix pour préciser une date. Voici des exemples avec le timestamp de l'heure actuelle :",
+            `- A utiliser pour les dates dans les 24h : <t:${params.timestamp}:t> => ${params.formattedTime}`,
+            `- A utiliser pour les dates antérieurs à 1 jours : <t:${params.timestamp}:f> => ${params.formattedShortDateTime}`,
+            `- A utiliser pour les dates antérieurs à 2 jours : <t:${params.timestamp}:D> => ${params.formattedLongDate}`,
+            `- A utiliser pour les dates dans le futur : <t:${params.timestamp}:F> => ${params.formattedLongDateTime}`,
+            `- Date/Heure relative : <t:${params.timestamp}:R> => à l'instant`
+        ]
+    }
+};
+
+const DEFAULT_LOCALE = "fr";
+let i18n;
+setLocale(DEFAULT_LOCALE);
+function setLocale(locale = getDiscordLocale()) {
+    switch (locale) {
+        case "en-US":
+        case "en-GB":
+            i18n = en;
+            break;
+        case "fr":
+            i18n = fr;
+            break;
+        default:
+            i18n = en;
+            break;
+    }
 }
-function findInTree(tree, searchFilter, { walkable = null, ignore = [] } = {}) {
-    if (typeof searchFilter === "string") {
-        if (tree.hasOwnProperty(searchFilter))
-            return tree[searchFilter];
-    }
-    else if (searchFilter(tree)) {
-        return tree;
-    }
-    if (typeof tree !== "object" || tree == null)
-        return undefined;
-    let tempReturn;
-    if (Array.isArray(tree)) {
-        for (const value of tree) {
-            tempReturn = findInTree(value, searchFilter, { walkable, ignore });
-            if (typeof tempReturn != "undefined")
-                return tempReturn;
-        }
-    }
-    else {
-        const toWalk = walkable == null ? Object.keys(tree) : walkable;
-        for (const key of toWalk) {
-            if (!tree.hasOwnProperty(key) || ignore.includes(key))
-                continue;
-            tempReturn = findInTree(tree[key], searchFilter, { walkable, ignore });
-            if (typeof tempReturn != "undefined")
-                return tempReturn;
-        }
-    }
-    return tempReturn;
-}
-function getReactInstance(node) {
-    const domNode = resolveElement(node);
-    if (!(domNode instanceof Element)) {
-        return undefined;
-    }
-    // @ts-ignore
-    return domNode[Object.keys(domNode).find((key) => key.startsWith("__reactInternalInstance") || key.startsWith("__reactFiber"))];
-}
-function resolveElement(node) {
-    try {
-        if (!(node instanceof window.jQuery) && !(node instanceof Element))
-            return undefined;
-        return node instanceof window.jQuery ? node[0] : node;
-    }
-    catch {
-        return node;
-    }
+function getDiscordLocale() {
+    const localeStore = BdApi.Webpack.getStore("LocaleStore");
+    return localeStore.locale;
 }
 
-function isImageMimeType(mimeType) {
-    return imageMimeTypes.includes(mimeType);
-}
-function isVideoMimeType(mimeType) {
-    return videoMimeTypes.includes(mimeType);
-}
-function isAudioMimeType(mimeType) {
-    return audioMimeTypes.includes(mimeType);
-}
+const DEFAULT_AI_MODEL_SUMMARY = "gemini-3.8-flash";
+const DEFAULT_AI_MODEL_SENSITIVE_CONTENT = "gemini-3.1-flash-lite";
+const MAX_MEDIA_SIZE = 50;
+const DEFAULT_SUMMARY_MIN_LENGTH = 300;
+const AI_MODELS = [
+    { label: "Gemini 3.8 Flash", value: "gemini-3.8-flash" },
+    { label: "Gemini 3.7 Flash", value: "gemini-3.7-flash" },
+    { label: "Gemini 3.1 Flash-Lite", value: "gemini-3.1-flash-lite" }
+];
+const SETTING_GOOGLE_API_KEY = "googleApiKey";
+const SETTING_AI_MODEL_SUMMARY = "aiModelSummary";
+const SETTING_AI_MODEL_SENSITIVE_CONTENT = "aiModelSensitiveContent";
+const SETTING_MEDIA_MAX_SIZE = "mediaMaxSize";
+const SETTING_JUMP_TO_MESSAGE = "jumpToMessage";
+const SETTING_SUMMARY_MIN_LENGTH = "summaryMinLength";
+const SETTING_EMETOPHOBIA_MODE = "emetophobiaMode";
+const SETTING_ARACHNOPHOBIA_MODE = "arachnophobiaMode";
+const SETTING_EPILEPSY_MODE = "epilepsyMode";
+const SETTING_SEXUALITY_MODE = "sexualityMode";
+const SETTING_SENSITIVE_PANIC_MODE = "sensitivePanicMode";
+const SETTING_CHECK_UPDATES = "checkUpdates";
 /**
- * @param messages Array of messages with medias to fetch metadata
- * @returns Return medias that failed to fetch metadata
+ * Single source of truth for the default values. Reading a setting now goes straight to the stored value instead of
+ * rebuilding the whole settings panel, which used to trigger one `BdApi.Data.load` per setting on every read.
  */
-async function fetchMediasMetadata(messages) {
-    let failedMedias = [];
-    const medias = messages.flatMap((message) => [message.images, message.videos].filter(Boolean).flat());
-    for (const media of medias) {
-        if (media.mimeType && media.size) {
-            continue;
-        }
-        try {
-            const metadata = await fetchMediaMetadata(media.url);
-            if (metadata.url) {
-                media.url = metadata.url;
-            }
-            if (!media.mimeType && metadata.contentType && (isImageMimeType(metadata.contentType) || isVideoMimeType(metadata.contentType))) {
-                media.mimeType = metadata.contentType;
-            }
-            if (!media.size && metadata.contentLength) {
-                media.size = metadata.contentLength;
-            }
-        }
-        catch (error) {
-            console.error(LOG_PREFIX, "Failed to fetch media metadata", error);
-            failedMedias.push(media);
-        }
-    }
-    return failedMedias;
+const SETTING_DEFAULTS = {
+    [SETTING_GOOGLE_API_KEY]: "",
+    [SETTING_AI_MODEL_SUMMARY]: DEFAULT_AI_MODEL_SUMMARY,
+    [SETTING_AI_MODEL_SENSITIVE_CONTENT]: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+    [SETTING_MEDIA_MAX_SIZE]: MAX_MEDIA_SIZE,
+    [SETTING_JUMP_TO_MESSAGE]: true,
+    [SETTING_SUMMARY_MIN_LENGTH]: DEFAULT_SUMMARY_MIN_LENGTH,
+    [SETTING_EMETOPHOBIA_MODE]: false,
+    [SETTING_ARACHNOPHOBIA_MODE]: false,
+    [SETTING_EPILEPSY_MODE]: false,
+    [SETTING_SEXUALITY_MODE]: false,
+    [SETTING_SENSITIVE_PANIC_MODE]: false,
+    [SETTING_CHECK_UPDATES]: true
+};
+function getSetting(id) {
+    const storedValue = BdApi.Data.load(PLUGIN_NAME, id);
+    // `??` and not `||`: a stored 0, "" or false is a legitimate value, not a missing one.
+    return storedValue ?? SETTING_DEFAULTS[id];
 }
-async function fetchMediaMetadata(url, n = 0) {
-    const response = await fetch(url, { method: "HEAD" });
-    if (!response.ok) {
-        throw new Error(`Failed to fetch media (${url}) metadata: ${response.status} ${response.statusText}`);
-    }
-    const contentType = response.headers.get("content-type") || undefined;
-    const contentLength = response.headers.get("content-length") || undefined;
-    if (!contentType && n < 3) {
-        const location = response.headers.get("location");
-        if (location) {
-            return fetchMediaMetadata(location, n + 1);
-        }
-    }
+function saveSetting(id, value) {
+    BdApi.Data.save(PLUGIN_NAME, id, value);
+}
+function getConfig() {
     return {
-        url: n > 0 ? url : undefined,
-        contentType: contentType,
-        contentLength: contentLength ? Number(contentLength) : undefined
+        name: PLUGIN_NAME,
+        settings: [
+            {
+                type: "category",
+                id: "aiModel",
+                name: i18n.SETTING_CATEGORY_GEMINI_AI,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "text",
+                        id: SETTING_GOOGLE_API_KEY,
+                        name: i18n.SETTING_GOOGLE_API_KEY,
+                        note: i18n.SETTING_GOOGLE_API_KEY_NOTE,
+                        value: getSetting(SETTING_GOOGLE_API_KEY),
+                        placeholder: "API KEY"
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SUMMARY,
+                        name: i18n.SETTING_AI_MODEL_SUMMARY,
+                        note: i18n.SETTING_AI_MODEL_SUMMARY_NOTE,
+                        value: getSetting(SETTING_AI_MODEL_SUMMARY),
+                        defaultValue: DEFAULT_AI_MODEL_SUMMARY,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "dropdown",
+                        id: SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        name: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT,
+                        note: i18n.SETTING_AI_MODEL_SENSITIVE_CONTENT_NOTE,
+                        value: getSetting(SETTING_AI_MODEL_SENSITIVE_CONTENT),
+                        defaultValue: DEFAULT_AI_MODEL_SENSITIVE_CONTENT,
+                        options: AI_MODELS
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_MEDIA_MAX_SIZE,
+                        name: i18n.SETTING_MEDIA_MAX_SIZE,
+                        note: i18n.SETTING_MEDIA_MAX_SIZE_NOTE,
+                        value: getSetting(SETTING_MEDIA_MAX_SIZE),
+                        defaultValue: MAX_MEDIA_SIZE,
+                        min: 0
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_JUMP_TO_MESSAGE,
+                        name: i18n.SETTING_JUMP_TO_MESSAGE,
+                        note: i18n.SETTING_JUMP_TO_MESSAGE_NOTE,
+                        value: getSetting(SETTING_JUMP_TO_MESSAGE),
+                        defaultValue: true
+                    },
+                    {
+                        type: "number",
+                        id: SETTING_SUMMARY_MIN_LENGTH,
+                        name: i18n.SETTING_SUMMARY_MIN_LENGTH,
+                        note: i18n.SETTING_SUMMARY_MIN_LENGTH_NOTE,
+                        value: getSetting(SETTING_SUMMARY_MIN_LENGTH),
+                        defaultValue: DEFAULT_SUMMARY_MIN_LENGTH,
+                        min: 0
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "sensitive",
+                name: i18n.SETTING_CATEGORY_SENSITIVE,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_EMETOPHOBIA_MODE,
+                        name: i18n.SETTING_EMETOPHOBIA_MODE,
+                        value: getSetting(SETTING_EMETOPHOBIA_MODE),
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_ARACHNOPHOBIA_MODE,
+                        name: i18n.SETTING_ARACHNOPHOBIA_MODE,
+                        value: getSetting(SETTING_ARACHNOPHOBIA_MODE),
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_EPILEPSY_MODE,
+                        name: i18n.SETTING_EPILEPSY_MODE,
+                        value: getSetting(SETTING_EPILEPSY_MODE),
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SEXUALITY_MODE,
+                        name: i18n.SETTING_SEXUALITY_MODE,
+                        value: getSetting(SETTING_SEXUALITY_MODE),
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_NOTE
+                    },
+                    {
+                        type: "switch",
+                        id: SETTING_SENSITIVE_PANIC_MODE,
+                        name: i18n.SETTING_SENSITIVE_PANIC_MODE,
+                        value: getSetting(SETTING_SENSITIVE_PANIC_MODE),
+                        defaultValue: false,
+                        note: i18n.SETTING_SENSITIVE_PANIC_MODE_NOTE
+                    }
+                ]
+            },
+            {
+                type: "category",
+                id: "others",
+                name: i18n.SETTING_CATEGORY_OTHERS,
+                collapsible: true,
+                shown: false,
+                settings: [
+                    {
+                        type: "switch",
+                        id: SETTING_CHECK_UPDATES,
+                        name: i18n.SETTING_CHECK_UPDATES,
+                        note: i18n.SETTING_CHECK_UPDATES_NOTE,
+                        value: getSetting(SETTING_CHECK_UPDATES),
+                        defaultValue: true
+                    }
+                ]
+            }
+        ]
     };
 }
 
@@ -26462,33 +26386,91 @@ function getRuntimeRequire(packageName) {
         return null;
     }
 }
-function getOldestId(a, b) {
-    if (!a && !b) {
+function getErrorMessage(error) {
+    if (typeof error === "string") {
+        return error;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return String(error);
+}
+function isAbortError(error) {
+    return error?.name === "AbortError";
+}
+/**
+ * Runs `task` over `items` with at most `limit` calls in flight. `task` is expected to handle its own failures: a
+ * rejection aborts the whole pool.
+ */
+async function mapWithConcurrency(items, limit, task) {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const worker = async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex++;
+            results[index] = await task(items[index], index);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+    return results;
+}
+function getOldestId(firstId, secondId) {
+    if (!firstId && !secondId) {
         return undefined;
     }
-    if (!a) {
-        return b;
+    if (!firstId) {
+        return secondId;
     }
-    if (!b) {
-        return a;
+    if (!secondId) {
+        return firstId;
     }
-    if (a.length === b.length) {
-        return a < b ? a : b;
+    if (firstId.length === secondId.length) {
+        return firstId < secondId ? firstId : secondId;
     }
-    return a.length < b.length ? a : b;
+    return firstId.length < secondId.length ? firstId : secondId;
 }
 function convertTimestampToUnix(timestamp) {
     return Math.floor(new Date(timestamp).getTime() / 1000);
 }
-function convertArrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunk = 1024;
-    for (let i = 0; i < bytes.length; i += chunk) {
-        const slice = bytes.subarray(i, i + chunk);
-        binary += String.fromCharCode.apply(null, Array.from(slice));
+/**
+ * Encoding is delegated to `FileReader` so a multi megabytes media does not freeze the Discord UI thread the way a
+ * manual `String.fromCharCode` loop did.
+ */
+function convertBlobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error ?? new Error("Failed to encode media"));
+        reader.onload = () => {
+            const result = reader.result;
+            if (typeof result !== "string") {
+                reject(new Error("Unexpected media encoding result"));
+                return;
+            }
+            // The reader returns a "data:<mimeType>;base64,<data>" URL
+            resolve(result.slice(result.indexOf(",") + 1));
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+/**
+ * Discord CDN urls carry query parameters (`?ex=...&hm=...`) that are re-signed over time, so anything comparing or
+ * parsing an url has to drop them first.
+ */
+function stripUrlQuery(url) {
+    return url.split(/[?#]/)[0];
+}
+function getUrlExtension(url) {
+    const path = stripUrlQuery(url);
+    const extension = path.split(".").pop()?.toLowerCase();
+    return extension && extension !== path ? extension : undefined;
+}
+function hashString(value) {
+    let hash = 0;
+    for (let index = 0; index < value.length; index++) {
+        hash = (hash << 5) - hash + value.charCodeAt(index);
+        hash |= 0;
     }
-    return btoa(binary);
+    return (hash >>> 0).toString(36);
 }
 function generateMessageId(previousMessageId) {
     return (BigInt(previousMessageId) + BigInt(1)).toString();
@@ -26546,8 +26528,8 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
     const guildId = stores.selectedGuildStore.getGuildId();
     let countVideos = 0;
     const addImage = (url) => {
-        const extension = url.split(".").pop();
-        const mimeType = extension ? `image/${extension}` : undefined;
+        const extension = getUrlExtension(url);
+        const mimeType = extension ? `image/${extension === "jpg" ? "jpeg" : extension}` : undefined;
         return {
             name: url,
             mimeType: mimeType && isImageMimeType(mimeType) ? mimeType : undefined,
@@ -26588,6 +26570,7 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
         });
         // Add embeds
         message.embeds?.forEach((embed) => {
+            const thumbnailUrl = embed.thumbnail?.proxyURL || embed.thumbnail?.proxy_url;
             if (embed.type === "image" && embed.image) {
                 const url = embed.image.proxyURL || embed.image.proxy_url || embed.image.url;
                 images.push(addImage(url));
@@ -26595,20 +26578,17 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
             else if (["video", "gifv"].includes(embed.type) && embed.video) {
                 const url = embed.video.url || embed.video.proxyURL || embed.video.proxy_url;
                 if (url) {
-                    const extension = url.split(".").pop();
+                    const extension = getUrlExtension(url);
                     const mimeType = extension ? `video/${extension}` : undefined;
                     videos.push({
                         name: url,
                         mimeType: mimeType && isVideoMimeType(mimeType) ? mimeType : undefined,
                         url: url,
-                        thumbnail: embed.thumbnail.proxyURL || embed.thumbnail.proxy_url
+                        thumbnail: thumbnailUrl
                     });
                 }
-                else {
-                    const thumbnailUrl = embed.thumbnail.proxyURL || embed.thumbnail.proxy_url;
-                    if (thumbnailUrl) {
-                        images.push(addImage(thumbnailUrl));
-                    }
+                else if (thumbnailUrl) {
+                    images.push(addImage(thumbnailUrl));
                 }
             }
         });
@@ -26631,12 +26611,12 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
         for (const message of mappedMessages) {
             const videos = message.videos;
             if (countVideos > maxVideos) {
-                for (let k = 0; k < videos.length && countVideos > maxVideos; k++) {
-                    const thumbnailUrl = videos[k]?.thumbnail;
+                for (let index = 0; index < videos.length && countVideos > maxVideos; index++) {
+                    const thumbnailUrl = videos[index]?.thumbnail;
                     if (thumbnailUrl) {
                         message.images.push(addImage(thumbnailUrl));
                     }
-                    videos[k] = undefined;
+                    videos[index] = undefined;
                     countVideos--;
                 }
                 message.videos = videos.filter((video) => video);
@@ -26646,46 +26626,60 @@ function mapMessages(stores, messages, maxVideos = GEMINI_VIDEOS_LIMIT) {
     return mappedMessages;
 }
 
-const MAX_INLINE_DATA_SIZE = 20_000_000;
+/** Gemini display names are capped at 512 characters and medias are keyed by url, which can be long. */
+const MAX_FILE_DISPLAY_NAME_LENGTH = 400;
+const SENSITIVE_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        isEmetophobia: { type: Type.BOOLEAN },
+        isArachnophobia: { type: Type.BOOLEAN },
+        isEpileptic: { type: Type.BOOLEAN },
+        isSexual: { type: Type.BOOLEAN }
+    },
+    required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
+};
+const SENSITIVE_SYSTEM_INSTRUCTION = ["Check if the content is sensitive for:", "- Emetophobia", "- Arachnophobia", "- Epilepsy", "- Sexuality"].join("\n");
 class GeminiAi {
     _log;
     _genAI;
     get _summaryModelName() {
         const modelName = getSetting(SETTING_AI_MODEL_SUMMARY);
         if (!modelName)
-            throw "AI model is missing";
+            throw new Error("AI model is missing");
         return modelName;
     }
     get _sensitiveModelName() {
         const modelName = getSetting(SETTING_AI_MODEL_SENSITIVE_CONTENT);
         if (!modelName)
-            throw "AI model is missing";
+            throw new Error("AI model is missing");
         return modelName;
     }
     constructor(_log) {
         this._log = _log;
         const apiKey = getSetting(SETTING_GOOGLE_API_KEY);
         if (!apiKey) {
-            throw "Google API Key is missing";
+            throw new Error("Google API Key is missing");
         }
         this._genAI = new GoogleGenAI({ apiKey });
     }
+    /**
+     * Only removes the files this plugin uploaded: the same API key can be shared with other tools, and the File API
+     * is account wide.
+     */
     async purgeMedias() {
-        const listResponse = await this._genAI.files.list();
         const deletingPromises = [];
+        // The pager fetches the next pages on its own while being iterated
+        const listResponse = await this._genAI.files.list();
         for await (const file of listResponse) {
-            if (file.name) {
+            if (file.name && file.displayName?.startsWith(GEMINI_FILE_DISPLAY_NAME_PREFIX)) {
                 deletingPromises.push(this._genAI.files.delete({ name: file.name }));
             }
         }
         if (deletingPromises.length) {
             await Promise.allSettled(deletingPromises);
         }
-        if (listResponse.hasNextPage()) {
-            await this.purgeMedias();
-        }
     }
-    async summarizeMessages(guildId, channelId, unreadMessages) {
+    async summarizeMessages(guildId, channelId, unreadMessages, abortSignal) {
         const promptData = await this._getMediasPrompt(unreadMessages);
         const request = promptData.flatMap((promptItem) => [getTextPromptItem(promptItem.message), ...(promptItem.dataPart || [])]);
         const tools = [{ urlContext: {} }];
@@ -26694,36 +26688,49 @@ class GeminiAi {
             config: {
                 systemInstruction: this._getSystemInstruction(guildId, channelId, promptData),
                 responseModalities: [Modality.TEXT],
-                tools
+                tools,
+                abortSignal
             },
             contents: request
         });
     }
-    async isSensitiveContent(messages) {
-        const request = await this._getSensitiveContentPrompt(messages);
-        if (!request.length || request.every((item) => typeof item === "string")) {
-            return undefined;
-        }
-        const schema = {
-            type: Type.OBJECT,
-            properties: {
-                isEmetophobia: { type: Type.BOOLEAN },
-                isArachnophobia: { type: Type.BOOLEAN },
-                isEpileptic: { type: Type.BOOLEAN },
-                isSexual: { type: Type.BOOLEAN }
-            },
-            required: ["isEmetophobia", "isArachnophobia", "isEpileptic", "isSexual"]
-        };
-        const response = await this._genAI.models.generateContent({
-            model: this._sensitiveModelName,
-            config: {
-                systemInstruction: [`Check if the content is sensitive for:`, `- Emetophobia`, `- Arachnophobia`, `- Epilepsy`, `- Sexuality`].join("\n"),
-                responseMimeType: "application/json",
-                responseSchema: schema
-            },
-            contents: request
+    /**
+     * One request per message, run in parallel. Grouping several messages in a single request would save a negligible
+     * amount of tokens (the medias dominate) but forces the model to bind each media to the right message id, which is
+     * exactly where a small model misattributes a verdict.
+     *
+     * `onResult` is called as soon as a message gets its own answer, so a slow or failing message never holds back the
+     * ones that already came back. Messages are processed in the order they are given.
+     */
+    async checkSensitiveContent(messages, onResult, abortSignal) {
+        await mapWithConcurrency(messages, SENSITIVE_CHECK_CONCURRENCY, async (message) => {
+            try {
+                const request = await this._getSensitiveContentPrompt(message);
+                // Nothing analysable is not a failure, there simply is no usable media on this message
+                if (!request.length) {
+                    onResult({ messageId: message.id, hasFailed: false });
+                    return;
+                }
+                const response = await this._genAI.models.generateContent({
+                    model: this._sensitiveModelName,
+                    config: {
+                        systemInstruction: SENSITIVE_SYSTEM_INSTRUCTION,
+                        responseMimeType: "application/json",
+                        responseSchema: SENSITIVE_SCHEMA,
+                        abortSignal
+                    },
+                    contents: request
+                });
+                const verdict = parseSensitiveResponse(response.text);
+                onResult({ messageId: message.id, verdict, hasFailed: !verdict });
+            }
+            catch (error) {
+                // Logged to the console only: the caller reports a single toast for the whole check
+                console.error(LOG_PREFIX, "Failed to check sensitive content", error);
+                onResult({ messageId: message.id, hasFailed: true });
+            }
         });
-        return response.text ? JSON.parse(response.text) : undefined;
+        abortSignal?.throwIfAborted();
     }
     _getSystemInstruction(guildId, channelId, promptData) {
         const now = new Date();
@@ -26748,14 +26755,13 @@ class GeminiAi {
             .filter(Boolean)
             .join("\n");
     }
-    async _getSensitiveContentPrompt(messages) {
-        const filteredMessages = this._filterUploadableMedias(messages);
-        if (this._getMediasTotalSize(filteredMessages) > MAX_INLINE_DATA_SIZE) {
+    async _getSensitiveContentPrompt(message) {
+        const [promptItem] = await this._getMediasPrompt([message]);
+        // Only medias can be sensitive here, a message without any usable media is not worth a request
+        if (!promptItem?.dataPart?.length) {
             return [];
         }
-        return (await this._getMediasInlineData(filteredMessages))
-            .flatMap((promptItem) => [promptItem.message.content, ...(promptItem.dataPart || [])])
-            .filter((promptItem) => typeof promptItem !== "string" || promptItem.trim().length > 0);
+        return [...(message.content.trim().length ? [message.content] : []), ...promptItem.dataPart];
     }
     async _getMediasPrompt(messages) {
         const filteredMessages = this._filterUploadableMedias(messages);
@@ -26765,7 +26771,7 @@ class GeminiAi {
         return this._getMediasFileManager(filteredMessages);
     }
     _filterUploadableMedias(messages) {
-        const maxMediaSize = (getSetting(SETTING_MEDIA_MAX_SIZE) || MAX_MEDIA_SIZE) * 1_000_000;
+        const maxMediaSize = getSetting(SETTING_MEDIA_MAX_SIZE) * 1_000_000;
         const filterCondition = (media) => media?.mimeType && media.size && media.size <= maxMediaSize;
         return messages.map((message) => ({
             ...message,
@@ -26775,104 +26781,121 @@ class GeminiAi {
         }));
     }
     _getMediasTotalSize(messages) {
-        return messages.reduce((total, message) => total +
-            (message.images?.reduce((sum, image) => sum + (image.size || 0), 0) || 0) +
-            (message.videos?.reduce((sum, video) => sum + (video.size || 0), 0) || 0) +
-            (message.audios?.reduce((sum, audio) => sum + audio.size, 0) || 0), 0);
+        return messages.reduce((total, message) => total + getMessageMedias(message).reduce((sum, media) => sum + (media.size || 0), 0), 0);
     }
     async _getMediasInlineData(messages) {
-        const promptItems = [];
-        for (const message of messages) {
-            const medias = [message.images, message.videos, message.audios].filter(Boolean).flat();
-            const mediasPrompt = [];
-            const convertingMediasToBuffer = [];
-            for (const media of medias) {
-                try {
-                    const response = await fetch(media.url);
-                    if (!response.ok) {
-                        throw `${media.url}: ${response.status} ${response.statusText}`;
-                    }
-                    convertingMediasToBuffer.push(response.arrayBuffer().then((buffer) => {
-                        if (!media.mimeType)
-                            throw "Media mimeType is missing";
-                        mediasPrompt.push(createPartFromBase64(convertArrayBufferToBase64(buffer), media.mimeType));
-                    }));
+        const encodedMedias = new Map();
+        // Downloads run through a pool and identical urls are only downloaded once
+        await mapWithConcurrency(getUniqueMedias(messages), MEDIA_FETCH_CONCURRENCY, async (media) => {
+            try {
+                if (!media.mimeType)
+                    throw new Error("Media mimeType is missing");
+                const response = await fetch(media.url);
+                if (!response.ok) {
+                    throw new Error(`${media.url}: ${response.status} ${response.statusText}`);
                 }
-                catch (error) {
-                    this._log(`Failed to fetch media ${error}`, "warn");
-                }
+                encodedMedias.set(media.url, createPartFromBase64(await convertBlobToBase64(await response.blob()), media.mimeType));
             }
-            await Promise.allSettled(convertingMediasToBuffer);
-            promptItems.push({ message, dataPart: mediasPrompt });
-        }
-        return promptItems;
+            catch (error) {
+                this._log(`Failed to fetch media ${getErrorMessage(error)}`, "warn");
+            }
+        });
+        return messages.map((message) => ({
+            message,
+            dataPart: getMessageMedias(message)
+                .map((media) => encodedMedias.get(media.url))
+                .filter((part) => !!part)
+        }));
     }
     async _getMediasFileManager(messages) {
-        const messagesFiles = [];
-        const uploadedCache = {};
-        for (const message of messages) {
-            const medias = [message.images, message.videos, message.audios].filter(Boolean).flat();
-            const files = [];
-            await Promise.all(medias.map(async (media) => {
-                try {
-                    if (uploadedCache[media.url]) {
-                        files.push(uploadedCache[media.url]);
-                    }
-                    else {
-                        const file = await this._uploadFileFromUrl(media);
-                        files.push(file);
-                        uploadedCache[media.url] = file;
-                    }
-                }
-                catch (error) {
-                    this._log(`Failed to upload media ${error}`, "warn");
-                }
-            }));
-            messagesFiles.push({ message, files });
-        }
-        const timeout = Date.now() + 30_000;
-        const verifiedFiles = new Set();
-        while (messagesFiles.some((messageFiles) => messageFiles.files.some((file) => file.state === FileState.PROCESSING))) {
-            for (const messageFiles of messagesFiles) {
-                for (let i = 0; i < messageFiles.files.length; i++) {
-                    const file = messageFiles.files[i];
-                    if (file.name && !verifiedFiles.has(file.name)) {
-                        if (file.state === FileState.PROCESSING) {
-                            await new Promise((resolve) => setTimeout(resolve, 100));
-                            try {
-                                messageFiles.files[i] = await this._genAI.files.get({ name: file.name });
-                            }
-                            catch (error) {
-                                this._log(`Failed to fetch file metadata ${error}`, "warn");
-                            }
-                        }
-                        else {
-                            verifiedFiles.add(file.name);
-                        }
-                    }
-                }
+        const uploadedFiles = new Map();
+        await mapWithConcurrency(getUniqueMedias(messages), MEDIA_FETCH_CONCURRENCY, async (media) => {
+            try {
+                uploadedFiles.set(media.url, await this._uploadFileFromUrl(media));
             }
+            catch (error) {
+                this._log(`Failed to upload media ${getErrorMessage(error)}`, "warn");
+            }
+        });
+        await this._waitForProcessedFiles(uploadedFiles);
+        return messages.map((message) => ({
+            message,
+            dataPart: getMessageMedias(message)
+                .map((media) => uploadedFiles.get(media.url))
+                .filter((file) => !!file && file.state === FileState.ACTIVE && !!file.uri && !!file.mimeType)
+                .map((file) => createPartFromUri(file.uri, file.mimeType))
+        }));
+    }
+    async _waitForProcessedFiles(files) {
+        const timeout = Date.now() + GEMINI_FILE_PROCESSING_TIMEOUT;
+        const isProcessing = () => Array.from(files.values()).some((file) => file.state === FileState.PROCESSING);
+        while (isProcessing()) {
             if (Date.now() > timeout) {
                 this._log("Timeout while waiting processing files", "warn");
-                break;
+                return;
             }
+            await new Promise((resolve) => setTimeout(resolve, GEMINI_FILE_PROCESSING_POLL_DELAY));
+            await Promise.all(Array.from(files.entries()).map(async ([url, file]) => {
+                if (!file.name || file.state !== FileState.PROCESSING)
+                    return;
+                try {
+                    files.set(url, await this._genAI.files.get({ name: file.name }));
+                }
+                catch (error) {
+                    this._log(`Failed to fetch file metadata ${getErrorMessage(error)}`, "warn");
+                }
+            }));
         }
-        return messagesFiles.map((messageFiles) => ({
-            message: messageFiles.message,
-            dataPart: messageFiles.files.filter((file) => file.state === FileState.ACTIVE && file.uri && file.mimeType).map((file) => createPartFromUri(file.uri, file.mimeType))
-        }));
     }
     async _uploadFileFromUrl(media) {
         if (!media.mimeType)
-            throw "Media mimeType is missing";
+            throw new Error("Media mimeType is missing");
         const fileResponse = await fetch(media.url);
         if (!fileResponse.ok) {
             throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
         }
         const fileData = await fileResponse.arrayBuffer();
         return this._genAI.files.upload({
-            file: new Blob([fileData], { type: media.mimeType })
+            file: new Blob([fileData], { type: media.mimeType }),
+            config: {
+                mimeType: media.mimeType,
+                // Tags the file so `purgeMedias` can tell it apart from files uploaded by anything else
+                displayName: `${GEMINI_FILE_DISPLAY_NAME_PREFIX}${media.name}`.slice(0, MAX_FILE_DISPLAY_NAME_LENGTH)
+            }
         });
+    }
+}
+function getMessageMedias(message) {
+    return [message.images, message.videos, message.audios].filter(Boolean).flat();
+}
+function getUniqueMedias(messages) {
+    const uniqueMedias = new Map();
+    for (const message of messages) {
+        for (const media of getMessageMedias(message)) {
+            if (!uniqueMedias.has(media.url)) {
+                uniqueMedias.set(media.url, media);
+            }
+        }
+    }
+    return Array.from(uniqueMedias.values());
+}
+function parseSensitiveResponse(text) {
+    if (!text)
+        return undefined;
+    try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed?.isEmetophobia !== "boolean") {
+            return undefined;
+        }
+        return {
+            isEmetophobia: parsed.isEmetophobia,
+            isArachnophobia: !!parsed.isArachnophobia,
+            isEpileptic: !!parsed.isEpileptic,
+            isSexual: !!parsed.isSexual
+        };
+    }
+    catch {
+        return undefined;
     }
 }
 function getTextPromptItem(message) {
@@ -26882,6 +26905,366 @@ function getTextPromptItem(message) {
         [i18n.DATE]: message.date,
         [i18n.CONTENT]: message.content
     });
+}
+
+/**
+ * @param messages Array of messages with medias to fetch metadata
+ * @returns Return medias that failed to fetch metadata
+ */
+async function fetchMediasMetadata(messages) {
+    const failedMedias = [];
+    const medias = messages
+        .flatMap((message) => [message.images, message.videos].filter(Boolean).flat())
+        .filter((media) => !media.mimeType || !media.size);
+    // Metadata requests are independent, so they run through a pool instead of one round trip after the other
+    await mapWithConcurrency(medias, MEDIA_FETCH_CONCURRENCY, async (media) => {
+        try {
+            const metadata = await fetchMediaMetadata(media.url);
+            if (metadata.url) {
+                media.url = metadata.url;
+            }
+            if (!media.mimeType && (isImageMimeType(metadata.contentType) || isVideoMimeType(metadata.contentType))) {
+                media.mimeType = metadata.contentType;
+            }
+            if (!media.size && metadata.contentLength) {
+                media.size = metadata.contentLength;
+            }
+        }
+        catch (error) {
+            console.error(LOG_PREFIX, "Failed to fetch media metadata", error);
+            failedMedias.push(media);
+        }
+    });
+    return failedMedias;
+}
+async function fetchMediaMetadata(url) {
+    // `fetch` follows redirects on its own, the final url is exposed by `response.url`
+    const response = await fetch(url, { method: "HEAD" });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch media (${url}) metadata: ${response.status} ${response.statusText}`);
+    }
+    const contentType = response.headers.get("content-type") || undefined;
+    const contentLength = response.headers.get("content-length") || undefined;
+    return {
+        url: response.redirected && response.url ? response.url : undefined,
+        contentType: contentType,
+        contentLength: contentLength ? Number(contentLength) : undefined
+    };
+}
+
+function forceReloadMessages() {
+    const instance = findInTree(getReactInstance(document.querySelector('main[class*="chatContent"]')), (e) => typeof e?.memoizedProps?.showQuarantinedUserBanner === "boolean", { walkable: ["return"] })?.stateNode;
+    if (!instance)
+        return;
+    const unpatch = BdApi.Patcher.after(PLUGIN_NAME, instance, "render", (_this, _, ret) => {
+        unpatch();
+        if (!ret)
+            return;
+        ret.key = Math.random().toString(36).substring(2, 10).toUpperCase();
+        ret.ref = () => _this.forceUpdate();
+    });
+    instance.forceUpdate();
+}
+function findInTree(tree, searchFilter, { walkable = null, ignore = [] } = {}) {
+    if (typeof searchFilter === "string") {
+        if (tree.hasOwnProperty(searchFilter))
+            return tree[searchFilter];
+    }
+    else if (searchFilter(tree)) {
+        return tree;
+    }
+    if (typeof tree !== "object" || tree == null)
+        return undefined;
+    let tempReturn;
+    if (Array.isArray(tree)) {
+        for (const value of tree) {
+            tempReturn = findInTree(value, searchFilter, { walkable, ignore });
+            if (typeof tempReturn != "undefined")
+                return tempReturn;
+        }
+    }
+    else {
+        const toWalk = walkable == null ? Object.keys(tree) : walkable;
+        for (const key of toWalk) {
+            if (!tree.hasOwnProperty(key) || ignore.includes(key))
+                continue;
+            tempReturn = findInTree(tree[key], searchFilter, { walkable, ignore });
+            if (typeof tempReturn != "undefined")
+                return tempReturn;
+        }
+    }
+    return tempReturn;
+}
+function getReactInstance(node) {
+    const domNode = resolveElement(node);
+    if (!(domNode instanceof Element)) {
+        return undefined;
+    }
+    // @ts-ignore
+    return domNode[Object.keys(domNode).find((key) => key.startsWith("__reactInternalInstance") || key.startsWith("__reactFiber"))];
+}
+function resolveElement(node) {
+    try {
+        if (!(node instanceof window.jQuery) && !(node instanceof Element))
+            return undefined;
+        return node instanceof window.jQuery ? node[0] : node;
+    }
+    catch {
+        return node;
+    }
+}
+
+const NOT_SENSITIVE = { isEmetophobia: false, isArachnophobia: false, isEpileptic: false, isSexual: false };
+/**
+ * Hides medias the user does not want to see. Verdicts are cached on disk so a message is only ever sent to the model
+ * once, which is what makes scanning a whole channel on open affordable.
+ */
+class SensitiveContentGuard {
+    _log;
+    _stores;
+    _visitedChannels = new Set();
+    /** Cache keys currently being checked, to avoid sending the same message twice at once. */
+    _pendingChecks = new Set();
+    /** Cache keys whose check failed: not persisted, but not retried for the rest of the session either. */
+    _failedChecks = new Set();
+    _verdicts = new Map();
+    _backups = new Map();
+    _abortController;
+    _reloadTimeout;
+    _saveTimeout;
+    get _isEnabled() {
+        return (getSetting(SETTING_EMETOPHOBIA_MODE) ||
+            getSetting(SETTING_ARACHNOPHOBIA_MODE) ||
+            getSetting(SETTING_EPILEPSY_MODE) ||
+            getSetting(SETTING_SEXUALITY_MODE));
+    }
+    constructor(_log, _stores) {
+        this._log = _log;
+        this._stores = _stores;
+        this._verdicts = loadVerdicts();
+    }
+    markChannelVisited(channelId) {
+        this._visitedChannels.add(channelId);
+    }
+    /** Entry point for `MESSAGE_CREATE` and `MESSAGE_UPDATE`. */
+    handleMessage(message) {
+        if (!this._visitedChannels.has(message.channel_id))
+            return;
+        this._check([message]);
+    }
+    /**
+     * Entry point when a channel is displayed. Medias already posted before the user opened the channel used to never
+     * be checked at all.
+     */
+    handleChannelMessages(channelId) {
+        if (!this._visitedChannels.has(channelId))
+            return;
+        const messages = this._stores.messageStore.getMessages(channelId).toArray();
+        // Newest first: what the user is actually looking at is cleared before the messages further up
+        this._check(messages.slice(-10).reverse());
+    }
+    stop() {
+        this._abortController?.abort();
+        this._abortController = undefined;
+        if (this._reloadTimeout) {
+            clearTimeout(this._reloadTimeout);
+            this._reloadTimeout = undefined;
+        }
+        this._pendingChecks.clear();
+        this._failedChecks.clear();
+        this._backups.clear();
+        this._visitedChannels.clear();
+        this._flushVerdicts();
+    }
+    _check(messages) {
+        if (!this._isEnabled)
+            return;
+        const currentUserId = this._stores.userStore.getCurrentUser().id;
+        const candidates = messages.filter((message) => message.author.id !== currentUserId && hasCheckableMedia(message));
+        if (!candidates.length)
+            return;
+        const unknownMessages = [];
+        for (const message of candidates) {
+            const cacheKey = getCacheKey(message);
+            const verdict = this._verdicts.get(cacheKey);
+            if (verdict) {
+                // Already known: no request at all, the message is hidden again straight away
+                this._touchVerdict(cacheKey, verdict);
+                this._applyVerdict(message, verdict);
+            }
+            else if (!this._pendingChecks.has(cacheKey) && !this._failedChecks.has(cacheKey)) {
+                this._pendingChecks.add(cacheKey);
+                unknownMessages.push(message);
+            }
+        }
+        if (unknownMessages.length) {
+            this._checkWithModel(unknownMessages).catch((error) => {
+                if (!isAbortError(error)) {
+                    this._log(getErrorMessage(error));
+                }
+            });
+        }
+    }
+    async _checkWithModel(messages) {
+        const panicMode = getSetting(SETTING_SENSITIVE_PANIC_MODE);
+        const abortSignal = this._getAbortSignal();
+        /** Messages still waiting for their own answer, so a rollback never touches the ones already resolved. */
+        const awaitingMessages = new Map(messages.map((message) => [message.id, message]));
+        let failedCount = 0;
+        if (panicMode) {
+            messages.forEach((message) => this._hide(message));
+        }
+        try {
+            const mappedMessages = mapMessages({ selectedGuildStore: this._stores.selectedGuildStore, guildMemberStore: this._stores.guildMemberStore }, messages);
+            await fetchMediasMetadata(mappedMessages);
+            await new GeminiAi(this._log).checkSensitiveContent(mappedMessages, (result) => {
+                const message = awaitingMessages.get(result.messageId);
+                if (!message)
+                    return;
+                awaitingMessages.delete(result.messageId);
+                if (result.hasFailed) {
+                    failedCount++;
+                    this._markFailed(message);
+                }
+                else {
+                    // Cached even without a verdict (nothing analysable): otherwise the message would be sent
+                    // again on every channel re-open and burn the quota.
+                    const verdict = result.verdict || NOT_SENSITIVE;
+                    this._verdicts.set(getCacheKey(message), verdict);
+                    this._applyVerdict(message, verdict);
+                }
+            }, abortSignal);
+            if (failedCount) {
+                this._log(`Failed to check ${failedCount} message(s) for sensitive content`, "warn");
+            }
+            this._scheduleSave();
+        }
+        catch (error) {
+            // Only the messages that never got an answer are rolled back, the resolved ones keep their verdict
+            awaitingMessages.forEach((message) => this._markFailed(message));
+            throw error;
+        }
+        finally {
+            messages.forEach((message) => this._pendingChecks.delete(getCacheKey(message)));
+        }
+    }
+    /** A check that did not happen is never cached as safe, it is only kept out of the retries for this session. */
+    _markFailed(message) {
+        this._failedChecks.add(getCacheKey(message));
+        this._reveal(message);
+    }
+    /** Re-inserting moves the entry to the end, so the eviction drops what has not been seen for the longest time. */
+    _touchVerdict(cacheKey, verdict) {
+        this._verdicts.delete(cacheKey);
+        this._verdicts.set(cacheKey, verdict);
+    }
+    _applyVerdict(message, verdict) {
+        if (this._isSensitive(verdict)) {
+            this._hide(message);
+            // The message stays hidden for good, there is nothing left to restore
+            this._backups.delete(message.id);
+        }
+        else {
+            this._reveal(message);
+        }
+    }
+    _isSensitive(verdict) {
+        return ((getSetting(SETTING_EMETOPHOBIA_MODE) && verdict.isEmetophobia) ||
+            (getSetting(SETTING_ARACHNOPHOBIA_MODE) && verdict.isArachnophobia) ||
+            (getSetting(SETTING_EPILEPSY_MODE) && verdict.isEpileptic) ||
+            (getSetting(SETTING_SEXUALITY_MODE) && verdict.isSexual));
+    }
+    _hide(message) {
+        const storedMessage = this._stores.messageStore.getMessage(message.channel_id, message.id);
+        if (!storedMessage || this._backups.has(storedMessage.id))
+            return;
+        const backup = { attachments: {}, embeds: storedMessage.embeds ? [...storedMessage.embeds] : [] };
+        let hasChanged = !!storedMessage.embeds?.length;
+        storedMessage.attachments?.forEach((attachment) => {
+            backup.attachments[attachment.id] = attachment.spoiler;
+            hasChanged = hasChanged || !attachment.spoiler;
+            attachment.spoiler = true;
+        });
+        storedMessage.embeds = [];
+        this._backups.set(storedMessage.id, backup);
+        if (hasChanged) {
+            this._scheduleReload(storedMessage.channel_id);
+        }
+    }
+    _reveal(message) {
+        const backup = this._backups.get(message.id);
+        if (!backup)
+            return;
+        this._backups.delete(message.id);
+        const storedMessage = this._stores.messageStore.getMessage(message.channel_id, message.id);
+        if (!storedMessage)
+            return;
+        storedMessage.attachments?.forEach((attachment) => (attachment.spoiler = backup.attachments[attachment.id] ?? false));
+        storedMessage.embeds = backup.embeds;
+        this._scheduleReload(storedMessage.channel_id);
+    }
+    _getAbortSignal() {
+        if (!this._abortController || this._abortController.signal.aborted) {
+            this._abortController = new AbortController();
+        }
+        return this._abortController.signal;
+    }
+    _scheduleReload(channelId) {
+        if (this._reloadTimeout || this._stores.selectedChannelStore.getCurrentlySelectedChannelId() !== channelId)
+            return;
+        this._reloadTimeout = setTimeout(() => {
+            this._reloadTimeout = undefined;
+            forceReloadMessages();
+        }, SENSITIVE_RELOAD_DEBOUNCE);
+    }
+    _scheduleSave() {
+        if (this._saveTimeout)
+            return;
+        this._saveTimeout = setTimeout(() => this._flushVerdicts(), SENSITIVE_CACHE_SAVE_DEBOUNCE);
+    }
+    _flushVerdicts() {
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+            this._saveTimeout = undefined;
+        }
+        // Oldest entries first: dropping from the start keeps the most recently checked messages
+        const entries = Array.from(this._verdicts.entries()).slice(-2e3);
+        this._verdicts = new Map(entries);
+        try {
+            BdApi.Data.save(PLUGIN_NAME, SENSITIVE_CACHE_KEY, Object.fromEntries(entries));
+        }
+        catch (error) {
+            console.error(LOG_PREFIX, "Failed to save the sensitive content cache", error);
+        }
+    }
+}
+function loadVerdicts() {
+    try {
+        const stored = BdApi.Data.load(PLUGIN_NAME, SENSITIVE_CACHE_KEY);
+        return new Map(Object.entries(stored || {}));
+    }
+    catch (error) {
+        console.error(LOG_PREFIX, "Failed to load the sensitive content cache", error);
+        return new Map();
+    }
+}
+/**
+ * An edited message can carry different medias, so the verdict is keyed by the medias themselves and not only by the
+ * message id. Embed urls are stripped of their query string: Discord re-signs them, and a key built on the raw url
+ * would miss the cache every time the channel is loaded again.
+ */
+function getCacheKey(message) {
+    const signature = [
+        ...(message.attachments?.map((attachment) => attachment.id) || []),
+        ...(message.embeds?.map((embed) => stripUrlQuery(embed.image?.url || embed.video?.url || embed.url || "")) || [])
+    ].join("|");
+    return `${message.id}:${hashString(signature)}`;
+}
+/** Mirrors what `mapMessages` is able to extract: an embed without any image or video has nothing to check. */
+function hasCheckableMedia(message) {
+    const hasVisibleAttachment = !!message.attachments?.some((attachment) => !attachment.spoiler);
+    const hasMediaEmbed = !!message.embeds?.some((embed) => embed.image || embed.video || embed.thumbnail);
+    return hasVisibleAttachment || hasMediaEmbed;
 }
 
 const aiStarsIcon = `
@@ -26897,12 +27280,16 @@ class SummaryButton {
     _id = "summary-button";
     _enabled = false;
     _isLoading = false;
+    _node;
+    _root;
+    _removeListener;
+    _abortController;
     constructor(_log, _onClick) {
         this._log = _log;
         this._onClick = _onClick;
     }
     toggle(value) {
-        if ((value || (value === undefined && !this._enabled)) && !getSetting(SETTING_GOOGLE_API_KEY)?.length) {
+        if ((value || (value === undefined && !this._enabled)) && !getSetting(SETTING_GOOGLE_API_KEY).length) {
             return;
         }
         if (value !== undefined) {
@@ -26926,57 +27313,91 @@ class SummaryButton {
             console.error(LOG_PREFIX, "Toolbar not found");
             return;
         }
-        const button = BdApi.React.createElement(BdApi.Components.Button, {
-            children: [
-                BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }),
-                i18n.SUMMARY_BUTTON
-            ],
-            size: "bd-button-small",
-            disabled: this._isLoading,
-            style: { cursor: this._isLoading ? "wait" : undefined },
-            onClick: async () => {
-                if (this._isLoading)
-                    return;
-                this._isLoading = true;
-                this._refresh();
-                try {
-                    await this._onClick();
-                    this.toggle(false);
-                }
-                catch (error) {
-                    if (typeof error === "string") {
-                        this._log(error);
-                    }
-                    else if (error instanceof Error) {
-                        this._log(error.message);
-                    }
-                    else {
-                        console.error(LOG_PREFIX, error);
-                    }
-                }
-                finally {
-                    this._isLoading = false;
-                    this._refresh();
-                }
-            }
-        });
         const node = document.createElement("div");
         node.id = this._id;
         node.style.margin = "0 8px";
         toolbar.insertBefore(node, toolbar.firstChild);
-        const root = BdApi.ReactDOM.createRoot(node);
-        root.render(button);
-        BdApi.DOM.onRemoved(node, this._add.bind(this));
+        this._node = node;
+        this._root = BdApi.ReactDOM.createRoot(node);
+        this._root?.render(this._renderButton());
+        this._removeListener = BdApi.DOM.onRemoved(node, this._onNodeRemoved.bind(this));
     }
-    _remove() {
-        const element = document.getElementById(this._id);
-        if (element) {
-            element.remove();
+    _renderButton() {
+        return BdApi.React.createElement(BdApi.Components.Button, {
+            children: [
+                BdApi.React.createElement("div", { dangerouslySetInnerHTML: { __html: aiStarsIcon }, style: { marginRight: "4px" } }),
+                this._isLoading ? i18n.SUMMARY_BUTTON_STOP : i18n.SUMMARY_BUTTON
+            ],
+            size: "bd-button-small",
+            color: this._isLoading ? "bd-button-color-red" : undefined,
+            onClick: () => this._handleClick()
+        });
+    }
+    _handleClick() {
+        if (this._isLoading) {
+            // A second click while streaming stops the generation instead of doing nothing
+            this._abortController?.abort();
+            return;
+        }
+        this._summarize();
+    }
+    async _summarize() {
+        const abortController = new AbortController();
+        this._abortController = abortController;
+        this._isLoading = true;
+        this._refresh();
+        try {
+            await this._onClick(abortController.signal);
+            this.toggle(false);
+        }
+        catch (error) {
+            if (isAbortError(error) || abortController.signal.aborted) {
+                this._log(i18n.SUMMARY_CANCELLED, "warn");
+            }
+            else if (typeof error === "string" || error instanceof Error) {
+                this._log(getErrorMessage(error));
+            }
+            else {
+                console.error(LOG_PREFIX, error);
+            }
+        }
+        finally {
+            this._abortController = undefined;
+            this._isLoading = false;
+            this._refresh();
         }
     }
-    _refresh() {
-        this._remove();
+    /**
+     * Discord re-renders its toolbar regularly. The stale React root has to be released, otherwise every re-render
+     * leaks a root and a DOM observer.
+     */
+    _onNodeRemoved() {
+        this._disposeRoot();
         this._add();
+    }
+    _refresh() {
+        if (this._root) {
+            this._root.render(this._renderButton());
+        }
+        else {
+            this._add();
+        }
+    }
+    _remove() {
+        const node = this._node ?? document.getElementById(this._id);
+        this._disposeRoot();
+        node?.remove();
+    }
+    _disposeRoot() {
+        const root = this._root;
+        this._removeListener?.();
+        this._removeListener = undefined;
+        this._root = undefined;
+        this._node = undefined;
+        // Unmounting synchronously from a React event handler triggers a warning, so it is deferred
+        if (root) {
+            setTimeout(() => root.unmount(), 0);
+        }
     }
 }
 
@@ -27049,30 +27470,41 @@ class UnreadMessage {
         return this._fetchAllMessagesAfter(channelId, latestMessage);
     }
     async _fetchAllMessagesBefore(channelId, oldestMessage) {
-        const messages = this._messageStore.getMessages(channelId);
-        const firstCurrentMessage = messages.first().id;
-        // The second condition is a security to avoid infinite loop if the oldest message has been deleted
-        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstCurrentMessage, oldestMessage) === oldestMessage) {
-            await this._messageActions.fetchMessages({ channelId, limit: 100, before: firstCurrentMessage });
-            const newMessages = this._messageStore.getMessages(channelId);
-            if (newMessages.first().id === firstCurrentMessage) {
+        let messages = this._messageStore.getMessages(channelId);
+        // Bounded loop: a huge unread gap must not turn into an endless chain of requests
+        for (let page = 0; page < MESSAGES_FETCH_MAX_PAGES; page++) {
+            const firstCurrentMessage = messages.length ? messages.first().id : undefined;
+            // The last condition is a security to avoid an infinite loop if the oldest message has been deleted
+            if (!firstCurrentMessage ||
+                messages.some((message) => message.id === oldestMessage) ||
+                getOldestId(firstCurrentMessage, oldestMessage) !== oldestMessage) {
                 return messages;
             }
-            return this._fetchAllMessagesBefore(channelId, oldestMessage);
+            await this._messageActions.fetchMessages({ channelId, limit: MESSAGES_FETCH_LIMIT, before: firstCurrentMessage });
+            messages = this._messageStore.getMessages(channelId);
+            if (!messages.length || messages.first().id === firstCurrentMessage) {
+                return messages;
+            }
         }
+        console.warn(LOG_PREFIX, `Stopped fetching after ${MESSAGES_FETCH_MAX_PAGES} pages before ${oldestMessage}`);
         return messages;
     }
     async _fetchAllMessagesAfter(channelId, lastMessage) {
-        const messages = this._messageStore.getMessages(channelId);
-        const lastCurrentMessage = messages.last().id;
-        if (!messages.some((message) => message.id === lastMessage) && getOldestId(lastCurrentMessage, lastMessage) === lastCurrentMessage) {
-            await this._messageActions.fetchMessages({ channelId, limit: 100, after: lastCurrentMessage });
-            const newMessages = this._messageStore.getMessages(channelId);
-            if (newMessages.last().id === lastCurrentMessage) {
+        let messages = this._messageStore.getMessages(channelId);
+        for (let page = 0; page < MESSAGES_FETCH_MAX_PAGES; page++) {
+            const lastCurrentMessage = messages.length ? messages.last().id : undefined;
+            if (!lastCurrentMessage ||
+                messages.some((message) => message.id === lastMessage) ||
+                getOldestId(lastCurrentMessage, lastMessage) !== lastCurrentMessage) {
                 return messages;
             }
-            return this._fetchAllMessagesAfter(channelId, lastMessage);
+            await this._messageActions.fetchMessages({ channelId, limit: MESSAGES_FETCH_LIMIT, after: lastCurrentMessage });
+            messages = this._messageStore.getMessages(channelId);
+            if (!messages.length || messages.last().id === lastCurrentMessage) {
+                return messages;
+            }
         }
+        console.warn(LOG_PREFIX, `Stopped fetching after ${MESSAGES_FETCH_MAX_PAGES} pages after ${lastMessage}`);
         return messages;
     }
 }
@@ -27175,6 +27607,7 @@ class BDiscordAI {
     _updateManager;
     _summaryButton;
     _unreadMessages;
+    _sensitiveContentGuard;
     _listeningEvents = [
         "CHANNEL_SELECT",
         "MESSAGE_CREATE",
@@ -27183,8 +27616,6 @@ class BDiscordAI {
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
     ];
-    _lastVisitedChannels = new Set();
-    _isSensitiveMessageCheck = new Set();
     _closeApiKeyNotice;
     start() {
         console.warn(LOG_PREFIX, "Started");
@@ -27200,13 +27631,20 @@ class BDiscordAI {
         this._updateManager = new UpdateManager(this._log.bind(this));
         this._summaryButton = new SummaryButton(this._log.bind(this), this._summarize.bind(this));
         this._unreadMessages = new UnreadMessage(this._selectedGuildStore, this._guildMemberStore, this._selectedChannelStore, this._readStateStore, this._messageStore, this._messageActions);
+        this._sensitiveContentGuard = new SensitiveContentGuard(this._log.bind(this), {
+            userStore: this._userStore,
+            guildMemberStore: this._guildMemberStore,
+            selectedGuildStore: this._selectedGuildStore,
+            selectedChannelStore: this._selectedChannelStore,
+            messageStore: this._messageStore
+        });
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
-        if (!getSetting(SETTING_GOOGLE_API_KEY)?.trim().length) {
+        if (!getSetting(SETTING_GOOGLE_API_KEY).trim().length) {
             this._showAddApiKeyNotice();
         }
         else {
-            new GeminiAi(this._log.bind(this)).purgeMedias();
+            new GeminiAi(this._log.bind(this)).purgeMedias().catch((error) => console.error(LOG_PREFIX, "Failed to purge medias", error));
         }
         if (getSetting(SETTING_CHECK_UPDATES)) {
             this._updateManager.ask();
@@ -27216,9 +27654,9 @@ class BDiscordAI {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
         this._closeApiKeyNotice = undefined;
-        this._isSensitiveMessageCheck.clear();
+        this._sensitiveContentGuard?.stop();
         this._unsubscribeEvents();
-        BdApi.Patcher.unpatchAll(getConfig().name);
+        BdApi.Patcher.unpatchAll(PLUGIN_NAME);
         this._updateManager?.cancel();
         console.warn(LOG_PREFIX, "Stopped");
     }
@@ -27226,7 +27664,7 @@ class BDiscordAI {
         return BdApi.UI.buildSettingsPanel({
             settings: getConfig().settings,
             onChange: (_category, id, value) => {
-                BdApi.Data.save(getConfig().name, id, value);
+                saveSetting(id, value);
                 if (this._closeApiKeyNotice && id === SETTING_GOOGLE_API_KEY) {
                     this._closeApiKeyNotice();
                     this._closeApiKeyNotice = undefined;
@@ -27250,7 +27688,7 @@ class BDiscordAI {
             buttons: [
                 {
                     label: i18n.ADD,
-                    onClick: () => BdApi.UI.showConfirmationModal(`${getConfig().name} Settings`, BdApi.React.createElement("div", {
+                    onClick: () => BdApi.UI.showConfirmationModal(`${PLUGIN_NAME} Settings`, BdApi.React.createElement("div", {
                         className: "bd-addon-settings-wrap",
                         children: this.getSettingsPanel()
                     }), { className: "bd-addon-modal", size: "bd-modal-medium", cancelText: null, confirmText: i18n.DONE })
@@ -27274,18 +27712,23 @@ class BDiscordAI {
                     if (event.channelId === selectedChannelId) {
                         this._enableSummaryButtonIfNeeded(selectedChannelId);
                     }
-                    this._checkSensitiveContent(event.message);
+                    this._sensitiveContentGuard?.handleMessage(event.message);
                     break;
                 case "MESSAGE_UPDATE":
-                    this._checkSensitiveContent(event.message);
+                    this._sensitiveContentGuard?.handleMessage(event.message);
                     break;
                 case "CHANNEL_SELECT":
                     if (event.channelId === selectedChannelId) {
-                        this._lastVisitedChannels.add(selectedChannelId);
+                        this._sensitiveContentGuard?.markChannelVisited(selectedChannelId);
+                    }
+                // falls through
+                case "LOAD_MESSAGES_SUCCESS":
+                    if (event.channelId === selectedChannelId) {
+                        // Medias posted before the channel was opened are checked too, not only the incoming ones
+                        this._sensitiveContentGuard?.handleChannelMessages(selectedChannelId);
                     }
                 // falls through
                 case "MESSAGE_DELETE":
-                case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
                     if (event.channelId === selectedChannelId) {
                         this._enableSummaryButtonIfNeeded(selectedChannelId);
@@ -27297,7 +27740,7 @@ class BDiscordAI {
             }
         }
         catch (error) {
-            this._log(typeof error === "string" ? error : error.message);
+            this._log(getErrorMessage(error));
         }
     }
     _enableSummaryButtonIfNeeded(channelId) {
@@ -27308,27 +27751,31 @@ class BDiscordAI {
             }
         }, 0);
     }
-    async _summarize() {
+    async _summarize(abortSignal) {
         if (!this._selectedGuildStore || !this._selectedChannelStore || !this._unreadMessages || !this._userStore || !this._messageActions)
-            throw "Fail to get stores";
+            throw new Error("Fail to get stores");
         const guildId = this._selectedGuildStore.getGuildId();
         const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
+        if (!channelId)
+            throw new Error("Fail to get metadata");
         const { referenceMessage, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
         const user = this._userStore.getCurrentUser();
-        if (!channelId)
-            throw "Fail to get metadata";
+        if (!unreadMessages.length)
+            throw new Error(i18n.NO_UNREAD_MESSAGES);
         const failedMediasMetadata = await fetchMediasMetadata(unreadMessages);
         if (failedMediasMetadata.length) {
             this._log("Failed to fetch medias metadata");
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
-        const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages);
+        const model = new GeminiAi(this._log.bind(this));
+        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages, abortSignal);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message = undefined;
         let lastRefreshTime = 0;
         let isRefreshPending = false;
         for await (const chunk of summaryStream) {
+            if (abortSignal.aborted)
+                break;
             const finishReason = chunk.candidates?.[0]?.finishReason;
             const chunkText = chunk.text;
             if (finishReason && finishReason !== FinishReason.STOP) {
@@ -27364,7 +27811,7 @@ class BDiscordAI {
                         this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
                     }
                     catch (error) {
-                        this._log(typeof error === "string" ? error : error.message);
+                        this._log(getErrorMessage(error));
                     }
                 }
             }
@@ -27372,6 +27819,8 @@ class BDiscordAI {
         if (message && isRefreshPending) {
             this._refreshMessageContent(message);
         }
+        // Keeps the partial summary on screen but reports the cancellation to the button
+        abortSignal.throwIfAborted();
     }
     /**
      * Discord drops an optimistic MESSAGE_CREATE as soon as the message id is already in the channel, so calling
@@ -27384,64 +27833,6 @@ class BDiscordAI {
             channelId: message.channel_id,
             message
         });
-    }
-    async _checkSensitiveContent(discordMessage) {
-        if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore)
-            throw "Fail to get stores";
-        if (this._userStore.getCurrentUser().id === discordMessage.author.id ||
-            !this._lastVisitedChannels.has(discordMessage.channel_id) ||
-            ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
-                !discordMessage.embeds?.length) ||
-            this._isSensitiveMessageCheck.has(discordMessage.id))
-            return;
-        const panicMode = getSetting(SETTING_SENSITIVE_PANIC_MODE);
-        const settingEmetophobia = getSetting(SETTING_EMETOPHOBIA_MODE);
-        const settingArachnophobia = getSetting(SETTING_ARACHNOPHOBIA_MODE);
-        const settingEpilepsy = getSetting(SETTING_EPILEPSY_MODE);
-        const settingSexuality = getSetting(SETTING_SEXUALITY_MODE);
-        const backup = { attachments: {}, embeds: [] };
-        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality)
-            return;
-        const toggleSensitiveContent = (toggle) => {
-            const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
-            if (sensitiveMessage) {
-                if (toggle) {
-                    sensitiveMessage.attachments?.forEach((attachment) => {
-                        backup.attachments[attachment.id] = attachment.spoiler;
-                        attachment.spoiler = true;
-                    });
-                    if (sensitiveMessage.embeds?.length) {
-                        backup.embeds = [...sensitiveMessage.embeds];
-                        sensitiveMessage.embeds = [];
-                    }
-                }
-                else {
-                    sensitiveMessage.attachments?.forEach((attachment) => (attachment.spoiler = backup.attachments[attachment.id] ?? false));
-                    sensitiveMessage.embeds = backup.embeds;
-                }
-                if (this._selectedChannelStore?.getCurrentlySelectedChannelId() === sensitiveMessage.channel_id) {
-                    forceReloadMessages();
-                }
-            }
-        };
-        this._isSensitiveMessageCheck.add(discordMessage.id);
-        if (panicMode) {
-            toggleSensitiveContent(true);
-        }
-        const messages = mapMessages({ selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore }, [discordMessage]);
-        await fetchMediasMetadata(messages);
-        const isSensitive = await new GeminiAi(this._log).isSensitiveContent(messages);
-        if ((settingEmetophobia && isSensitive?.isEmetophobia) ||
-            (settingArachnophobia && isSensitive?.isArachnophobia) ||
-            (settingEpilepsy && isSensitive?.isEpileptic) ||
-            (settingSexuality && isSensitive?.isSexual)) {
-            if (!panicMode) {
-                toggleSensitiveContent(true);
-            }
-        }
-        else if (panicMode) {
-            toggleSensitiveContent(false);
-        }
     }
 }
 
