@@ -1,21 +1,10 @@
 import { FinishReason } from "@google/genai";
-import { DiscordMessageFlags, LOG_PREFIX, SUMMARY_STREAM_REFRESH_DELAY } from "./constants";
-import { forceReloadMessages } from "./domUtils";
+import { DiscordMessageFlags, LOG_PREFIX, PLUGIN_NAME, SUMMARY_STREAM_REFRESH_DELAY } from "./constants";
 import { GeminiAi } from "./geminiAi";
 import { i18n, setLocale } from "./i18n";
 import { fetchMediasMetadata } from "./medias";
-import {
-    getConfig,
-    getSetting,
-    SETTING_ARACHNOPHOBIA_MODE,
-    SETTING_CHECK_UPDATES,
-    SETTING_EMETOPHOBIA_MODE,
-    SETTING_EPILEPSY_MODE,
-    SETTING_GOOGLE_API_KEY,
-    SETTING_JUMP_TO_MESSAGE,
-    SETTING_SENSITIVE_PANIC_MODE,
-    SETTING_SEXUALITY_MODE
-} from "./settings";
+import { SensitiveContentGuard } from "./sensitiveContent";
+import { getConfig, getSetting, saveSetting, SETTING_CHECK_UPDATES, SETTING_GOOGLE_API_KEY, SETTING_JUMP_TO_MESSAGE } from "./settings";
 import { SummaryButton } from "./summaryButton";
 import {
     DiscordEvent,
@@ -23,7 +12,6 @@ import {
     DiscordEventType,
     DiscordEventUpdateMessage,
     DiscordMessage,
-    DiscordMessageEmbed,
     GuildMemberStore,
     LogLevel,
     MessageActions,
@@ -35,7 +23,7 @@ import {
 } from "./types";
 import { UnreadMessage } from "./unreadMessages";
 import { UpdateManager } from "./updates";
-import { createMessage, generateMessageId, mapMessages } from "./utils";
+import { createMessage, generateMessageId, getErrorMessage } from "./utils";
 
 export default class BDiscordAI {
     private _userStore?: UserStore;
@@ -51,6 +39,7 @@ export default class BDiscordAI {
     private _updateManager?: UpdateManager;
     private _summaryButton?: SummaryButton;
     private _unreadMessages?: UnreadMessage;
+    private _sensitiveContentGuard?: SensitiveContentGuard;
     private _listeningEvents: Array<DiscordEventType> = [
         "CHANNEL_SELECT",
         "MESSAGE_CREATE",
@@ -59,8 +48,6 @@ export default class BDiscordAI {
         "LOAD_MESSAGES_SUCCESS",
         "MESSAGE_ACK"
     ];
-    private _lastVisitedChannels = new Set<string>();
-    private _isSensitiveMessageCheck = new Set<string>();
     private _closeApiKeyNotice?: () => void;
 
     start() {
@@ -85,14 +72,21 @@ export default class BDiscordAI {
             this._messageStore,
             this._messageActions
         );
+        this._sensitiveContentGuard = new SensitiveContentGuard(this._log.bind(this), {
+            userStore: this._userStore,
+            guildMemberStore: this._guildMemberStore,
+            selectedGuildStore: this._selectedGuildStore,
+            selectedChannelStore: this._selectedChannelStore,
+            messageStore: this._messageStore
+        });
 
         this._subscribeEvents();
         this._enableSummaryButtonIfNeeded();
 
-        if (!getSetting<string>(SETTING_GOOGLE_API_KEY)?.trim().length) {
+        if (!getSetting<string>(SETTING_GOOGLE_API_KEY).trim().length) {
             this._showAddApiKeyNotice();
         } else {
-            new GeminiAi(this._log.bind(this)).purgeMedias();
+            new GeminiAi(this._log.bind(this)).purgeMedias().catch((error) => console.error(LOG_PREFIX, "Failed to purge medias", error));
         }
 
         if (getSetting<boolean>(SETTING_CHECK_UPDATES)) {
@@ -104,10 +98,10 @@ export default class BDiscordAI {
         this._summaryButton?.toggle(false);
         this._closeApiKeyNotice?.();
         this._closeApiKeyNotice = undefined;
-        this._isSensitiveMessageCheck.clear();
+        this._sensitiveContentGuard?.stop();
 
         this._unsubscribeEvents();
-        BdApi.Patcher.unpatchAll(getConfig().name);
+        BdApi.Patcher.unpatchAll(PLUGIN_NAME);
         this._updateManager?.cancel();
         console.warn(LOG_PREFIX, "Stopped");
     }
@@ -116,7 +110,7 @@ export default class BDiscordAI {
         return BdApi.UI.buildSettingsPanel({
             settings: getConfig().settings,
             onChange: (_category, id, value) => {
-                BdApi.Data.save(getConfig().name, id, value);
+                saveSetting(id, value);
                 if (this._closeApiKeyNotice && id === SETTING_GOOGLE_API_KEY) {
                     this._closeApiKeyNotice();
                     this._closeApiKeyNotice = undefined;
@@ -144,7 +138,7 @@ export default class BDiscordAI {
                     label: i18n.ADD,
                     onClick: () =>
                         BdApi.UI.showConfirmationModal(
-                            `${getConfig().name} Settings`,
+                            `${PLUGIN_NAME} Settings`,
                             BdApi.React.createElement("div", {
                                 className: "bd-addon-settings-wrap",
                                 children: this.getSettingsPanel()
@@ -174,21 +168,27 @@ export default class BDiscordAI {
                     if (event.channelId === selectedChannelId) {
                         this._enableSummaryButtonIfNeeded(selectedChannelId);
                     }
-                    this._checkSensitiveContent((event as DiscordEventCreateMessage).message);
+                    this._sensitiveContentGuard?.handleMessage((event as DiscordEventCreateMessage).message);
                     break;
 
                 case "MESSAGE_UPDATE":
-                    this._checkSensitiveContent((event as DiscordEventUpdateMessage).message);
+                    this._sensitiveContentGuard?.handleMessage((event as DiscordEventUpdateMessage).message);
                     break;
 
                 case "CHANNEL_SELECT":
                     if (event.channelId === selectedChannelId) {
-                        this._lastVisitedChannels.add(selectedChannelId);
+                        this._sensitiveContentGuard?.markChannelVisited(selectedChannelId);
+                    }
+                // falls through
+
+                case "LOAD_MESSAGES_SUCCESS":
+                    if (event.channelId === selectedChannelId) {
+                        // Medias posted before the channel was opened are checked too, not only the incoming ones
+                        this._sensitiveContentGuard?.handleChannelMessages(selectedChannelId);
                     }
                 // falls through
 
                 case "MESSAGE_DELETE":
-                case "LOAD_MESSAGES_SUCCESS":
                 case "MESSAGE_ACK":
                     if (event.channelId === selectedChannelId) {
                         this._enableSummaryButtonIfNeeded(selectedChannelId);
@@ -199,7 +199,7 @@ export default class BDiscordAI {
                     break;
             }
         } catch (error) {
-            this._log(typeof error === "string" ? error : (error as Error).message);
+            this._log(getErrorMessage(error));
         }
     }
 
@@ -213,29 +213,32 @@ export default class BDiscordAI {
         }, 0);
     }
 
-    private async _summarize() {
+    private async _summarize(abortSignal: AbortSignal) {
         if (!this._selectedGuildStore || !this._selectedChannelStore || !this._unreadMessages || !this._userStore || !this._messageActions)
-            throw "Fail to get stores";
+            throw new Error("Fail to get stores");
         const guildId = this._selectedGuildStore.getGuildId();
         const channelId = this._selectedChannelStore.getCurrentlySelectedChannelId();
+
+        if (!channelId) throw new Error("Fail to get metadata");
         const { referenceMessage, unreadMessages } = await this._unreadMessages.getUnreadMessages(channelId);
         const user = this._userStore.getCurrentUser();
 
-        if (!channelId) throw "Fail to get metadata";
+        if (!unreadMessages.length) throw new Error(i18n.NO_UNREAD_MESSAGES);
         const failedMediasMetadata = await fetchMediasMetadata(unreadMessages);
         if (failedMediasMetadata.length) {
             this._log("Failed to fetch medias metadata");
             console.error(LOG_PREFIX, failedMediasMetadata);
         }
 
-        const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages);
+        const model = new GeminiAi(this._log.bind(this));
+        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages, abortSignal);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
         let lastRefreshTime = 0;
         let isRefreshPending = false;
 
         for await (const chunk of summaryStream) {
+            if (abortSignal.aborted) break;
             const finishReason = chunk.candidates?.[0]?.finishReason;
             const chunkText = chunk.text;
 
@@ -272,7 +275,7 @@ export default class BDiscordAI {
                     try {
                         this._messageActions.jumpToMessage({ channelId, messageId: message.id, skipLocalFetch: true });
                     } catch (error) {
-                        this._log(typeof error === "string" ? error : (error as Error).message);
+                        this._log(getErrorMessage(error));
                     }
                 }
             }
@@ -281,6 +284,8 @@ export default class BDiscordAI {
         if (message && isRefreshPending) {
             this._refreshMessageContent(message);
         }
+        // Keeps the partial summary on screen but reports the cancellation to the button
+        abortSignal.throwIfAborted();
     }
 
     /**
@@ -294,69 +299,5 @@ export default class BDiscordAI {
             channelId: message.channel_id,
             message
         });
-    }
-
-    private async _checkSensitiveContent(discordMessage: DiscordMessage) {
-        if (!this._userStore || !this._selectedGuildStore || !this._guildMemberStore) throw "Fail to get stores";
-        if (
-            this._userStore.getCurrentUser().id === discordMessage.author.id ||
-            !this._lastVisitedChannels.has(discordMessage.channel_id) ||
-            ((!discordMessage.attachments?.length || discordMessage.attachments.every((attachment) => attachment.spoiler)) &&
-                !discordMessage.embeds?.length) ||
-            this._isSensitiveMessageCheck.has(discordMessage.id)
-        )
-            return;
-        const panicMode = getSetting<boolean>(SETTING_SENSITIVE_PANIC_MODE);
-        const settingEmetophobia = getSetting<boolean>(SETTING_EMETOPHOBIA_MODE);
-        const settingArachnophobia = getSetting<boolean>(SETTING_ARACHNOPHOBIA_MODE);
-        const settingEpilepsy = getSetting<boolean>(SETTING_EPILEPSY_MODE);
-        const settingSexuality = getSetting<boolean>(SETTING_SEXUALITY_MODE);
-        const backup: { attachments: Record<string, boolean>; embeds: Array<DiscordMessageEmbed> } = { attachments: {}, embeds: [] };
-
-        if (!settingEmetophobia && !settingArachnophobia && !settingEpilepsy && !settingSexuality) return;
-
-        const toggleSensitiveContent = (toggle: boolean) => {
-            const sensitiveMessage = this._messageStore?.getMessage(discordMessage.channel_id, discordMessage.id);
-
-            if (sensitiveMessage) {
-                if (toggle) {
-                    sensitiveMessage.attachments?.forEach((attachment) => {
-                        backup.attachments[attachment.id] = attachment.spoiler;
-                        attachment.spoiler = true;
-                    });
-                    if (sensitiveMessage.embeds?.length) {
-                        backup.embeds = [...sensitiveMessage.embeds];
-                        sensitiveMessage.embeds = [];
-                    }
-                } else {
-                    sensitiveMessage.attachments?.forEach((attachment) => (attachment.spoiler = backup.attachments[attachment.id] ?? false));
-                    sensitiveMessage.embeds = backup.embeds;
-                }
-                if (this._selectedChannelStore?.getCurrentlySelectedChannelId() === sensitiveMessage.channel_id) {
-                    forceReloadMessages();
-                }
-            }
-        };
-
-        this._isSensitiveMessageCheck.add(discordMessage.id);
-        if (panicMode) {
-            toggleSensitiveContent(true);
-        }
-        const messages = mapMessages({ selectedGuildStore: this._selectedGuildStore, guildMemberStore: this._guildMemberStore }, [discordMessage]);
-        await fetchMediasMetadata(messages);
-        const isSensitive = await new GeminiAi(this._log).isSensitiveContent(messages);
-
-        if (
-            (settingEmetophobia && isSensitive?.isEmetophobia) ||
-            (settingArachnophobia && isSensitive?.isArachnophobia) ||
-            (settingEpilepsy && isSensitive?.isEpileptic) ||
-            (settingSexuality && isSensitive?.isSexual)
-        ) {
-            if (!panicMode) {
-                toggleSensitiveContent(true);
-            }
-        } else if (panicMode) {
-            toggleSensitiveContent(false);
-        }
     }
 }

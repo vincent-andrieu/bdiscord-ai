@@ -35,6 +35,9 @@ export const fr = {
     SETTING_CHECK_UPDATES: "Vérifier les mises à jour",
     SETTING_CHECK_UPDATES_NOTE: "Vérifier les mises à jour au démarrage du plugin",
     SUMMARY_BUTTON: "Résumer",
+    SUMMARY_BUTTON_STOP: "Arrêter",
+    SUMMARY_CANCELLED: "Résumé annulé",
+    NO_UNREAD_MESSAGES: "Aucun message non lu à résumer",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:
             "Tu es une IA qui permet à l'utilisateur de résumer des messages, des images, des vidéos et des audios sur la messagerie Discord par thématiques de manière concise. Ta réponse est au format markdown.",

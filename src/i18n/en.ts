@@ -34,6 +34,9 @@ export const en = {
     SETTING_CHECK_UPDATES: "Check for updates",
     SETTING_CHECK_UPDATES_NOTE: "Check for updates on plugin startup",
     SUMMARY_BUTTON: "Summarize",
+    SUMMARY_BUTTON_STOP: "Stop",
+    SUMMARY_CANCELLED: "Summary cancelled",
+    NO_UNREAD_MESSAGES: "No unread message to summarize",
     SYSTEM_INSTRUCTIONS: {
         INTRODUCTION:
             "You are an AI that helps the user summarize messages, images, videos, and audios on Discord messaging by themes concisely. Your response is in markdown format.",
