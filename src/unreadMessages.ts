@@ -1,3 +1,4 @@
+import { LOG_PREFIX, MESSAGES_FETCH_LIMIT, MESSAGES_FETCH_MAX_PAGES } from "./constants";
 import { getSetting, SETTING_SUMMARY_MIN_LENGTH } from "./settings";
 import {
     DiscordChannelMessages,
@@ -91,35 +92,52 @@ export class UnreadMessage {
     }
 
     private async _fetchAllMessagesBefore(channelId: string, oldestMessage: string): Promise<DiscordChannelMessages> {
-        const messages = this._messageStore.getMessages(channelId);
-        const firstCurrentMessage = messages.first().id;
+        let messages = this._messageStore.getMessages(channelId);
 
-        // The second condition is a security to avoid infinite loop if the oldest message has been deleted
-        if (!messages.some((message) => message.id === oldestMessage) && getOldestId(firstCurrentMessage, oldestMessage) === oldestMessage) {
-            await this._messageActions.fetchMessages({ channelId, limit: 100, before: firstCurrentMessage });
-            const newMessages = this._messageStore.getMessages(channelId);
+        // Bounded loop: a huge unread gap must not turn into an endless chain of requests
+        for (let page = 0; page < MESSAGES_FETCH_MAX_PAGES; page++) {
+            const firstCurrentMessage = messages.length ? messages.first().id : undefined;
 
-            if (newMessages.first().id === firstCurrentMessage) {
+            // The last condition is a security to avoid an infinite loop if the oldest message has been deleted
+            if (
+                !firstCurrentMessage ||
+                messages.some((message) => message.id === oldestMessage) ||
+                getOldestId(firstCurrentMessage, oldestMessage) !== oldestMessage
+            ) {
                 return messages;
             }
-            return this._fetchAllMessagesBefore(channelId, oldestMessage);
+            await this._messageActions.fetchMessages({ channelId, limit: MESSAGES_FETCH_LIMIT, before: firstCurrentMessage });
+            messages = this._messageStore.getMessages(channelId);
+
+            if (!messages.length || messages.first().id === firstCurrentMessage) {
+                return messages;
+            }
         }
+        console.warn(LOG_PREFIX, `Stopped fetching after ${MESSAGES_FETCH_MAX_PAGES} pages before ${oldestMessage}`);
         return messages;
     }
 
     private async _fetchAllMessagesAfter(channelId: string, lastMessage: string): Promise<DiscordChannelMessages> {
-        const messages = this._messageStore.getMessages(channelId);
-        const lastCurrentMessage = messages.last().id;
+        let messages = this._messageStore.getMessages(channelId);
 
-        if (!messages.some((message) => message.id === lastMessage) && getOldestId(lastCurrentMessage, lastMessage) === lastCurrentMessage) {
-            await this._messageActions.fetchMessages({ channelId, limit: 100, after: lastCurrentMessage });
-            const newMessages = this._messageStore.getMessages(channelId);
+        for (let page = 0; page < MESSAGES_FETCH_MAX_PAGES; page++) {
+            const lastCurrentMessage = messages.length ? messages.last().id : undefined;
 
-            if (newMessages.last().id === lastCurrentMessage) {
+            if (
+                !lastCurrentMessage ||
+                messages.some((message) => message.id === lastMessage) ||
+                getOldestId(lastCurrentMessage, lastMessage) !== lastCurrentMessage
+            ) {
                 return messages;
             }
-            return this._fetchAllMessagesAfter(channelId, lastMessage);
+            await this._messageActions.fetchMessages({ channelId, limit: MESSAGES_FETCH_LIMIT, after: lastCurrentMessage });
+            messages = this._messageStore.getMessages(channelId);
+
+            if (!messages.length || messages.last().id === lastCurrentMessage) {
+                return messages;
+            }
         }
+        console.warn(LOG_PREFIX, `Stopped fetching after ${MESSAGES_FETCH_MAX_PAGES} pages after ${lastMessage}`);
         return messages;
     }
 }
