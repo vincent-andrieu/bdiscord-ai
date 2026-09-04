@@ -145,7 +145,7 @@ export type MessageStore = {
 };
 
 export type GuildMemberStore = {
-    getMember(guildId: string, userId: string): DiscordGuildMember | undefined;
+    getMember(guildId: string | null, userId: string): DiscordGuildMember | undefined;
 };
 
 export type GuildStore = {
@@ -154,7 +154,7 @@ export type GuildStore = {
 };
 
 export type SelectedGuildStore = {
-    getGuildId(): string;
+    getGuildId(): string | null;
 };
 
 export type EmojiStore = {

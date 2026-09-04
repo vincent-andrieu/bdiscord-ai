@@ -65,7 +65,7 @@ export function createMessage({
     reply,
     components
 }: {
-    guildId: string;
+    guildId: string | null;
     channelId: string;
     previousMessageId?: string;
     id?: string;
@@ -80,12 +80,13 @@ export function createMessage({
     }
     const messageReference = reply
         ? {
-              guild_id: guildId,
+              guild_id: guildId ?? undefined,
               channel_id: channelId,
               message_id: reply.id,
               type: 0
           }
         : undefined;
+
     return {
         id,
         author,

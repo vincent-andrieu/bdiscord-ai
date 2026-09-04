@@ -229,7 +229,7 @@ export default class BDiscordAI {
         }
 
         const model = new GeminiAi(this._log);
-        const summaryStream = await model.summarizeMessages(guildId, channelId, unreadMessages);
+        const summaryStream = await model.summarizeMessages(guildId || "@me", channelId, unreadMessages);
         const previousMessageId = unreadMessages[unreadMessages.length - 1].id;
         let message: DiscordMessage | undefined = undefined;
         let lastRefreshTime = 0;

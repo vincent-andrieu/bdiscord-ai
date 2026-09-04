@@ -223,13 +223,13 @@ export type DiscordMessage = {
     mentioned: boolean;
     mentions: any[]; // Replace 'any' with the appropriate type if known
     messageReference?: {
-        guild_id: string;
+        guild_id?: string;
         channel_id: string;
         message_id: string;
         type: number;
     };
     message_reference?: {
-        guild_id: string;
+        guild_id?: string;
         channel_id: string;
         message_id: string;
         type: number;
@@ -479,7 +479,7 @@ export type DiscordEmoji = {
 export type MessageActions = {
     fetchMessages: (params: { channelId: string; limit: number; before?: string; after?: string }) => Promise<Array<DiscordMessage>>;
     receiveMessage: (channelId: string, message: DiscordMessage, optimistic?: boolean, options?: { messageReference?: {
-        guild_id: string;
+        guild_id?: string;
         channel_id: string;
         message_id: string;
     } }) => void;
